@@ -1,5 +1,12 @@
-resources/
-docs/
-*.jpeg
-*.pptx
-*.pdf
+# Patterns anchored to the repo root (unanchored "resources/" also matched
+# apps/web/src/app/(portal)/resources and broke the Vercel build).
+/docs/
+/resources/
+/*.jpeg
+/*.pptx
+/*.pdf
+# Never upload local env files (secrets stay in Vercel project settings).
+**/.env
+**/.env.*
+!/.env.example
+!/.env.offline.example
