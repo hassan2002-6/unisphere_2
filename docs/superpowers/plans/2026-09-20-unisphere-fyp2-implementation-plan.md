@@ -562,3 +562,37 @@ Prototype data fixtures: FYP apps (3), resource requests (2), allocations (1), l
 ## Appendix D — Survey digest (report pages 45–54, n=71–74)
 
 Top pain: timetable/exam clashes (~45–55%) and course-selection confusion (~41%); 56% juggle multiple platforms; 42–45% strongly agree a centralized system helps; 87% want a say in elective selection; alumni-mentorship interest high (≥70%); 71.6% would use the platform; free-text asks: central notifications/reminders, alumni module, FYP-partner finder, notes/marketplace (marketplace stays out of scope).
+
+## Appendix E — Implementation status log (amendment, 2026-09-24)
+
+**Scope note:** no scope changes. This appendix reconciles implementation detail with §6.4's
+indicative route map and records milestone status honestly.
+
+**Milestones:** M0 spikes ✅ (Vercel prod deploys, Clerk proxy + auth wall verified live, Neon
+project pending API key, AI provider key pending). M1 foundation ✅ (26 models + migrations +
+FTS, 685-line idempotent seed, RBAC matrix, portal shell, CI). M2 core ✅ (timetable/exams/clash,
+notifications + broadcast, forms centre, complaint box). M3 showcase ✅ (FYP workflow,
+request→recommend→allocate with guarded decrement, labs/inventory CRUD, reports + CSV).
+M4 ✅ (internships, mentorship incl. sessions). M5 ✅ (provider-agnostic adapter, Postgres-FTS
+retrieval + personal context, chat UI, 33-question eval suite). M6 🔄 hardening (security suite
+✅ — RBAC matrix exhaustive + static guard scan; offline kit + demo script ✅; live-DB
+integration tests + last-GPU race PENDING until Neon connects; screenshots/recording PENDING).
+
+**Route-map additions (implementation detail of §6.4 intent, not scope growth):**
+`/submissions/[id]` and `/complaints/[id]` (tracking detail pages required by the "file and
+track" flows), `/chat?s=` (session selection on the single /chat route), `/mentor` console,
+`/admin/{labs,inventory,mentors,internships,fyp,requests,allocations,reports,broadcast}` admin
+screens behind capabilities, `/api/reports/summary?format=csv|json` (the §6.3 reports endpoint),
+`/coordinator/approvals` + `/coordinator/faculty`.
+
+**Deliberate omissions/deviations:** `Lab.location` dropped from CRUD (not in §6.1 data model —
+schema is authority); attendance/results/fees/events remain out per the deck. Toolchain
+amendment (bun/turbo/oxc) was recorded earlier in §7 and holds.
+
+**Verification evidence:** `bun run lint|typecheck|test|build` all green; 235 tests (rbac, clash,
+status, validation, ai, security); production deploy current on Vercel with Clerk env live.
+
+**Pending external inputs:** Neon API key (unblocks `migrate deploy`, seed, integration +
+concurrency tests), Groq API key (full AI answers; canned fallback works meanwhile), Vercel
+deployment-protection toggle (dashboard approval), real-profile browser E2E (Playwright CDN
+blocked — using `channel: "chrome"`).
