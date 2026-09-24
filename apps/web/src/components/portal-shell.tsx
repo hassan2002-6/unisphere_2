@@ -12,9 +12,11 @@ import { ROLE_LABELS, type Role } from "@/lib/rbac";
 
 export function PortalShell({
   user,
+  unreadCount,
   children,
 }: {
   user: { name: string; email: string; role: Role };
+  unreadCount: number;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -77,8 +79,13 @@ export function PortalShell({
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" aria-label="Notifications" asChild>
-              <Link href="/notifications">
+              <Link href="/notifications" className="relative">
                 <Bell className="h-4 w-4" />
+                {unreadCount > 0 ? (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-white">
+                    {unreadCount > 99 ? "99+" : unreadCount}
+                  </span>
+                ) : null}
               </Link>
             </Button>
             <UserButton />

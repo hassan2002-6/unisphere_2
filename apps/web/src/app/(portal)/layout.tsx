@@ -1,12 +1,22 @@
 import { requireUser } from "@/lib/auth";
+import { getUnreadCount } from "@/server/services/notifications";
 import { PortalShell } from "@/components/portal-shell";
 
 export const dynamic = "force-dynamic";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser();
+  let unreadCount = 0;
+  try {
+    unreadCount = await getUnreadCount(user.id);
+  } catch {
+    unreadCount = 0; // DB down → no badge, page content explains
+  }
   return (
-    <PortalShell user={{ name: user.name, email: user.email, role: user.role }}>
+    <PortalShell
+      user={{ name: user.name, email: user.email, role: user.role }}
+      unreadCount={unreadCount}
+    >
       {children}
     </PortalShell>
   );
