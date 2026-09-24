@@ -145,6 +145,7 @@ model StudentProfile {
   userId   String  @unique
   semester Int?
   batch    String?
+  section  String?
   program  String  @default("BSCS")
   user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -505,5 +506,6 @@ model DegreePlanCourse {
   credits    Int
   category   String?
   prereq     String?
+
   @@unique([program, semester, courseCode])
 }

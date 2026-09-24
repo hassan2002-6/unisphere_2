@@ -58,6 +58,7 @@ CREATE TABLE "StudentProfile" (
     "userId" TEXT NOT NULL,
     "semester" INTEGER,
     "batch" TEXT,
+    "section" TEXT,
     "program" TEXT NOT NULL DEFAULT 'BSCS',
 
     CONSTRAINT "StudentProfile_pkey" PRIMARY KEY ("id")

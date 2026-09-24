@@ -83,13 +83,13 @@ async function main() {
 
   await prisma.studentProfile.upsert({
     where: { userId: student.id },
-    update: {},
-    create: { userId: student.id, semester: 7, batch: "BSCS-2023", program: "BSCS" },
+    update: { section: "A" },
+    create: { userId: student.id, semester: 7, batch: "BSCS-2023", section: "A", program: "BSCS" },
   });
   await prisma.studentProfile.upsert({
     where: { userId: student2.id },
-    update: {},
-    create: { userId: student2.id, semester: 7, batch: "BSCS-2023", program: "BSCS" },
+    update: { section: "A" },
+    create: { userId: student2.id, semester: 7, batch: "BSCS-2023", section: "A", program: "BSCS" },
   });
   await prisma.facultyProfile.upsert({
     where: { userId: faculty.id },
