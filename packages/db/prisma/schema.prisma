@@ -1,7 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// UniSphere — data model (plan §6.1). Neon Postgres via driver adapter.
+// CLI connection URL comes from prisma7.config.ts (DIRECT_URL preferred).
 
 generator client {
   provider = "prisma-client"
@@ -10,4 +8,489 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ── Enums ────────────────────────────────────────────────────────────────
+enum Role {
+  STUDENT
+  FACULTY
+  COORDINATOR
+  FYP_HEAD
+  MENTOR
+}
+
+enum FormStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum ComplaintStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  CLOSED
+}
+
+enum FypStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ResourceRequestStatus {
+  PENDING
+  RECOMMENDED
+  ALLOCATED
+  REJECTED
+  CANCELLED
+}
+
+enum AllocationStatus {
+  ACTIVE
+  COMPLETED
+  REVOKED
+}
+
+enum MentorshipRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  COMPLETED
+}
+
+enum MentorshipSessionStatus {
+  PROPOSED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum InternshipApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  ACCEPTED
+  REJECTED
+}
+
+enum ResourceType {
+  GPU
+  CPU
+  WORKSTATION
+  LAB
+}
+
+enum NotificationType {
+  FORM
+  COMPLAINT
+  FYP
+  RESOURCE
+  MENTORSHIP
+  INTERNSHIP
+  ANNOUNCEMENT
+  SYSTEM
+}
+
+enum DayOfWeek {
+  MON
+  TUE
+  WED
+  THU
+  FRI
+  SAT
+}
+
+// ── Identity ─────────────────────────────────────────────────────────────
+model User {
+  id             String   @id @default(cuid())
+  clerkId        String   @unique
+  email          String   @unique
+  name           String
+  role           Role     @default(STUDENT)
+  department     String?
+  registrationNo String?
+  employeeId     String?
+  createdAt      DateTime @default(now())
+
+  studentProfile StudentProfile?
+  facultyProfile FacultyProfile?
+  mentorProfile  MentorProfile?
+
+  formSubmissions        FormSubmission[]        @relation("FormSubmitter")
+  formReviews            FormSubmission[]        @relation("FormReviewer")
+  formEvents             FormEvent[]             @relation("FormEventActor")
+  complaints             Complaint[]             @relation("ComplaintSubmitter")
+  assignedComplaints     Complaint[]             @relation("ComplaintAssignee")
+  complaintEvents        ComplaintEvent[]        @relation("ComplaintEventActor")
+  fypApplications        FypApplication[]        @relation("FypApplicant")
+  fypDecisions           FypApplication[]        @relation("FypDecider")
+  resourceRequests       ResourceRequest[]       @relation("RequestApplicant")
+  resourceDecisions      ResourceRequest[]       @relation("RequestDecider")
+  allocations            Allocation[]            @relation("AllocationActor")
+  internshipsPosted      Internship[]            @relation("InternshipPoster")
+  internshipApplications InternshipApplication[] @relation("InternshipApplicant")
+  mentorshipAsStudent    MentorshipRequest[]     @relation("MentorshipStudent")
+  mentorshipAsMentor     MentorshipRequest[]     @relation("MentorshipMentor")
+  sessionsProposed       MentorshipSession[]     @relation("SessionProposer")
+  chatSessions           ChatSession[]
+  notifications          Notification[]
+  classes                CourseClass[]           @relation("ClassFaculty")
+}
+
+model StudentProfile {
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  semester Int?
+  batch    String?
+  program  String  @default("BSCS")
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model FacultyProfile {
+  id          String  @id @default(cuid())
+  userId      String  @unique
+  designation String?
+  office      String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MentorProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  headline         String
+  company          String?
+  expertise        String[]
+  bio              String?
+  linkedinUrl      String?
+  isApproved       Boolean  @default(false)
+  maxActiveMentees Int      @default(5)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ── Schedule ─────────────────────────────────────────────────────────────
+model CourseClass {
+  id         String          @id @default(cuid())
+  courseCode String
+  title      String
+  section    String
+  department String
+  semester   String
+  credits    Int?
+  facultyId  String?
+  faculty    User?           @relation("ClassFaculty", fields: [facultyId], references: [id])
+  slots      TimetableSlot[]
+  exams      ExamSchedule[]
+
+  @@index([courseCode, section])
+}
+
+model TimetableSlot {
+  id       String      @id @default(cuid())
+  classId  String
+  day      DayOfWeek
+  startMin Int
+  endMin   Int
+  room     String?
+  labId    String?
+  class    CourseClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  lab      Lab?        @relation("LabSlots", fields: [labId], references: [id])
+
+  @@index([day, startMin, endMin])
+}
+
+model ExamSchedule {
+  id          String       @id @default(cuid())
+  classId     String?
+  courseTitle String
+  date        DateTime
+  startMin    Int
+  endMin      Int
+  hall        String?
+  class       CourseClass? @relation(fields: [classId], references: [id])
+
+  @@index([date])
+}
+
+model Lab {
+  id          String          @id @default(cuid())
+  name        String
+  number      String
+  capacity    Int
+  type        String?
+  slots       TimetableSlot[] @relation("LabSlots")
+  allocations Allocation[]
+}
+
+model Resource {
+  id          String       @id @default(cuid())
+  name        String
+  model       String
+  type        ResourceType
+  specs       String
+  quantity    Int
+  available   Int
+  allocations Allocation[]
+}
+
+// ── Notifications ────────────────────────────────────────────────────────
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+}
+
+// ── Forms Center ─────────────────────────────────────────────────────────
+model FormTemplate {
+  id             String           @id @default(cuid())
+  key            String           @unique
+  title          String
+  description    String
+  audienceRole   Role
+  reviewerRole   Role
+  recipientLabel String
+  fields         Json
+  active         Boolean          @default(true)
+  slaDays        Int?
+  submissions    FormSubmission[]
+}
+
+model FormSubmission {
+  id            String       @id @default(cuid())
+  templateId    String
+  submittedById String
+  payload       Json
+  status        FormStatus   @default(SUBMITTED)
+  reviewerId    String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  template      FormTemplate @relation(fields: [templateId], references: [id])
+  submittedBy   User         @relation("FormSubmitter", fields: [submittedById], references: [id])
+  reviewer      User?        @relation("FormReviewer", fields: [reviewerId], references: [id])
+  events        FormEvent[]
+
+  @@index([status])
+  @@index([submittedById])
+}
+
+model FormEvent {
+  id           String         @id @default(cuid())
+  submissionId String
+  actorId      String?
+  fromStatus   FormStatus?
+  toStatus     FormStatus
+  comment      String?
+  createdAt    DateTime       @default(now())
+  submission   FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  actor        User?          @relation("FormEventActor", fields: [actorId], references: [id])
+}
+
+// ── Complaints ───────────────────────────────────────────────────────────
+model Complaint {
+  id            String           @id @default(cuid())
+  submittedById String
+  subject       String
+  category      String
+  description   String
+  status        ComplaintStatus  @default(OPEN)
+  assignedToId  String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  submittedBy   User             @relation("ComplaintSubmitter", fields: [submittedById], references: [id])
+  assignedTo    User?            @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
+  events        ComplaintEvent[]
+
+  @@index([status])
+  @@index([submittedById])
+}
+
+model ComplaintEvent {
+  id          String          @id @default(cuid())
+  complaintId String
+  actorId     String?
+  status      ComplaintStatus
+  comment     String?
+  createdAt   DateTime        @default(now())
+  complaint   Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  actor       User?           @relation("ComplaintEventActor", fields: [actorId], references: [id])
+}
+
+// ── Internships ──────────────────────────────────────────────────────────
+model Internship {
+  id           String                  @id @default(cuid())
+  title        String
+  company      String
+  description  String
+  location     String?
+  mode         String?
+  stipend      String?
+  deadline     DateTime?
+  applyUrl     String?
+  tags         String[]
+  status       String                  @default("OPEN")
+  postedById   String
+  createdAt    DateTime                @default(now())
+  postedBy     User                    @relation("InternshipPoster", fields: [postedById], references: [id])
+  applications InternshipApplication[]
+}
+
+model InternshipApplication {
+  id           String                      @id @default(cuid())
+  internshipId String
+  studentId    String
+  note         String?
+  status       InternshipApplicationStatus @default(APPLIED)
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+  internship   Internship                  @relation(fields: [internshipId], references: [id], onDelete: Cascade)
+  student      User                        @relation("InternshipApplicant", fields: [studentId], references: [id])
+
+  @@unique([internshipId, studentId])
+  @@index([status])
+}
+
+// ── FYP ──────────────────────────────────────────────────────────────────
+model FypApplication {
+  id              String    @id @default(cuid())
+  applicantId     String
+  title           String
+  domain          String
+  description     String
+  technologies    String
+  groupName       String
+  members         String
+  registrationNos String
+  supervisorPref  String?
+  department      String
+  semester        String
+  status          FypStatus @default(PENDING)
+  remarks         String?
+  decidedById     String?
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  applicant       User      @relation("FypApplicant", fields: [applicantId], references: [id])
+  decidedBy       User?     @relation("FypDecider", fields: [decidedById], references: [id])
+
+  @@index([status])
+  @@index([applicantId])
+}
+
+// ── Resources / GPU workflow ─────────────────────────────────────────────
+model ResourceRequest {
+  id           String                @id @default(cuid())
+  applicantId  String
+  projectName  String
+  groupName    String
+  members      String
+  supervisor   String?
+  resourceType ResourceType
+  config       String
+  purpose      String
+  startDate    DateTime
+  endDate      DateTime
+  timeSlot     String
+  status       ResourceRequestStatus @default(PENDING)
+  remarks      String?
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime              @default(now())
+  applicant    User                  @relation("RequestApplicant", fields: [applicantId], references: [id])
+  decidedBy    User?                 @relation("RequestDecider", fields: [decidedById], references: [id])
+  allocation   Allocation?
+
+  @@index([status])
+  @@index([applicantId])
+}
+
+model Allocation {
+  id            String           @id @default(cuid())
+  requestId     String           @unique
+  resourceId    String
+  labId         String?
+  startDate     DateTime
+  endDate       DateTime
+  timeSlot      String
+  status        AllocationStatus @default(ACTIVE)
+  allocatedById String
+  allocatedAt   DateTime         @default(now())
+  notes         String?
+  request       ResourceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  resource      Resource         @relation(fields: [resourceId], references: [id])
+  lab           Lab?             @relation(fields: [labId], references: [id])
+  allocatedBy   User             @relation("AllocationActor", fields: [allocatedById], references: [id])
+
+  @@index([status])
+}
+
+// ── Mentorship ───────────────────────────────────────────────────────────
+model MentorshipRequest {
+  id        String                  @id @default(cuid())
+  studentId String
+  mentorId  String
+  message   String
+  status    MentorshipRequestStatus @default(PENDING)
+  createdAt DateTime                @default(now())
+  updatedAt DateTime                @updatedAt
+  student   User                    @relation("MentorshipStudent", fields: [studentId], references: [id])
+  mentor    User                    @relation("MentorshipMentor", fields: [mentorId], references: [id])
+  sessions  MentorshipSession[]
+
+  @@index([mentorId, status])
+  @@index([studentId, status])
+}
+
+model MentorshipSession {
+  id           String                  @id @default(cuid())
+  requestId    String
+  proposedById String
+  scheduledAt  DateTime
+  mode         String
+  location     String?
+  notes        String?
+  status       MentorshipSessionStatus @default(PROPOSED)
+  createdAt    DateTime                @default(now())
+  request      MentorshipRequest       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  proposedBy   User                    @relation("SessionProposer", fields: [proposedById], references: [id])
+
+  @@index([status])
+}
+
+// ── AI assistant ─────────────────────────────────────────────────────────
+model ChatSession {
+  id        String        @id @default(cuid())
+  userId    String
+  title     String?
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  ChatMessage[]
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  sessionId  String
+  role       String
+  content    String
+  sources    Json?
+  tokenCount Int?
+  createdAt  DateTime    @default(now())
+  session    ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeDoc {
+  id        String   @id @default(cuid())
+  title     String
+  source    String
+  content   String
+  tags      String[]
+  updatedAt DateTime @updatedAt
 }
