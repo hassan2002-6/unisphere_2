@@ -1,9 +1,16 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-// Public routes: the landing page and Clerk's own hosted-auth redirects.
-// Everything else requires a signed-in session (server-side enforced here,
-// re-checked inside every page/handler — never trust the client).
-const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)", "/sign-up(.*)"]);
+// Public routes: the landing page, Clerk's hosted-auth redirects, the health
+// probe and the signature-verified Clerk webhook. Everything else requires a
+// signed-in session (server-side enforced here, re-checked inside every
+// page/handler — never trust the client).
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+  "/api/health",
+  "/api/webhooks/clerk",
+]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {

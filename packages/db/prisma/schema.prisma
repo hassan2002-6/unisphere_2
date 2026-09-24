@@ -494,3 +494,16 @@ model KnowledgeDoc {
   tags      String[]
   updatedAt DateTime @updatedAt
 }
+
+// Academic planning: BSCS degree plan (8 semesters) — seeded, shown in /planning.
+model DegreePlanCourse {
+  id         String  @id @default(cuid())
+  program    String
+  semester   Int
+  courseCode String
+  title      String
+  credits    Int
+  category   String?
+  prereq     String?
+  @@unique([program, semester, courseCode])
+}

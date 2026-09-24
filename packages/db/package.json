@@ -11,13 +11,17 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "bun prisma/seed.ts",
+    "seed": "bun prisma/seed.ts",
     "db:studio": "prisma studio",
     "lint": "oxlint",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^26.6.2",
-    "prisma": "^7.10.0"
+    "oxfmt": "^0.70.0",
+    "oxlint": "^1.85.0",
+    "prisma": "^7.10.0",
+    "typescript": "^7.0.2"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

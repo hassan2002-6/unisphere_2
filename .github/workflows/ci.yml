@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: lint · typecheck · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate Prisma client
+        working-directory: packages/db
+        run: bunx prisma generate
+
+      - name: Prisma validate
+        working-directory: packages/db
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/ci
+          DIRECT_URL: postgresql://user:pass@localhost:5432/ci
+        run: bunx prisma validate
+
+      - name: Lint (oxlint)
+        run: bun run lint
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Unit tests
+        run: bun run test
+
+      - name: Build
+        env:
+          # Placeholder Clerk keys so the build never needs real secrets.
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk
+          CLERK_SECRET_KEY: sk_test_placeholder_for_ci_build_only
+        run: bun run build
