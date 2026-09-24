@@ -1,0 +1,273 @@
+{
+  "ok": true,
+  "slide_size_inches": [
+    17.778,
+    10.0
+  ],
+  "slide_count": 16,
+  "layouts_available": [
+    "Title Slide",
+    "Title and Content",
+    "Section Header",
+    "Two Content",
+    "Comparison",
+    "Title Only",
+    "Blank",
+    "Content with Caption",
+    "Picture with Caption",
+    "Title and Vertical Text",
+    "Vertical Title and Text"
+  ],
+  "slides": [
+    {
+      "index": 0,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 692159
+        },
+        {
+          "filename": "image.jpeg",
+          "ext": "jpg",
+          "size_bytes": 44125
+        },
+        {
+          "filename": "image.jpeg",
+          "ext": "jpg",
+          "size_bytes": 59157
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 1,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 1188504
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 2,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 948200
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 3,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 952977
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 4,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 715277
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 5,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 879700
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 6,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 1047158
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 7,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 1132541
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 8,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 853782
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 9,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 799083
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 10,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 1015118
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 11,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 926429
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 12,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 828898
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 13,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 833781
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 14,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 802968
+        }
+      ],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 15,
+      "layout": "Blank",
+      "texts": [],
+      "tables": [],
+      "images": [
+        {
+          "filename": "image.png",
+          "ext": "png",
+          "size_bytes": 832370
+        }
+      ],
+      "charts": [],
+      "notes": null
+    }
+  ]
+}

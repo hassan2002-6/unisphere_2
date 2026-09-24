@@ -1,0 +1,293 @@
+{
+  "ok": true,
+  "slide_size_inches": [
+    20.0,
+    11.25
+  ],
+  "slide_count": 17,
+  "layouts_available": [
+    "Title Slide",
+    "Title and Content",
+    "Section Header",
+    "Two Content",
+    "Comparison",
+    "Title Only",
+    "Blank",
+    "Content with Caption",
+    "Picture with Caption",
+    "Title and Vertical Text",
+    "Vertical Title and Text"
+  ],
+  "slides": [
+    {
+      "index": 0,
+      "layout": "Blank",
+      "texts": [
+        "An Intelligent Integrated Student \nSupport & Management System",
+        "Presented By\nIshan Rajwani (S23CSC031)\nCarol Swan (S23CSC006)\nM. Hassan Siddiqui (S22CSC003)\n",
+        "UNISPHERE",
+        "Supervisors:\nSupervisors: Sir Ateeque\nCo-Supervisor: Miss Saadia Karim"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 1,
+      "layout": "Blank",
+      "texts": [
+        "Key Modules",
+        "Background",
+        "Many universities still rely on multiple disconnected systems to manage academic and administrative activities. Students often use different portals for complaints, notifications, internships, academic planning, and communication, making the overall experience inefficient.",
+        "Academic Planning\nStudent Dashboard\nComplaint Management\nNotification System\nForms Center\nInternship Module\nMentorship Module\nAI Assistant (Planned for FYP-II)\nGPU Allocation\n",
+        "UniSphere is a centralized web-based platform that brings together multiple student support services into one intelligent system.",
+        "Proposed Solution"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 2,
+      "layout": "Blank",
+      "texts": [
+        "Problem Statement\n\n",
+        "Current university systems suffer from:\nFragmented platforms\nLack of centralized student support\nManual complaint handling\nPoor communication\nNo intelligent academic assistance\nScattered internship opportunities\nNo structured mentorship\nThese issues reduce student productivity and create administrative challenges.\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 3,
+      "layout": "Blank",
+      "texts": [
+        "Objectives",
+        "Objectives Completed in FYP-I\n Requirement Analysis\n Literature Review\n Research Gap Identification\n System Architecture Design\n Database Planning\n UI/UX Design\n High-Fidelity Prototype\nDocumentation\n",
+        "Objectives for FYP-II\nBackend Development\nDatabase Integration\nAuthentication\nAI Chatbot Integration\nAPI Development\nTesting & Deployment\n\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 4,
+      "layout": "Blank",
+      "texts": [
+        " Literature Review",
+        "Research Gap\nNo existing solution combines academic planning, complaints, mentorship, internships, notifications, and AI assistance into a single university-focused platform.\n"
+      ],
+      "tables": [
+        [
+          [
+            "\nExisting System\n",
+            "Limitation"
+          ],
+          [
+            "\nLMS\n",
+            "Only academic content"
+          ],
+          [
+            "ERP",
+            "\nAdministrative focus only\n"
+          ],
+          [
+            "Complaint Portals",
+            "No centralized workflow"
+          ],
+          [
+            "LinkedIn",
+            "\nNot university-specific\n"
+          ],
+          [
+            "UniSphere",
+            "Integrated intelligent platform"
+          ]
+        ]
+      ],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 5,
+      "layout": "Blank",
+      "texts": [
+        "Requirement Gathering",
+        "Literature Review",
+        "System Analysis",
+        "Database Design",
+        "UI/UX Design",
+        "Documentation",
+        "Methodology"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 6,
+      "layout": "Blank",
+      "texts": [
+        "Next.js\nReact.js\nTailwind CSS\nShadcn UI",
+        "Next.js API Routes\nPrisma ORM",
+        "PostgreSQL (Neon)",
+        "Clerk",
+        "VERSION CONTROL\n\n",
+        "GitHub",
+        "Vercel",
+        "FRONTEND",
+        "BACKEND ",
+        "DATABASE",
+        " Technology Stack",
+        "AUTHENTICATIONS\n",
+        "DEPLOYMENT "
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 7,
+      "layout": "Blank",
+      "texts": [
+        "System Architecture",
+        "The proposed architecture follows a layered approach:\nUser Interface Layer\nFrontend Layer (Next.js)\nBackend API Layer\nBusiness Logic Layer\nDatabase Layer\nExternal Services (Clerk & AI)\nImplementation of backend services is planned for FYP-II.\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 8,
+      "layout": "Blank",
+      "texts": [
+        "System WorkFlow",
+        "User\n\u2193\nLogin\n\u2193\nDashboard\n\u2193\nSelect Module\n\u2193\nComplaint / Forms / Notifications / Internship / Academic Planning\n\u2193\nAdmin Review\n\u2193\nResponse\n\u2193\nNotification\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 9,
+      "layout": "Blank",
+      "texts": [
+        "Prototype Demonstration",
+        "Login Screen",
+        "Faculty Dashboard",
+        "Complaint Module",
+        "AI Chatbot ",
+        "Internship Module",
+        "Forms Center",
+        "Student Dashboard"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 10,
+      "layout": "Blank",
+      "texts": [
+        "Successfully Completed\nRequirement Analysis\nLiterature Review\nResearch Documentation\nSystem Architecture\nDatabase Planning\nUI/UX Design\nHigh-Fidelity Prototype\nModule Planning\nNavigation Flow\nDocumentation\n",
+        "Work Completed During FYP-I"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 11,
+      "layout": "Blank",
+      "texts": [
+        "Ishan Rajwani",
+        "Carol Swan",
+        "M.Hassan Siddiqui",
+        "Our Team",
+        "Frontend Developer & UI/UX Designer",
+        "Research, Documentation & Testing",
+        "Backend & Database Designer\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 12,
+      "layout": "Blank",
+      "texts": [
+        "Understanding university workflows",
+        "Selecting an appropriate technology stack",
+        "Designing a scalable architecture",
+        "Maintaining UI consistency",
+        "Planning integration between multiple modules",
+        "Time management during prototype development",
+        "Challenges Faced"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 13,
+      "layout": "Blank",
+      "texts": [
+        "Current Progress",
+        "Overall Progress\nApproximately 40% Completed\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 14,
+      "layout": "Blank",
+      "texts": [
+        "Backend Development using Next.js API Routes\nDatabase Integration with PostgreSQL (Neon)\nPrisma ORM Implementation\nClerk Authentication\nAI Chatbot Development\nComplaint Workflow Implementation\nNotification System\nInternship Management\nMentorship System\nTesting & Deployment\n",
+        "Work Planned for FYP-II"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 15,
+      "layout": "Blank",
+      "texts": [
+        "Conclusion",
+        "During FYP-I, we successfully completed:\nResearch & Analysis\nSystem Planning\nArchitecture Design\nDatabase Planning\nUI/UX Design\nInteractive Prototype\nProject Documentation\nIn FYP-II, the focus will be on implementation, integration, testing, deployment, and final project delivery.\n"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    },
+    {
+      "index": 16,
+      "layout": "Blank",
+      "texts": [
+        "Thank you",
+        "Questions & Answers"
+      ],
+      "tables": [],
+      "images": [],
+      "charts": [],
+      "notes": null
+    }
+  ]
+}

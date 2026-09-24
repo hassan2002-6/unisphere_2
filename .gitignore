@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+
+# build outputs
+.next/
+out/
+dist/
+build/
+
+# turbo
+.turbo/
+
+# env — never commit secrets; .env.example stays tracked
+.env
+.env.*
+!.env.example
+!.env.offline.example
+
+# misc
+*.pem
+.DS_Store
+Thumbs.db
+*.log
+coverage/
+playwright-report/
+test-results/
+
+# IDE
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+.vercel
+.env*
+
+# keep example files tracked (must come after .env* — later patterns win)
+!.env.example
+!.env.offline.example
+
+# FYP input files stay local (large binaries; not part of the code deliverable)
+resources/

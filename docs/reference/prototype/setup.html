@@ -1,0 +1,2947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UniSphere - University Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ================= GLOBAL RESET & THEME ================= */
+  * { margin:0; padding:0; box-sizing:border-box; font-family: 'Inter', 'Segoe UI', sans-serif; }
+  :root {
+    --primary:#1e40af;
+    --primary-dark:#1e3a8a;
+    --primary-light:#dbeafe;
+    --accent:#0ea5e9;
+    --accent-2:#14b8a6;
+    --bg:#f7f9fc;
+    --surface:#ffffff;
+    --gray:#f1f5f9;
+    --text:#0f172a;
+    --muted:#64748b;
+    --border:#e2e8f0;
+    --success:#10b981;
+    --warning:#f59e0b;
+    --danger:#ef4444;
+    --gradient: linear-gradient(135deg, #1e40af 0%, #0ea5e9 60%, #14b8a6 100%);
+    --gradient-soft: linear-gradient(135deg, #eff6ff 0%, #ecfeff 100%);
+    --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
+    --shadow-md: 0 4px 16px rgba(15,23,42,0.08);
+    --shadow-lg: 0 12px 40px rgba(15,23,42,0.12);
+  }
+  body { background:var(--bg); color:var(--text); min-height:100vh; line-height:1.55; }
+  h1,h2,h3,h4 { font-family:'Poppins','Inter',sans-serif; }
+
+  /* ================= LOGIN ================= */
+  #loginScreen {
+    position:fixed; inset:0; background: var(--gradient);
+    display:flex; align-items:center; justify-content:center; z-index:1000; overflow:hidden;
+  }
+  #loginScreen::before, #loginScreen::after {
+    content:""; position:absolute; border-radius:50%;
+    background:rgba(255,255,255,0.12); filter:blur(40px);
+  }
+  #loginScreen::before { width:400px; height:400px; top:-100px; left:-100px; }
+  #loginScreen::after { width:500px; height:500px; bottom:-150px; right:-150px; }
+
+  .login-wrap { display:flex; gap:40px; align-items:center; max-width:1000px; width:90%; position:relative; z-index:2; }
+  .login-hero { flex:1; color:white; }
+  .login-hero .logo-badge { display:inline-flex; align-items:center; gap:10px; background:rgba(255,255,255,0.15); padding:8px 18px; border-radius:30px; backdrop-filter: blur(10px); border:1px solid rgba(255,255,255,0.2); margin-bottom:20px; }
+  .login-hero h1 { font-size:46px; font-weight:800; line-height:1.1; margin-bottom:15px; }
+  .login-hero p { font-size:16px; opacity:0.92; margin-bottom:25px; max-width:450px; }
+  .login-features { display:grid; grid-template-columns:1fr 1fr; gap:12px; max-width:450px; }
+  .feature-pill { background:rgba(255,255,255,0.12); padding:10px 14px; border-radius:10px; font-size:13px; backdrop-filter: blur(8px); border:1px solid rgba(255,255,255,0.18); }
+
+  .login-card {
+    background:rgba(255,255,255,0.97); padding:40px; border-radius:20px;
+    width:400px; max-width:100%; box-shadow: var(--shadow-lg);
+    animation:slideUp 0.6s ease; backdrop-filter: blur(20px);
+  }
+  @keyframes slideUp { from{opacity:0; transform:translateY(30px);} to{opacity:1; transform:translateY(0);} }
+  .login-logo { text-align:center; margin-bottom:22px; }
+  .login-logo h1 { color:var(--primary); font-size:28px; font-weight:800; background:var(--gradient); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .login-logo p { color:var(--muted); font-size:13px; margin-top:5px; }
+  .login-card h2 { font-size:18px; margin-bottom:18px; text-align:center; color:var(--text); }
+
+  /* Forms */
+  .form-group { margin-bottom:14px; }
+  .form-group label { display:block; font-size:13px; margin-bottom:6px; color:#334155; font-weight:600; }
+  .form-group input, .form-group select, .form-group textarea {
+    width:100%; padding:11px 14px; border:1.5px solid var(--border);
+    border-radius:10px; font-size:14px; transition:all 0.2s;
+    background:white; color:var(--text); font-family:inherit;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline:none; border-color:var(--primary);
+    box-shadow:0 0 0 4px rgba(30,64,175,0.12);
+  }
+
+  /* Buttons */
+  .btn {
+    background:var(--primary); color:white; border:none;
+    padding:11px 22px; border-radius:10px; font-size:14px;
+    cursor:pointer; font-weight:600; transition:all 0.25s;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn:hover { background:var(--primary-dark); transform:translateY(-2px); box-shadow:0 8px 20px rgba(30,64,175,0.25); }
+  .btn-gradient { background: var(--gradient); }
+  .btn-gradient:hover { filter:brightness(1.08); }
+  .btn-block { width:100%; justify-content:center; }
+  .btn-sm { padding:7px 14px; font-size:12px; }
+  .btn-outline { background:white; color:var(--primary); border:1.5px solid var(--primary); }
+  .btn-outline:hover { background:var(--primary); color:white; }
+  .btn-success { background:var(--success); }
+  .btn-success:hover { background:#0d9668; }
+  .btn-danger { background:var(--danger); }
+  .btn-danger:hover { background:#dc2626; }
+  .btn-warn { background:var(--warning); color:white; }
+
+  /* ================= APP LAYOUT ================= */
+  #app { display:none; min-height:100vh; }
+  #app.active { display:flex; }
+
+  .sidebar {
+    width:250px; background:var(--surface); border-right:1px solid var(--border);
+    height:100vh; position:fixed; left:0; top:0;
+    display:flex; flex-direction:column; z-index:100;
+    box-shadow: var(--shadow-sm);
+  }
+  .sidebar-header {
+    padding:22px 20px; background: var(--gradient); color:white;
+    position:relative; overflow:hidden;
+  }
+  .sidebar-header::after { content:""; position:absolute; right:-30px; top:-30px; width:100px; height:100px; border-radius:50%; background:rgba(255,255,255,0.08); }
+  .sidebar-header h2 { font-size:22px; font-weight:800; display:flex; align-items:center; gap:8px; }
+  .sidebar-header p { font-size:11px; opacity:0.9; margin-top:4px; }
+  .sidebar-menu { flex:1; padding:14px 10px; overflow-y:auto; }
+  .sidebar-menu a {
+    display:flex; align-items:center; gap:11px;
+    padding:11px 14px; color:#475569; text-decoration:none;
+    font-size:13.5px; cursor:pointer; transition:all 0.2s;
+    border-radius:10px; margin-bottom:3px; font-weight:500;
+  }
+  .sidebar-menu a:hover { background:var(--primary-light); color:var(--primary); transform:translateX(3px); }
+  .sidebar-menu a.active {
+    background: var(--gradient); color:white;
+    font-weight:600; box-shadow: 0 4px 12px rgba(30,64,175,0.25);
+  }
+  .sidebar-menu .icon { font-size:16px; width:20px; text-align:center; }
+  .sidebar-footer { padding:14px 16px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+
+  .main { margin-left:250px; flex:1; min-height:100vh; display:flex; flex-direction:column; }
+  .topbar {
+    background:rgba(255,255,255,0.85); padding:14px 30px;
+    border-bottom:1px solid var(--border);
+    display:flex; justify-content:space-between; align-items:center;
+    position:sticky; top:0; z-index:50; backdrop-filter: blur(12px);
+  }
+  .topbar-title { font-size:20px; font-weight:700; color:var(--text); }
+  .topbar-right { display:flex; align-items:center; gap:14px; }
+  .topbar-search {
+    background:var(--gray); border:1px solid var(--border); border-radius:10px;
+    padding:8px 14px; font-size:13px; width:240px; transition:all 0.2s;
+  }
+  .topbar-search:focus { outline:none; border-color:var(--primary); background:white; width:280px; }
+  .icon-btn {
+    width:38px; height:38px; border-radius:10px; background:var(--gray);
+    border:1px solid var(--border); cursor:pointer; display:flex;
+    align-items:center; justify-content:center; font-size:16px;
+    position:relative; transition:all 0.2s;
+  }
+  .icon-btn:hover { background:var(--primary-light); color:var(--primary); }
+  .icon-btn .dot { position:absolute; top:6px; right:6px; min-width:16px; height:16px; padding:0 4px; background:var(--danger); color:white; border-radius:8px; font-size:9px; display:flex; align-items:center; justify-content:center; font-weight:700; border:2px solid white; }
+
+  .user-info { display:flex; align-items:center; gap:10px; }
+  .avatar {
+    width:40px; height:40px; border-radius:50%;
+    background: var(--gradient); color:white;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:14px;
+    box-shadow: 0 4px 10px rgba(30,64,175,0.25);
+  }
+  .user-info small { display:block; color:var(--muted); font-size:11px; }
+  .user-info span { font-size:13px; font-weight:600; }
+
+  .content { padding:28px 32px; flex:1; animation:fadeIn 0.4s ease; }
+  @keyframes fadeIn { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);} }
+
+  /* ================= HERO BANNER ================= */
+  .hero-banner {
+    background: var(--gradient); color:white; padding:26px 30px; border-radius:18px;
+    margin-bottom:24px; position:relative; overflow:hidden;
+    box-shadow: 0 8px 32px rgba(30,64,175,0.18);
+  }
+  .hero-banner::before { content:""; position:absolute; right:-80px; top:-80px; width:280px; height:280px; border-radius:50%; background:rgba(255,255,255,0.08); }
+  .hero-banner::after { content:""; position:absolute; right:60px; bottom:-100px; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,0.06); }
+  .hero-banner h2 { font-size:24px; font-weight:700; margin-bottom:6px; position:relative; z-index:2; }
+  .hero-banner p { opacity:0.92; font-size:14px; position:relative; z-index:2; max-width:600px; }
+  .hero-meta { display:flex; gap:18px; margin-top:14px; position:relative; z-index:2; flex-wrap:wrap; }
+  .hero-meta-item { background:rgba(255,255,255,0.18); padding:6px 14px; border-radius:30px; font-size:12px; backdrop-filter:blur(10px); }
+
+  /* ================= STAT CARDS ================= */
+  .stat-grid {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+    gap:18px; margin-bottom:25px;
+  }
+  .stat-card {
+    background:white; padding:22px; border-radius:14px;
+    border:1px solid var(--border); box-shadow: var(--shadow-sm);
+    transition:all 0.3s; position:relative; overflow:hidden;
+  }
+  .stat-card::before { content:""; position:absolute; left:0; top:0; height:100%; width:4px; background: var(--gradient); }
+  .stat-card:hover { transform:translateY(-4px); box-shadow: var(--shadow-md); }
+  .stat-card .stat-top { display:flex; justify-content:space-between; align-items:flex-start; }
+  .stat-card .icon-circle {
+    width:42px; height:42px; border-radius:12px;
+    background:var(--primary-light); color:var(--primary);
+    display:flex; align-items:center; justify-content:center; font-size:20px;
+  }
+  .stat-card .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:0.5px; font-weight:600; }
+  .stat-card .value { font-size:32px; font-weight:800; color:var(--text); margin-top:10px; font-family:'Poppins',sans-serif; }
+  .stat-card .sub { font-size:12px; color:var(--muted); margin-top:4px; display:flex; align-items:center; gap:5px; }
+  .stat-card .sub.up { color:var(--success); }
+  .stat-card .sub.down { color:var(--danger); }
+
+  /* ================= PANELS ================= */
+  .panel {
+    background:white; border-radius:14px;
+    border:1px solid var(--border); padding:22px;
+    margin-bottom:20px; box-shadow: var(--shadow-sm);
+  }
+  .panel-header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:18px; padding-bottom:14px; border-bottom:1px solid var(--border); gap:10px; flex-wrap:wrap;
+  }
+  .panel-header h3 { font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:8px; }
+
+  /* ================= TABLES ================= */
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:12px 14px; text-align:left; font-size:13px; border-bottom:1px solid var(--border); }
+  th { background:var(--gray); font-weight:600; color:#475569; text-transform:uppercase; font-size:11px; letter-spacing:0.5px; }
+  tr:hover td { background:#fafbfc; }
+  .clash { background:#fef2f2 !important; color:var(--danger); font-weight:600; }
+  .clash-tag { background:var(--danger); color:white; padding:2px 8px; border-radius:4px; font-size:10px; margin-left:6px; }
+
+  /* ================= BADGES ================= */
+  .badge {
+    display:inline-block; padding:4px 11px; border-radius:30px;
+    font-size:11px; font-weight:600;
+  }
+  .badge-success { background:#d1fae5; color:#065f46; }
+  .badge-warning { background:#fef3c7; color:#92400e; }
+  .badge-danger { background:#fee2e2; color:#991b1b; }
+  .badge-info { background:#dbeafe; color:#1e40af; }
+  .badge-accent { background:#ccfbf1; color:#115e59; }
+  .badge-purple { background:#ede9fe; color:#5b21b6; }
+
+  /* ================= NOTIFICATIONS ================= */
+  .notif-list .notif-item {
+    padding:14px; border-left:3px solid var(--primary);
+    background: var(--gradient-soft); border-radius:10px;
+    margin-bottom:10px; transition:all 0.2s;
+  }
+  .notif-item:hover { transform:translateX(4px); }
+  .notif-item h4 { font-size:14px; margin-bottom:4px; color:var(--text); }
+  .notif-item p { font-size:13px; color:#475569; }
+  .notif-item small { color:var(--muted); font-size:11px; }
+
+  /* ================= CHATBOT ================= */
+  .chat-container {
+    background:white; border:1px solid var(--border); border-radius:14px;
+    height:540px; display:flex; flex-direction:column; overflow:hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .chat-header { background: var(--gradient); color:white; padding:16px 20px; }
+  .chat-messages { flex:1; padding:20px; overflow-y:auto; background:var(--gradient-soft); }
+  .chat-msg { margin-bottom:12px; display:flex; }
+  .chat-msg.user { justify-content:flex-end; }
+  .chat-bubble { padding:11px 15px; border-radius:14px; max-width:70%; font-size:13px; box-shadow: var(--shadow-sm); }
+  .chat-msg.bot .chat-bubble { background:white; border:1px solid var(--border); }
+  .chat-msg.user .chat-bubble { background: var(--gradient); color:white; }
+  .chat-input { display:flex; padding:12px; border-top:1px solid var(--border); background:white; gap:10px; }
+  .chat-input input { flex:1; padding:10px 14px; border:1.5px solid var(--border); border-radius:10px; font-size:13px; }
+  .chat-suggest { padding:8px 12px; background:white; border-top:1px solid var(--border); display:flex; gap:6px; flex-wrap:wrap; }
+  .chat-suggest button { background:var(--primary-light); color:var(--primary); border:none; padding:6px 12px; border-radius:20px; font-size:11px; cursor:pointer; font-weight:600; }
+  .chat-suggest button:hover { background:var(--primary); color:white; }
+
+  /* ================= INTERN CARDS ================= */
+  .intern-card {
+    background:white; border:1px solid var(--border); border-radius:12px;
+    padding:18px; margin-bottom:14px;
+    display:flex; justify-content:space-between; align-items:center;
+    transition: all 0.25s;
+  }
+  .intern-card:hover { border-color:var(--primary); transform:translateY(-2px); box-shadow: var(--shadow-md); }
+  .intern-card h4 { font-size:15px; margin-bottom:4px; }
+  .intern-card p { color:var(--muted); font-size:12px; }
+  .intern-meta { display:flex; gap:15px; margin-top:8px; font-size:12px; color:#475569; flex-wrap:wrap; }
+
+  /* ================= SEMESTER PLANNER ================= */
+  .semester-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:18px; }
+  .semester-box {
+    background:white; border:1px solid var(--border); border-radius:12px; padding:18px;
+    transition:all 0.25s;
+  }
+  .semester-box:hover { border-color:var(--primary); box-shadow: var(--shadow-md); transform: translateY(-3px); }
+  .semester-box h4 { color:var(--primary); margin-bottom:12px; padding-bottom:10px; border-bottom:2px solid var(--primary-light); font-size:15px; }
+  .semester-box ul { list-style:none; }
+  .semester-box li {
+    padding:9px 12px; background:var(--gradient-soft); margin-bottom:6px; border-radius:8px;
+    font-size:13px; display:flex; justify-content:space-between; align-items:center;
+  }
+
+  /* ================= GRIDS ================= */
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+  @media (max-width:1024px) { .grid-2, .grid-3 { grid-template-columns:1fr; } }
+
+  /* ================= TOAST ================= */
+  .toast {
+    position:fixed; top:20px; right:20px;
+    background:white; color:var(--text);
+    padding:14px 20px; border-radius:12px; box-shadow: var(--shadow-lg);
+    z-index:2000; animation:slideIn 0.35s ease;
+    display:flex; align-items:center; gap:10px;
+    border-left:4px solid var(--success); min-width:280px;
+  }
+  .toast.error { border-left-color:var(--danger); }
+  .toast.info { border-left-color:var(--primary); }
+  .toast .ti { width:28px; height:28px; border-radius:50%; background:var(--success); color:white; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .toast.error .ti { background:var(--danger); }
+  .toast.info .ti { background:var(--primary); }
+  @keyframes slideIn { from{transform:translateX(120%);} to{transform:translateX(0);} }
+
+  /* ================= LOGOUT ================= */
+  .logout-btn {
+    background:transparent; border:1.5px solid var(--danger); color:var(--danger);
+    padding:7px 14px; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600;
+    transition:all 0.2s;
+  }
+  .logout-btn:hover { background:var(--danger); color:white; }
+
+  textarea { resize:vertical; min-height:90px; font-family:inherit; }
+
+  /* ================= FORMS CENTER ================= */
+  .forms-toolbar {
+    display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;
+    background:white; padding:16px; border-radius:14px; border:1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+  }
+  .forms-toolbar input, .forms-toolbar select {
+    padding:10px 14px; border:1.5px solid var(--border); border-radius:10px; font-size:13px;
+    background:white; flex:1; min-width:160px;
+  }
+  .forms-toolbar input:focus, .forms-toolbar select:focus { outline:none; border-color:var(--primary); }
+
+  .forms-grid {
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:16px;
+  }
+  .form-card {
+    background:white; border:1px solid var(--border); border-radius:14px;
+    padding:20px; cursor:pointer; transition:all 0.3s;
+    position:relative; overflow:hidden;
+  }
+  .form-card::before {
+    content:""; position:absolute; top:0; left:0; width:100%; height:3px;
+    background: var(--gradient); transform:scaleX(0); transform-origin:left; transition:transform 0.3s;
+  }
+  .form-card:hover { transform:translateY(-5px); box-shadow: var(--shadow-md); border-color:var(--primary); }
+  .form-card:hover::before { transform:scaleX(1); }
+  .form-card-icon {
+    width:48px; height:48px; border-radius:12px;
+    background: var(--gradient-soft); color:var(--primary);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; margin-bottom:14px;
+  }
+  .form-card h4 { font-size:15px; margin-bottom:6px; color:var(--text); }
+  .form-card p { font-size:12px; color:var(--muted); margin-bottom:12px; line-height:1.5; }
+  .form-card .form-card-foot { display:flex; justify-content:space-between; align-items:center; }
+  .form-card .form-card-foot small { color:var(--muted); font-size:11px; }
+
+  /* Form Modal */
+  .modal-overlay {
+    position:fixed; inset:0; background:rgba(15,23,42,0.55);
+    z-index:1500; display:none; align-items:center; justify-content:center;
+    animation:fadeIn 0.25s ease; backdrop-filter: blur(4px); padding:20px;
+  }
+  .modal-overlay.active { display:flex; }
+  .modal-box {
+    background:white; border-radius:18px; width:100%; max-width:680px;
+    max-height:90vh; overflow:hidden;
+    box-shadow: var(--shadow-lg); animation:slideUp 0.35s ease;
+    display:flex; flex-direction:column;
+  }
+  .modal-head {
+    padding:20px 24px; background: var(--gradient); color:white;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .modal-head h3 { font-size:18px; font-weight:700; }
+  .modal-head .close {
+    background:rgba(255,255,255,0.2); border:none; color:white;
+    width:32px; height:32px; border-radius:8px; cursor:pointer; font-size:18px;
+  }
+  .modal-body { padding:24px; overflow-y:auto; flex:1; }
+  .modal-foot {
+    padding:16px 24px; border-top:1px solid var(--border);
+    display:flex; gap:10px; justify-content:flex-end; background:#fafbfc;
+  }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:600px) { .form-row { grid-template-columns:1fr; } }
+
+  /* Workflow Stepper */
+  .workflow {
+    display:flex; align-items:center; justify-content:space-between;
+    background: var(--gradient-soft);
+    padding:20px; border-radius:12px; margin-bottom:20px;
+  }
+  .workflow-step { flex:1; text-align:center; position:relative; }
+  .workflow-step .circle {
+    width:42px; height:42px; border-radius:50%; background:white;
+    border:2.5px solid var(--border); margin:0 auto 8px;
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; color:var(--muted); transition:all 0.3s;
+  }
+  .workflow-step.done .circle { background:var(--success); border-color:var(--success); color:white; }
+  .workflow-step.active .circle { background:var(--primary); border-color:var(--primary); color:white; box-shadow:0 0 0 6px rgba(30,64,175,0.15); }
+  .workflow-step .label { font-size:11px; font-weight:600; color:var(--muted); }
+  .workflow-step.done .label, .workflow-step.active .label { color:var(--text); }
+  .workflow-step:not(:last-child)::after {
+    content:""; position:absolute; top:21px; right:-50%; width:100%; height:2px;
+    background:var(--border); z-index:0;
+  }
+  .workflow-step.done:not(:last-child)::after { background:var(--success); }
+
+  /* Tracking bar */
+  .track-bar { display:flex; align-items:center; gap:6px; font-size:11px; }
+  .track-bar .dot { width:8px; height:8px; border-radius:50%; background:var(--border); }
+  .track-bar .dot.active { background:var(--primary); }
+  .track-bar .dot.done { background:var(--success); }
+  .track-bar .line { flex:1; height:2px; background:var(--border); max-width:20px; }
+  .track-bar .line.active { background:var(--primary); }
+  .track-bar .line.done { background:var(--success); }
+
+  /* AI Suggestion box */
+  .ai-suggest {
+    background: linear-gradient(135deg, #1e40af 0%, #0ea5e9 100%);
+    color:white; padding:18px 20px; border-radius:14px; margin-bottom:20px;
+    display:flex; gap:14px; align-items:center; position:relative; overflow:hidden;
+  }
+  .ai-suggest::after {
+    content:""; position:absolute; right:-50px; top:-50px; width:150px; height:150px;
+    background:rgba(255,255,255,0.08); border-radius:50%;
+  }
+  .ai-suggest .ai-icon {
+    width:50px; height:50px; border-radius:14px; background:rgba(255,255,255,0.2);
+    display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0;
+    backdrop-filter: blur(10px);
+  }
+  .ai-suggest h4 { font-size:15px; margin-bottom:4px; }
+  .ai-suggest p { font-size:13px; opacity:0.92; }
+  .ai-tags { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+  .ai-tags span { background:rgba(255,255,255,0.18); padding:4px 10px; border-radius:20px; font-size:11px; cursor:pointer; transition:all 0.2s; }
+  .ai-tags span:hover { background:rgba(255,255,255,0.3); }
+
+  /* FYP/Resource Cards */
+  .resource-card {
+    background:white; border:1px solid var(--border); border-radius:12px;
+    padding:18px; transition:all 0.25s; position:relative; overflow:hidden;
+  }
+  .resource-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-md); border-color:var(--primary); }
+  .resource-card .res-head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+  .resource-card .res-icon { width:48px; height:48px; border-radius:12px; background:var(--gradient-soft); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .resource-card h4 { font-size:15px; margin-bottom:4px; }
+  .resource-card .res-spec { font-size:12px; color:var(--muted); margin-bottom:10px; }
+  .resource-card .res-stats { display:flex; gap:10px; margin-top:10px; font-size:12px; }
+  .resource-card .res-stats div { background:var(--gray); padding:6px 10px; border-radius:8px; flex:1; text-align:center; }
+  .resource-card .res-stats b { display:block; color:var(--primary); font-size:14px; }
+
+  /* Notification panel dropdown */
+  .notif-popup {
+    position:absolute; top:48px; right:0; width:340px; background:white;
+    border:1px solid var(--border); border-radius:12px; box-shadow:var(--shadow-lg);
+    max-height:400px; overflow-y:auto; z-index:200; padding:8px;
+  }
+  .notif-popup .notif-item { padding:10px 12px; margin-bottom:5px; cursor:pointer; }
+  .notif-popup .notif-item h4 { font-size:13px; }
+  .notif-popup .notif-item p { font-size:12px; }
+
+  /* Responsive */
+  @media (max-width:900px) {
+    .sidebar { width:70px; }
+    .sidebar-menu a span:last-child { display:none; }
+    .sidebar-header h2 { font-size:14px; }
+    .sidebar-header p { display:none; }
+    .main { margin-left:70px; }
+    .login-wrap { flex-direction:column; }
+    .login-hero { text-align:center; }
+    .login-features { grid-template-columns:1fr; }
+    .topbar-search { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN SCREEN ================= -->
+<div id="loginScreen">
+  <div class="login-wrap">
+    <div class="login-hero">
+      <div class="logo-badge">🎓 UniSphere · v3.0</div>
+      <h1>Centralized University Platform with FYP & Resource Management</h1>
+      <p>One unified system for students, faculty, coordinators and FYP heads — manage academics, FYP applications and GPU/CPU lab resources seamlessly.</p>
+      <div class="login-features">
+        <div class="feature-pill">🎯 FYP Application System</div>
+        <div class="feature-pill">⚡ GPU Resource Allocation</div>
+        <div class="feature-pill">📊 Real-time Tracking</div>
+        <div class="feature-pill">🤖 AI Recommendations</div>
+      </div>
+    </div>
+
+    <div class="login-card">
+      <div class="login-logo">
+        <h1>🎓 UniSphere</h1>
+        <p>Sign in to your portal</p>
+      </div>
+      <h2>Welcome Back 👋</h2>
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" id="username" placeholder="Enter username" value="user123"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Enter password" value="password"/>
+      </div>
+      <div class="form-group">
+        <label>Login As</label>
+        <select id="role">
+          <option value="student">🎓 Student</option>
+          <option value="faculty">👨‍🏫 Faculty</option>
+          <option value="manager">🧑‍💼 Program Coordinator</option>
+          <option value="fypHead">🎯 FYP Head / Admin</option>
+        </select>
+      </div>
+      <button class="btn btn-gradient btn-block" onclick="login()">Sign In →</button>
+      <p style="text-align:center;margin-top:15px;font-size:11px;color:var(--muted);">
+        Demo project · Use any credentials to login
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>🎓 UniSphere</h2>
+      <p id="portalName">Student Portal</p>
+    </div>
+    <nav class="sidebar-menu" id="sidebarMenu"></nav>
+    <div class="sidebar-footer">© 2025 UniSphere · FYP Edition</div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div class="topbar-right">
+        <input class="topbar-search" id="globalSearch" placeholder="🔍 Search forms, FYPs, resources..." onkeyup="globalSearch(event)"/>
+        <button class="icon-btn" onclick="showSection('notifications','Notifications'); setActiveById('notifications');" title="Notifications">🔔<span class="dot" id="notifCount">0</span></button>
+        <div class="user-info">
+          <div class="avatar" id="userAvatar">U</div>
+          <div>
+            <span id="userName">User</span>
+            <small id="userRole">Role</small>
+          </div>
+        </div>
+        <button class="logout-btn" onclick="logout()">Logout</button>
+      </div>
+    </header>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+
+<!-- ================= MODAL ================= -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3 id="modalTitle">Title</h3>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot" id="modalFoot">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-gradient" id="modalSubmitBtn" onclick="submitDynamicForm()">📤 Submit</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   UNISPHERE v3.0 - JAVASCRIPT
+   ============================================================
+   ARCHITECTURE:
+   - Single-file SPA prototype
+   - In-memory "database" (arrays) simulating tables
+   - Render functions act as page components
+   - Handler functions act as API endpoints
+
+   IN-MEMORY MODELS / TABLES:
+     PORTALS          → roles & user info
+     FORM_LIBRARY     → available form templates by role
+     SUBMISSIONS      → form submissions (forms center)
+     FYP_APPLICATIONS → FYP applications (NEW MODULE)
+     RESOURCE_REQUESTS→ GPU/CPU requests (NEW MODULE)
+     LABS             → lab inventory
+     RESOURCES        → GPU/CPU/Workstation inventory
+     ALLOCATIONS      → approved allocations
+     NOTIFICATIONS    → notification feed (per role)
+
+   REMOVED:
+     - Hostel Application Module (form, references, routes)
+     - Bonafide Certificate Module (form, references, routes)
+   ============================================================ */
+
+// ============================================================
+// 1. PORTAL CONFIGURATION
+// ============================================================
+const PORTALS = {
+  student: {
+    name: "Student Portal",
+    user: "Ahmad Khan",
+    id: "FA21-BCS-045",
+    dept: "Computer Science",
+    menu: [
+      {id:"dashboard", icon:"🏠", label:"Dashboard"},
+      {id:"timetable", icon:"📅", label:"Timetable"},
+      {id:"exams", icon:"📝", label:"Exam Schedule"},
+      {id:"notifications", icon:"🔔", label:"Notifications"},
+      {id:"internships", icon:"💼", label:"Internships"},
+      {id:"complaints", icon:"📮", label:"Complaint Box"},
+      {id:"forms", icon:"📑", label:"Forms Center"},
+      {id:"myForms", icon:"📊", label:"My Submissions"},
+      {id:"fypApply", icon:"🎯", label:"FYP Application"},
+      {id:"myFYP", icon:"📋", label:"My FYP Status"},
+      {id:"resourceRequest", icon:"💻", label:"Request Resource"},
+      {id:"myAllocations", icon:"🖥️", label:"My Allocations"},
+      {id:"chatbot", icon:"🤖", label:"AI Chatbot"},
+      {id:"planning", icon:"📚", label:"Academic Planning"},
+    ]
+  },
+  faculty: {
+    name: "Faculty Portal",
+    user: "Dr. Sara Ali",
+    id: "FAC-CS-019",
+    dept: "Computer Science",
+    menu: [
+      {id:"dashboard", icon:"🏠", label:"Dashboard"},
+      {id:"courses", icon:"📘", label:"Manage Courses"},
+      {id:"uploadNotif", icon:"📤", label:"Upload Notifications"},
+      {id:"viewComplaints", icon:"📋", label:"Student Complaints"},
+      {id:"uploadTT", icon:"📅", label:"Upload Timetable"},
+      {id:"forms", icon:"📑", label:"Forms Center"},
+      {id:"myForms", icon:"📊", label:"My Submissions"},
+      {id:"reviewForms", icon:"✅", label:"Forms to Review"},
+      {id:"communication", icon:"💬", label:"Communication"},
+    ]
+  },
+  manager: {
+    name: "Program Coordinator Portal",
+    user: "Mr. Imran Sheikh",
+    id: "PC-CS-002",
+    dept: "Computer Science",
+    menu: [
+      {id:"dashboard", icon:"🏠", label:"Dashboard"},
+      {id:"approveTT", icon:"✅", label:"Approve Timetables"},
+      {id:"clashes", icon:"⚠️", label:"Resolve Clashes"},
+      {id:"complaints", icon:"📋", label:"Manage Complaints"},
+      {id:"assignFaculty", icon:"👨‍🏫", label:"Assign Faculty"},
+      {id:"forms", icon:"📑", label:"Forms Center"},
+      {id:"reviewForms", icon:"📥", label:"Forms to Review"},
+      {id:"broadcast", icon:"📢", label:"Broadcast"},
+    ]
+  },
+  // NEW ROLE: FYP HEAD / ADMIN
+  fypHead: {
+    name: "FYP Head Portal",
+    user: "Dr. Kamran Shah",
+    id: "FYP-HEAD-001",
+    dept: "Computer Science",
+    menu: [
+      {id:"dashboard", icon:"🏠", label:"Dashboard"},
+      {id:"fypManage", icon:"🎯", label:"FYP Applications"},
+      {id:"resourceManage", icon:"💻", label:"Resource Requests"},
+      {id:"allocationTrack", icon:"📊", label:"Allocation Tracking"},
+      {id:"labsManage", icon:"🏛️", label:"Manage Labs"},
+      {id:"resourcesInventory", icon:"🖥️", label:"Manage Resources"},
+      {id:"reports", icon:"📈", label:"Reports"},
+      {id:"notifications", icon:"🔔", label:"Notifications"},
+    ]
+  }
+};
+
+// ============================================================
+// 2. FORM LIBRARY (Hostel + Bonafide REMOVED)
+// ============================================================
+const FORM_LIBRARY = {
+  student: [
+    {id:"add_drop", icon:"➕", title:"Course Add/Drop", desc:"Request to add or drop a course in current semester", recipient:"Program Coordinator"},
+    {id:"withdraw", icon:"↩️", title:"Course Withdrawal", desc:"Withdraw from a registered course officially", recipient:"Program Coordinator"},
+    {id:"freeze", icon:"❄️", title:"Semester Freeze", desc:"Apply to freeze your current academic semester", recipient:"HOD"},
+    {id:"transcript", icon:"📜", title:"Transcript Request", desc:"Request official academic transcript copy", recipient:"Registrar Office"},
+    {id:"verify", icon:"🎓", title:"Degree Verification", desc:"Apply for degree authenticity verification", recipient:"Registrar Office"},
+    {id:"scholarship", icon:"🏆", title:"Scholarship Application", desc:"Apply for need or merit-based scholarship", recipient:"Finance Department"},
+    {id:"leave", icon:"📅", title:"Leave Application", desc:"Submit leave request for personal or medical reasons", recipient:"Faculty"},
+    {id:"complaint", icon:"📮", title:"Complaint / Grievance", desc:"File a formal grievance about any university matter", recipient:"HOD"},
+  ],
+  faculty: [
+    {id:"f_leave", icon:"📅", title:"Leave Request", desc:"Faculty leave request for personal/academic reasons", recipient:"HOD"},
+    {id:"research", icon:"🔬", title:"Research Grant Request", desc:"Apply for research project funding", recipient:"HOD"},
+    {id:"outline", icon:"📘", title:"Course Outline Submission", desc:"Submit course outline for upcoming semester", recipient:"Program Coordinator"},
+    {id:"exampaper", icon:"📝", title:"Exam Paper Submission", desc:"Submit final/mid exam papers for review", recipient:"Examination Department"},
+    {id:"attendance_adj", icon:"✏️", title:"Attendance Adjustment", desc:"Request adjustment in student attendance records", recipient:"Program Coordinator"},
+    {id:"equipment", icon:"🖥️", title:"Equipment/Resource Request", desc:"Request lab equipment or teaching resources", recipient:"Finance Department"},
+    {id:"f_eval", icon:"⭐", title:"Faculty Evaluation Form", desc:"Submit self/peer faculty evaluation", recipient:"HOD"},
+  ],
+  manager: [
+    {id:"course_approval", icon:"✅", title:"Course Approval", desc:"Approve new course offerings for semester", recipient:"HOD"},
+    {id:"fac_assign", icon:"👨‍🏫", title:"Faculty Assignment", desc:"Formal faculty-course assignment approval", recipient:"HOD"},
+    {id:"reg_approval", icon:"📝", title:"Student Registration Approval", desc:"Approve student course registrations", recipient:"Registrar Office"},
+    {id:"tt_approval", icon:"📅", title:"Timetable Approval", desc:"Submit timetable for academic approval", recipient:"HOD"},
+    {id:"result_approval", icon:"🎯", title:"Result Approval", desc:"Final result approval and submission", recipient:"Examination Department"},
+    {id:"academic_review", icon:"📊", title:"Academic Review", desc:"Departmental academic performance review", recipient:"HOD"},
+    {id:"curriculum", icon:"📚", title:"Curriculum Update Request", desc:"Propose curriculum changes/updates", recipient:"HOD"},
+  ]
+};
+
+const RECIPIENT_OPTIONS = ["Faculty","Program Coordinator","HOD","Registrar Office","Examination Department","Finance Department"];
+
+// ============================================================
+// 3. IN-MEMORY DATABASE TABLES
+// ============================================================
+
+// Form Submissions (Hostel reference REMOVED)
+let SUBMISSIONS = [
+  {id:"USP-1001", formTitle:"Transcript Request", applicant:"Ahmad Khan", role:"student", recipient:"Registrar Office", date:"2025-10-28", status:"Approved", step:3},
+  {id:"USP-1002", formTitle:"Course Add/Drop", applicant:"Ahmad Khan", role:"student", recipient:"Program Coordinator", date:"2025-11-01", status:"Under Review", step:2},
+  {id:"USP-1003", formTitle:"Scholarship Application", applicant:"Ahmad Khan", role:"student", recipient:"Finance Department", date:"2025-11-03", status:"Submitted", step:1},
+];
+
+// NEW TABLE: FYP Applications
+let FYP_APPLICATIONS = [
+  {
+    id:"FYP-2025-001",
+    title:"AI-Powered Smart Healthcare Diagnosis System",
+    domain:"Artificial Intelligence",
+    description:"A deep learning system for early disease prediction using patient symptoms and medical history.",
+    technologies:"Python, TensorFlow, React, Node.js",
+    groupName:"NeuralMinds",
+    members:"Ahmad Khan, Bilal Ahmed, Sara Iqbal",
+    registrationNos:"FA21-BCS-045, FA21-BCS-012, FA21-BCS-078",
+    supervisorPref:"Dr. Sara Ali",
+    department:"Computer Science",
+    semester:"Fall 2025",
+    submissionDate:"2025-10-15",
+    status:"Approved",
+    remarks:"Excellent project scope. Approved with Dr. Sara Ali as supervisor.",
+    applicant:"Ahmad Khan",
+    applicantId:"FA21-BCS-045"
+  },
+  {
+    id:"FYP-2025-002",
+    title:"Blockchain-Based Voting System",
+    domain:"Blockchain / Web3",
+    description:"Secure and transparent voting platform using Ethereum smart contracts.",
+    technologies:"Solidity, React, Web3.js, IPFS",
+    groupName:"CryptoVoters",
+    members:"Hassan Raza, Fatima Noor, Ali Hamza",
+    registrationNos:"FA21-BCS-101, FA21-BCS-102, FA21-BCS-103",
+    supervisorPref:"Dr. Kamran Shah",
+    department:"Computer Science",
+    semester:"Fall 2025",
+    submissionDate:"2025-10-20",
+    status:"Pending",
+    remarks:"",
+    applicant:"Hassan Raza",
+    applicantId:"FA21-BCS-101"
+  },
+  {
+    id:"FYP-2025-003",
+    title:"AR-Based Education Platform",
+    domain:"Augmented Reality",
+    description:"Mobile AR app for interactive learning of complex science concepts.",
+    technologies:"Unity, ARCore, Firebase",
+    groupName:"EduVerse",
+    members:"Aisha Malik, Omar Sheikh",
+    registrationNos:"FA21-BCS-201, FA21-BCS-202",
+    supervisorPref:"Dr. Hassan Raza",
+    department:"Computer Science",
+    semester:"Fall 2025",
+    submissionDate:"2025-10-22",
+    status:"Pending",
+    remarks:"",
+    applicant:"Aisha Malik",
+    applicantId:"FA21-BCS-201"
+  },
+];
+
+// NEW TABLE: Resource Requests
+let RESOURCE_REQUESTS = [
+  {
+    id:"RES-2025-001",
+    projectName:"AI-Powered Smart Healthcare Diagnosis System",
+    groupName:"NeuralMinds",
+    members:"Ahmad Khan, Bilal Ahmed, Sara Iqbal",
+    supervisor:"Dr. Sara Ali",
+    resourceType:"GPU",
+    config:"RTX 4090, 64GB RAM, 2TB SSD",
+    purpose:"Training deep CNN models for medical image classification",
+    startDate:"2025-11-15",
+    endDate:"2026-02-15",
+    timeSlot:"02:00 PM - 06:00 PM",
+    status:"Allocated",
+    applicant:"Ahmad Khan",
+    applicantId:"FA21-BCS-045",
+    submissionDate:"2025-10-30"
+  },
+  {
+    id:"RES-2025-002",
+    projectName:"Blockchain-Based Voting System",
+    groupName:"CryptoVoters",
+    members:"Hassan Raza, Fatima Noor, Ali Hamza",
+    supervisor:"Dr. Kamran Shah",
+    resourceType:"Workstation",
+    config:"i9 Processor, 32GB RAM",
+    purpose:"Smart contract testing and deployment simulation",
+    startDate:"2025-11-20",
+    endDate:"2026-01-20",
+    timeSlot:"10:00 AM - 02:00 PM",
+    status:"Pending",
+    applicant:"Hassan Raza",
+    applicantId:"FA21-BCS-101",
+    submissionDate:"2025-11-02"
+  },
+];
+
+// NEW TABLE: Labs Inventory
+let LABS = [
+  {id:"LAB-001", name:"AI Research Lab", number:"Lab-3", capacity:20},
+  {id:"LAB-002", name:"High Performance Computing Lab", number:"Lab-7", capacity:15},
+  {id:"LAB-003", name:"Graphics & Visualization Lab", number:"Lab-5", capacity:18},
+  {id:"LAB-004", name:"Networks Lab", number:"Lab-2", capacity:25},
+];
+
+// NEW TABLE: Resources Inventory
+let RESOURCES = [
+  {id:"GPU-001", name:"RTX 4090", model:"NVIDIA GeForce RTX 4090", type:"GPU", specs:"24GB GDDR6X, 16384 CUDA cores", quantity:4, available:2, status:"Active"},
+  {id:"GPU-002", name:"RTX 4080", model:"NVIDIA GeForce RTX 4080", type:"GPU", specs:"16GB GDDR6X, 9728 CUDA cores", quantity:6, available:4, status:"Active"},
+  {id:"GPU-003", name:"RTX 3090", model:"NVIDIA GeForce RTX 3090", type:"GPU", specs:"24GB GDDR6X, 10496 CUDA cores", quantity:8, available:6, status:"Active"},
+  {id:"GPU-004", name:"A100", model:"NVIDIA A100 Tensor Core", type:"GPU", specs:"80GB HBM2e, 6912 CUDA cores", quantity:2, available:1, status:"Active"},
+  {id:"GPU-005", name:"H100", model:"NVIDIA H100 Tensor Core", type:"GPU", specs:"80GB HBM3, 14592 CUDA cores", quantity:1, available:1, status:"Active"},
+  {id:"CPU-001", name:"Intel i9-13900K", model:"Intel Core i9 13th Gen", type:"CPU", specs:"24 cores, 32 threads, 5.8GHz", quantity:10, available:7, status:"Active"},
+  {id:"WS-001", name:"Workstation Alpha", model:"Dell Precision 7920", type:"Workstation", specs:"Xeon, 64GB RAM, RTX A5000", quantity:5, available:3, status:"Active"},
+];
+
+// NEW TABLE: Allocations
+let ALLOCATIONS = [
+  {
+    id:"ALLOC-001",
+    requestId:"RES-2025-001",
+    groupName:"NeuralMinds",
+    members:"Ahmad Khan, Bilal Ahmed, Sara Iqbal",
+    lab:"AI Research Lab (Lab-3)",
+    resource:"RTX 4090",
+    resourceId:"GPU-001",
+    startDate:"2025-11-15",
+    endDate:"2026-02-15",
+    timeSlot:"02:00 PM - 06:00 PM",
+    status:"Active",
+    allocatedBy:"Dr. Kamran Shah",
+    allocatedDate:"2025-11-01"
+  },
+];
+
+// NEW TABLE: Notifications (per role)
+let NOTIFICATIONS = {
+  student: [
+    {id:1, title:"FYP Application Approved ✓", msg:"Your FYP 'AI-Powered Smart Healthcare Diagnosis System' has been approved.", time:"2 hours ago", read:false},
+    {id:2, title:"GPU Allocated", msg:"RTX 4090 has been allocated to your group NeuralMinds.", time:"1 day ago", read:false},
+    {id:3, title:"Mid-term Schedule Released", msg:"Mid-term exams will start from Nov 10.", time:"2 days ago", read:true},
+  ],
+  faculty: [
+    {id:1, title:"New Complaint Received", msg:"Ali Hassan submitted a new complaint regarding assignment deadline.", time:"3 hours ago", read:false},
+    {id:2, title:"FYP Supervisor Request", msg:"You have been preferred as supervisor by group NeuralMinds.", time:"1 day ago", read:false},
+  ],
+  manager: [
+    {id:1, title:"Timetable Pending Approval", msg:"4 timetables awaiting your approval.", time:"4 hours ago", read:false},
+    {id:2, title:"Clash Resolution Needed", msg:"3 active clashes require immediate resolution.", time:"1 day ago", read:true},
+  ],
+  fypHead: [
+    {id:1, title:"New FYP Application", msg:"Group CryptoVoters submitted a new FYP application.", time:"1 hour ago", read:false},
+    {id:2, title:"New Resource Request", msg:"Group NeuralMinds requested GPU access.", time:"3 hours ago", read:false},
+    {id:3, title:"Allocation Expiring Soon", msg:"GPU allocation for NeuralMinds expires in 30 days.", time:"2 days ago", read:true},
+  ],
+};
+
+// State variables
+let formSearchQuery = "";
+let activeFormId = null;
+let currentRole = null;
+let activeModalContext = null; // tracks what modal is for (form/fyp/resource/lab/etc)
+
+// ============================================================
+// 4. AUTHENTICATION
+// ============================================================
+function login() {
+  const u = document.getElementById("username").value.trim();
+  const p = document.getElementById("password").value.trim();
+  const r = document.getElementById("role").value;
+  if (!u || !p) { toast("Please enter credentials","error"); return; }
+  currentRole = r;
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("app").classList.add("active");
+  loadPortal();
+  updateNotifBadge();
+  toast("Welcome to UniSphere! 🎓","info");
+}
+
+function logout() {
+  document.getElementById("app").classList.remove("active");
+  document.getElementById("loginScreen").style.display = "flex";
+  currentRole = null;
+}
+
+// ============================================================
+// 5. PORTAL LOADING
+// ============================================================
+function loadPortal() {
+  const portal = PORTALS[currentRole];
+  document.getElementById("portalName").textContent = portal.name;
+  document.getElementById("userName").textContent = portal.user;
+  document.getElementById("userRole").textContent = portal.name;
+  document.getElementById("userAvatar").textContent = portal.user.split(" ").map(s=>s[0]).join("").substring(0,2);
+
+  const menu = document.getElementById("sidebarMenu");
+  menu.innerHTML = "";
+  portal.menu.forEach((item, idx) => {
+    const a = document.createElement("a");
+    a.dataset.id = item.id;
+    a.innerHTML = `<span class="icon">${item.icon}</span><span>${item.label}</span>`;
+    a.onclick = () => { showSection(item.id, item.label); setActive(a); };
+    if (idx === 0) a.classList.add("active");
+    menu.appendChild(a);
+  });
+  showSection("dashboard", "Dashboard");
+}
+
+function setActive(el) {
+  document.querySelectorAll(".sidebar-menu a").forEach(a=>a.classList.remove("active"));
+  el.classList.add("active");
+}
+function setActiveById(id) {
+  document.querySelectorAll(".sidebar-menu a").forEach(a=>{
+    a.classList.toggle("active", a.dataset.id === id);
+  });
+}
+
+function showSection(id, label) {
+  document.getElementById("pageTitle").textContent = label;
+  const content = document.getElementById("content");
+  content.innerHTML = renderSection(id);
+  setTimeout(animateCounters, 50);
+}
+
+function updateNotifBadge() {
+  const count = (NOTIFICATIONS[currentRole] || []).filter(n=>!n.read).length;
+  const badge = document.getElementById("notifCount");
+  if (badge) {
+    badge.textContent = count;
+    badge.style.display = count > 0 ? "flex" : "none";
+  }
+}
+
+// ============================================================
+// 6. SECTION DISPATCHER
+// ============================================================
+function renderSection(id) {
+  // Shared sections
+  if (id === "forms") return renderFormsCenter();
+  if (id === "myForms") return renderMySubmissions();
+  if (id === "reviewForms") return renderFormsToReview();
+  if (id === "notifications") return renderNotifications();
+
+  // NEW: FYP module
+  if (id === "fypApply") return renderFYPApply();
+  if (id === "myFYP") return renderMyFYP();
+  if (id === "fypManage") return renderFYPManage();
+
+  // NEW: Resource module
+  if (id === "resourceRequest") return renderResourceRequest();
+  if (id === "myAllocations") return renderMyAllocations();
+  if (id === "resourceManage") return renderResourceManage();
+  if (id === "allocationTrack") return renderAllocationTrack();
+  if (id === "labsManage") return renderLabsManage();
+  if (id === "resourcesInventory") return renderResourcesInventory();
+  if (id === "reports") return renderReports();
+
+  if (currentRole === "student") return renderStudent(id);
+  if (currentRole === "faculty") return renderFaculty(id);
+  if (currentRole === "manager") return renderManager(id);
+  if (currentRole === "fypHead") return renderFYPHead(id);
+  return "<p>Section not found.</p>";
+}
+
+// ============================================================
+// 7. STUDENT SECTIONS
+// ============================================================
+function renderStudent(id) {
+  switch(id) {
+    case "dashboard":
+      const myFyp = FYP_APPLICATIONS.find(f => f.applicantId === PORTALS.student.id);
+      const myRes = RESOURCE_REQUESTS.filter(r => r.applicantId === PORTALS.student.id);
+      return `
+        <div class="hero-banner">
+          <h2>Welcome back, Ahmad Khan 👋</h2>
+          <p>Your FYP is approved! You have ${myRes.length} resource request(s) active and 2 forms under review.</p>
+          <div class="hero-meta">
+            <div class="hero-meta-item">📅 Fall 2025</div>
+            <div class="hero-meta-item">🎓 BSCS - Semester 7</div>
+            <div class="hero-meta-item">🆔 FA21-BCS-045</div>
+          </div>
+        </div>
+
+        ${renderAISuggestion("student")}
+
+        <div class="stat-grid">
+          ${statCard("📘","Enrolled Courses","6","Fall 2025")}
+          ${statCard("⭐","Current GPA","3.72","CGPA: 3.65", "up","↑ 0.08")}
+          ${statCard("🎯","FYP Status", myFyp ? "1" : "0", myFyp ? myFyp.status : "Not submitted")}
+          ${statCard("💻","Resource Requests", myRes.length, "Active")}
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><h3>📅 Today's Classes</h3><span class="badge badge-info">Wed, Nov 6</span></div>
+            <table>
+              <tr><th>Time</th><th>Course</th><th>Room</th></tr>
+              <tr><td>09:00 AM</td><td>Software Engineering</td><td>CS-201</td></tr>
+              <tr><td>11:00 AM</td><td>Database Systems</td><td>CS-105</td></tr>
+              <tr><td>02:00 PM</td><td>AI Fundamentals</td><td>Lab-3</td></tr>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3>🔔 Recent Notifications</h3></div>
+            <div class="notif-list">
+              ${(NOTIFICATIONS.student || []).slice(0,3).map(n => `
+                <div class="notif-item">
+                  <h4>${n.title}</h4>
+                  <p>${n.msg}</p>
+                  <small>${n.time}</small>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>🎯 Quick Actions</h3>
+          </div>
+          <div class="forms-grid">
+            <div class="form-card" onclick="navTo('fypApply','FYP Application')">
+              <div class="form-card-icon">🎯</div>
+              <h4>Submit FYP Application</h4>
+              <p>Apply for your Final Year Project officially through UniSphere.</p>
+              <div class="form-card-foot"><small>📨 FYP Head</small><span class="badge badge-info">Open →</span></div>
+            </div>
+            <div class="form-card" onclick="navTo('resourceRequest','Request Resource')">
+              <div class="form-card-icon">💻</div>
+              <h4>Request GPU/CPU Resource</h4>
+              <p>Apply for computing resources to support your FYP development.</p>
+              <div class="form-card-foot"><small>📨 FYP Head</small><span class="badge badge-info">Open →</span></div>
+            </div>
+            <div class="form-card" onclick="navTo('forms','Forms Center')">
+              <div class="form-card-icon">📑</div>
+              <h4>Forms Center</h4>
+              <p>Submit transcript, scholarship, leave & other forms.</p>
+              <div class="form-card-foot"><small>📨 Various</small><span class="badge badge-info">Open →</span></div>
+            </div>
+          </div>
+        </div>`;
+
+    case "timetable":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📅 Weekly Timetable</h3><span class="badge badge-danger">⚠️ 1 Clash Detected</span></div>
+          <table>
+            <tr><th>Day</th><th>09:00</th><th>11:00</th><th>02:00</th><th>04:00</th></tr>
+            <tr><td><b>Monday</b></td><td>Software Eng (CS-201)</td><td>Database (CS-105)</td><td>AI (Lab-3)</td><td>-</td></tr>
+            <tr><td><b>Tuesday</b></td><td>Networks (CS-110)</td><td>OS (CS-203)</td><td>-</td><td>HCI (CS-301)</td></tr>
+            <tr><td><b>Wednesday</b></td><td>Software Eng (CS-201)</td><td class="clash">Database (CS-105)<span class="clash-tag">CLASH</span></td><td class="clash">AI (Lab-3)<span class="clash-tag">CLASH</span></td><td>-</td></tr>
+            <tr><td><b>Thursday</b></td><td>Networks (CS-110)</td><td>OS (CS-203)</td><td>-</td><td>HCI (CS-301)</td></tr>
+            <tr><td><b>Friday</b></td><td>Software Eng (CS-201)</td><td>Database (CS-105)</td><td>AI (Lab-3)</td><td>-</td></tr>
+          </table>
+        </div>`;
+
+    case "exams":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📝 Exam Schedule - Mid Terms</h3><span class="badge badge-danger">⚠️ Clash Found</span></div>
+          <table>
+            <tr><th>Date</th><th>Course</th><th>Time</th><th>Room</th><th>Status</th></tr>
+            <tr><td>Nov 10, 2025</td><td>Software Engineering</td><td>09:00 - 11:00</td><td>Hall-A</td><td><span class="badge badge-success">OK</span></td></tr>
+            <tr><td>Nov 12, 2025</td><td>Database Systems</td><td>09:00 - 11:00</td><td>Hall-B</td><td><span class="badge badge-success">OK</span></td></tr>
+            <tr class="clash"><td>Nov 14, 2025</td><td>AI Fundamentals</td><td>02:00 - 04:00</td><td>Hall-A</td><td><span class="badge badge-danger">CLASH</span></td></tr>
+            <tr class="clash"><td>Nov 14, 2025</td><td>Operating Systems</td><td>02:00 - 04:00</td><td>Hall-C</td><td><span class="badge badge-danger">CLASH</span></td></tr>
+            <tr><td>Nov 16, 2025</td><td>Networks</td><td>11:00 - 01:00</td><td>Hall-B</td><td><span class="badge badge-success">OK</span></td></tr>
+          </table>
+        </div>`;
+
+    case "internships":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>💼 Available Internships</h3></div>
+          ${[
+            {t:"Software Developer Intern",c:"TechCorp Pakistan",l:"Lahore",d:"3 months",s:"Paid"},
+            {t:"Data Science Intern",c:"NextAI Solutions",l:"Karachi",d:"6 months",s:"Paid"},
+            {t:"Frontend Developer",c:"WebForge",l:"Remote",d:"4 months",s:"Stipend"},
+            {t:"ML Research Intern",c:"AIVerse Labs",l:"Islamabad",d:"6 months",s:"Paid"},
+          ].map(i=>`
+            <div class="intern-card">
+              <div>
+                <h4>${i.t}</h4>
+                <p>${i.c}</p>
+                <div class="intern-meta"><span>📍 ${i.l}</span><span>⏱ ${i.d}</span><span>💰 ${i.s}</span></div>
+              </div>
+              <button class="btn btn-sm btn-gradient" onclick="toast('Application submitted for ${i.t}')">Apply Now</button>
+            </div>
+          `).join("")}
+        </div>`;
+
+    case "complaints":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📮 Submit a Complaint</h3></div>
+          <div class="form-row">
+            <div class="form-group"><label>Subject</label><input type="text" placeholder="Brief subject"/></div>
+            <div class="form-group"><label>Category</label>
+              <select><option>Academic</option><option>Transport</option><option>Faculty</option><option>Other</option></select>
+            </div>
+          </div>
+          <div class="form-group"><label>Description</label><textarea placeholder="Describe your concern..."></textarea></div>
+          <button class="btn btn-gradient" onclick="toast('Complaint submitted successfully!')">Submit Complaint</button>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3>My Previous Complaints</h3></div>
+          <table>
+            <tr><th>ID</th><th>Subject</th><th>Category</th><th>Date</th><th>Status</th></tr>
+            <tr><td>#1024</td><td>WiFi Issue</td><td>Other</td><td>Oct 15</td><td><span class="badge badge-success">Resolved</span></td></tr>
+            <tr><td>#1031</td><td>Class Cancellation</td><td>Academic</td><td>Oct 28</td><td><span class="badge badge-warning">In Progress</span></td></tr>
+            <tr><td>#1042</td><td>Bus Timing</td><td>Transport</td><td>Nov 02</td><td><span class="badge badge-info">Submitted</span></td></tr>
+          </table>
+        </div>`;
+
+    case "chatbot":
+      setTimeout(()=>{ const i = document.getElementById("chatInput"); if(i) i.focus(); },50);
+      return `
+        <div class="chat-container">
+          <div class="chat-header">
+            <b>🤖 UniSphere AI Assistant</b><br>
+            <small>Ask me anything about your university experience</small>
+          </div>
+          <div class="chat-messages" id="chatMessages">
+            <div class="chat-msg bot"><div class="chat-bubble">Hello Ahmad! I'm UniSphere AI. How can I help you today?</div></div>
+            <div class="chat-msg bot"><div class="chat-bubble">Try asking about FYP application, GPU resources, timetable, or forms.</div></div>
+          </div>
+          <div class="chat-suggest">
+            <button onclick="quickChat('FYP status')">FYP status</button>
+            <button onclick="quickChat('GPU allocation')">GPU allocation</button>
+            <button onclick="quickChat('My timetable')">My timetable</button>
+            <button onclick="quickChat('Pending forms')">Pending forms</button>
+          </div>
+          <div class="chat-input">
+            <input type="text" id="chatInput" placeholder="Type your message..." onkeypress="if(event.key==='Enter')sendMsg()"/>
+            <button class="btn btn-gradient" onclick="sendMsg()">Send</button>
+          </div>
+        </div>`;
+
+    case "planning":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📚 Academic Plan - BSCS (8 Semesters)</h3><span class="badge badge-info">Total: 132 Credit Hours</span></div>
+          <div class="semester-grid">
+            ${[
+              ["Semester 1",["Programming Fundamentals","Calculus I","English","Islamic Studies","Physics"]],
+              ["Semester 2",["Object Oriented Prog","Calculus II","Comm Skills","Pakistan Studies","Discrete Math"]],
+              ["Semester 3",["Data Structures","Digital Logic","Linear Algebra","Probability","Tech Writing"]],
+              ["Semester 4",["Algorithms","Database Systems","Comp Org","Stats","Elective I"]],
+              ["Semester 5",["Operating Systems","Software Eng","Computer Networks","AI","Elective II"]],
+              ["Semester 6",["Web Engineering","HCI","Compiler Const","Theory of Auto","Elective III"]],
+              ["Semester 7",["FYP - I","Info Security","Mobile App Dev","Elective IV","Elective V"]],
+              ["Semester 8",["FYP - II","Prof Practices","Cloud Computing","Elective VI","Elective VII"]],
+            ].map(([title,courses])=>`
+              <div class="semester-box">
+                <h4>${title}</h4>
+                <ul>${courses.map(c=>`<li>${c} <span class="badge badge-info">3 CR</span></li>`).join("")}</ul>
+              </div>
+            `).join("")}
+          </div>
+        </div>`;
+  }
+  return "<p>Section not found.</p>";
+}
+
+// Chatbot helpers
+function quickChat(msg) {
+  const i = document.getElementById("chatInput");
+  i.value = msg; sendMsg();
+}
+function sendMsg() {
+  const input = document.getElementById("chatInput");
+  const txt = input.value.trim(); if (!txt) return;
+  const box = document.getElementById("chatMessages");
+  box.innerHTML += `<div class="chat-msg user"><div class="chat-bubble">${txt}</div></div>`;
+  input.value = "";
+  setTimeout(()=>{
+    const lower = txt.toLowerCase();
+    let r;
+    if (lower.includes("fyp")) r = "Your FYP application 'AI-Powered Smart Healthcare Diagnosis System' is APPROVED ✓. Supervisor: Dr. Sara Ali.";
+    else if (lower.includes("gpu") || lower.includes("resource") || lower.includes("allocation")) r = "Your group NeuralMinds has been allocated RTX 4090 in AI Research Lab (Lab-3) from Nov 15, 2025 to Feb 15, 2026.";
+    else if (lower.includes("timetable")) r = "Your next class is Database Systems at 11:00 AM in CS-105.";
+    else if (lower.includes("form")) r = "You have 2 forms under review and 1 approved. Check My Submissions for details.";
+    else if (lower.includes("exam")) r = "Mid-term exams begin Nov 10. You have a clash on Nov 14.";
+    else r = "I can help you with FYP application, GPU resources, timetable, forms, exams, and more.";
+    box.innerHTML += `<div class="chat-msg bot"><div class="chat-bubble">${r}</div></div>`;
+    box.scrollTop = box.scrollHeight;
+  }, 500);
+  box.scrollTop = box.scrollHeight;
+}
+
+// ============================================================
+// 8. FACULTY SECTIONS
+// ============================================================
+function renderFaculty(id) {
+  switch(id) {
+    case "dashboard":
+      return `
+        <div class="hero-banner">
+          <h2>Good Morning, Dr. Sara Ali 🌟</h2>
+          <p>You have 3 student complaints to review and 2 forms awaiting your approval.</p>
+          <div class="hero-meta">
+            <div class="hero-meta-item">📅 Fall 2025</div>
+            <div class="hero-meta-item">🆔 FAC-CS-019</div>
+            <div class="hero-meta-item">🏢 Computer Science Department</div>
+          </div>
+        </div>
+
+        ${renderAISuggestion("faculty")}
+
+        <div class="stat-grid">
+          ${statCard("📘","Courses Teaching","4","Current Semester")}
+          ${statCard("🎓","Total Students","182","Across 4 sections")}
+          ${statCard("📋","Pending Complaints","3","Need response")}
+          ${statCard("📤","Notifications Sent","12","This month")}
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><h3>📘 My Courses</h3></div>
+            <table>
+              <tr><th>Course</th><th>Section</th><th>Students</th></tr>
+              <tr><td>Software Engineering</td><td>A</td><td>48</td></tr>
+              <tr><td>Database Systems</td><td>B</td><td>52</td></tr>
+              <tr><td>Web Engineering</td><td>A</td><td>44</td></tr>
+              <tr><td>Project Management</td><td>C</td><td>38</td></tr>
+            </table>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3>📅 Upcoming Schedule</h3></div>
+            <div class="notif-list">
+              <div class="notif-item"><h4>Software Eng - Section A</h4><p>Mon 09:00 AM · Room CS-201</p></div>
+              <div class="notif-item"><h4>Database - Section B</h4><p>Tue 11:00 AM · Room CS-105</p></div>
+              <div class="notif-item"><h4>Mid-term Invigilation</h4><p>Nov 10 · Hall-A</p></div>
+            </div>
+          </div>
+        </div>`;
+
+    case "courses":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📘 Manage Courses</h3><button class="btn btn-sm btn-gradient" onclick="toast('Course added')">+ Add Course</button></div>
+          <table>
+            <tr><th>Course Code</th><th>Name</th><th>Section</th><th>Students</th><th>Actions</th></tr>
+            <tr><td>CS-301</td><td>Software Engineering</td><td>A</td><td>48</td><td><button class="btn btn-sm btn-outline" onclick="toast('Editing...')">Edit</button></td></tr>
+            <tr><td>CS-204</td><td>Database Systems</td><td>B</td><td>52</td><td><button class="btn btn-sm btn-outline" onclick="toast('Editing...')">Edit</button></td></tr>
+            <tr><td>CS-405</td><td>Web Engineering</td><td>A</td><td>44</td><td><button class="btn btn-sm btn-outline" onclick="toast('Editing...')">Edit</button></td></tr>
+            <tr><td>CS-410</td><td>Project Management</td><td>C</td><td>38</td><td><button class="btn btn-sm btn-outline" onclick="toast('Editing...')">Edit</button></td></tr>
+          </table>
+        </div>`;
+
+    case "uploadNotif":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📤 Send Notification to Students</h3></div>
+          <div class="form-group"><label>Title</label><input type="text" placeholder="Notification title"/></div>
+          <div class="form-row">
+            <div class="form-group"><label>Target Audience</label>
+              <select><option>All My Students</option><option>SE Section A</option><option>Database Section B</option></select>
+            </div>
+            <div class="form-group"><label>Priority</label><select><option>Normal</option><option>High</option><option>Urgent</option></select></div>
+          </div>
+          <div class="form-group"><label>Message</label><textarea placeholder="Type your message..."></textarea></div>
+          <button class="btn btn-gradient" onclick="toast('Notification sent to students!')">Send Notification</button>
+        </div>`;
+
+    case "viewComplaints":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📋 Student Complaints</h3></div>
+          <table>
+            <tr><th>ID</th><th>Student</th><th>Subject</th><th>Date</th><th>Status</th><th>Action</th></tr>
+            <tr><td>#2031</td><td>Ali Hassan</td><td>Assignment Deadline Issue</td><td>Nov 01</td><td><span class="badge badge-warning">Open</span></td><td><button class="btn btn-sm" onclick="toast('Replied to student')">Reply</button></td></tr>
+            <tr><td>#2034</td><td>Fatima Noor</td><td>Quiz Marks Discrepancy</td><td>Nov 02</td><td><span class="badge badge-warning">Open</span></td><td><button class="btn btn-sm" onclick="toast('Replied to student')">Reply</button></td></tr>
+            <tr><td>#2025</td><td>Bilal Ahmed</td><td>Class Material Missing</td><td>Oct 28</td><td><span class="badge badge-success">Resolved</span></td><td>—</td></tr>
+          </table>
+        </div>`;
+
+    case "uploadTT":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📅 Upload Timetable / Exam Schedule</h3></div>
+          <div class="form-row">
+            <div class="form-group"><label>Type</label><select><option>Class Timetable</option><option>Mid-term Exam</option><option>Final Exam</option></select></div>
+            <div class="form-group"><label>Course</label><select><option>Software Engineering</option><option>Database Systems</option></select></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Date / Day</label><input type="text" placeholder="e.g. Monday or 2025-11-10"/></div>
+            <div class="form-group"><label>Time</label><input type="text" placeholder="e.g. 09:00 - 11:00"/></div>
+          </div>
+          <div class="form-group"><label>Room/Hall</label><input type="text" placeholder="e.g. Hall-A"/></div>
+          <button class="btn btn-gradient" onclick="toast('Schedule submitted for approval')">Submit for Approval</button>
+        </div>`;
+
+    case "communication":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>💬 Communication Panel</h3></div>
+          <div class="grid-2">
+            <div>
+              <div class="form-group"><label>Send To</label>
+                <select><option>Program Coordinator</option><option>HOD</option><option>All Faculty</option><option>Students</option></select>
+              </div>
+              <div class="form-group"><label>Subject</label><input type="text"/></div>
+              <div class="form-group"><label>Message</label><textarea></textarea></div>
+              <button class="btn btn-gradient" onclick="toast('Message sent')">Send Message</button>
+            </div>
+            <div>
+              <h4 style="margin-bottom:10px;">Recent Messages</h4>
+              <div class="notif-list">
+                <div class="notif-item"><h4>From: Program Coordinator</h4><p>Please submit final exam paper by Nov 5.</p><small>2 days ago</small></div>
+                <div class="notif-item"><h4>From: HOD</h4><p>Faculty meeting scheduled on Friday.</p><small>4 days ago</small></div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+  }
+  return "<p>Section not found.</p>";
+}
+
+// ============================================================
+// 9. MANAGER SECTIONS
+// ============================================================
+function renderManager(id) {
+  switch(id) {
+    case "dashboard":
+      return `
+        <div class="hero-banner">
+          <h2>Welcome, Mr. Imran Sheikh 🎯</h2>
+          <p>7 timetables need your approval, 3 active clashes require resolution, and 12 complaints are open.</p>
+          <div class="hero-meta">
+            <div class="hero-meta-item">🆔 PC-CS-002</div>
+            <div class="hero-meta-item">🏢 Computer Science</div>
+            <div class="hero-meta-item">👥 42 Faculty Members</div>
+          </div>
+        </div>
+
+        ${renderAISuggestion("manager")}
+
+        <div class="stat-grid">
+          ${statCard("📋","Pending Approvals","7","Timetables")}
+          ${statCard("⚠️","Active Clashes","3","Need resolution")}
+          ${statCard("📮","Open Complaints","12","Across departments")}
+          ${statCard("👨‍🏫","Faculty Members","42","Currently active")}
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><h3>⚠️ Recent Clash Alerts</h3></div>
+            <div class="notif-list">
+              <div class="notif-item"><h4>Room Clash - Hall-A</h4><p>Nov 14 · AI vs OS exam</p></div>
+              <div class="notif-item"><h4>Time Clash - CS Dept</h4><p>SE & DB at same slot</p></div>
+              <div class="notif-item"><h4>Faculty Conflict</h4><p>Dr. Ahmed double booked</p></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3>📋 Latest Activities</h3></div>
+            <div class="notif-list">
+              <div class="notif-item"><h4>Timetable Approved</h4><p>SE - Section A</p><small>2 hours ago</small></div>
+              <div class="notif-item"><h4>Faculty Assigned</h4><p>Dr. Sara → Web Engineering</p><small>5 hours ago</small></div>
+              <div class="notif-item"><h4>Broadcast Sent</h4><p>Holiday notification</p><small>1 day ago</small></div>
+            </div>
+          </div>
+        </div>`;
+
+    case "approveTT":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>✅ Pending Timetable Approvals</h3></div>
+          <table>
+            <tr><th>ID</th><th>Course</th><th>Submitted By</th><th>Type</th><th>Action</th></tr>
+            <tr><td>#TT-101</td><td>Software Engineering</td><td>Dr. Sara Ali</td><td>Class</td><td><button class="btn btn-sm btn-success" onclick="toast('Approved')">Approve</button> <button class="btn btn-sm btn-danger" onclick="toast('Rejected')">Reject</button></td></tr>
+            <tr><td>#TT-102</td><td>Database Systems</td><td>Dr. Kamran</td><td>Class</td><td><button class="btn btn-sm btn-success" onclick="toast('Approved')">Approve</button> <button class="btn btn-sm btn-danger" onclick="toast('Rejected')">Reject</button></td></tr>
+            <tr><td>#TT-103</td><td>AI Mid-term</td><td>Dr. Hassan</td><td>Exam</td><td><button class="btn btn-sm btn-success" onclick="toast('Approved')">Approve</button> <button class="btn btn-sm btn-danger" onclick="toast('Rejected')">Reject</button></td></tr>
+          </table>
+        </div>`;
+
+    case "clashes":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>⚠️ Active Clash Issues</h3></div>
+          <table>
+            <tr><th>Type</th><th>Details</th><th>Affected</th><th>Severity</th><th>Action</th></tr>
+            <tr class="clash"><td>Room</td><td>Hall-A booked twice on Nov 14</td><td>AI, OS</td><td><span class="badge badge-danger">High</span></td><td><button class="btn btn-sm" onclick="toast('Clash resolved')">Resolve</button></td></tr>
+            <tr class="clash"><td>Time</td><td>Same slot for SE & DB</td><td>BSCS-7A</td><td><span class="badge badge-warning">Medium</span></td><td><button class="btn btn-sm" onclick="toast('Clash resolved')">Resolve</button></td></tr>
+            <tr class="clash"><td>Faculty</td><td>Dr. Ahmed double booked</td><td>2 sections</td><td><span class="badge badge-danger">High</span></td><td><button class="btn btn-sm" onclick="toast('Clash resolved')">Resolve</button></td></tr>
+          </table>
+        </div>`;
+
+    case "complaints":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📋 Manage Complaints</h3></div>
+          <table>
+            <tr><th>ID</th><th>From</th><th>Subject</th><th>Category</th><th>Status</th><th>Action</th></tr>
+            <tr><td>#3001</td><td>Ahmad Khan</td><td>Library Hours</td><td>Other</td><td><span class="badge badge-warning">Pending</span></td><td><button class="btn btn-sm" onclick="toast('Resolved')">Resolve</button></td></tr>
+            <tr><td>#3002</td><td>Aisha Malik</td><td>Course Conflict</td><td>Academic</td><td><span class="badge badge-warning">Pending</span></td><td><button class="btn btn-sm" onclick="toast('Resolved')">Resolve</button></td></tr>
+            <tr><td>#3003</td><td>Hamza Iqbal</td><td>Bus Route Issue</td><td>Transport</td><td><span class="badge badge-info">In Review</span></td><td><button class="btn btn-sm" onclick="toast('Resolved')">Resolve</button></td></tr>
+          </table>
+        </div>`;
+
+    case "assignFaculty":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>👨‍🏫 Assign Faculty to Courses</h3></div>
+          <div class="form-row">
+            <div class="form-group"><label>Course</label>
+              <select><option>Software Engineering - Section A</option><option>Database Systems - Section B</option></select>
+            </div>
+            <div class="form-group"><label>Faculty Member</label>
+              <select><option>Dr. Sara Ali</option><option>Dr. Kamran Shah</option></select>
+            </div>
+          </div>
+          <div class="form-group"><label>Semester</label><select><option>Fall 2025</option><option>Spring 2026</option></select></div>
+          <button class="btn btn-gradient" onclick="toast('Faculty assigned successfully!')">Assign Faculty</button>
+        </div>`;
+
+    case "broadcast":
+      return `
+        <div class="panel">
+          <div class="panel-header"><h3>📢 Broadcast Notification</h3></div>
+          <div class="form-group"><label>Title</label><input type="text" placeholder="Broadcast title"/></div>
+          <div class="form-row">
+            <div class="form-group"><label>Audience</label>
+              <select><option>All Students</option><option>All Faculty</option><option>Everyone</option></select>
+            </div>
+            <div class="form-group"><label>Priority</label><select><option>Normal</option><option>High</option><option>Urgent</option></select></div>
+          </div>
+          <div class="form-group"><label>Message</label><textarea placeholder="Compose broadcast message..."></textarea></div>
+          <button class="btn btn-gradient" onclick="toast('Broadcast sent!')">Send Broadcast</button>
+        </div>`;
+  }
+  return "<p>Section not found.</p>";
+}
+
+// ============================================================
+// 10. FYP HEAD SECTIONS (NEW)
+// ============================================================
+function renderFYPHead(id) {
+  switch(id) {
+    case "dashboard":
+      const pendingFyps = FYP_APPLICATIONS.filter(f=>f.status==="Pending").length;
+      const pendingRes = RESOURCE_REQUESTS.filter(r=>r.status==="Pending").length;
+      const activeAllocs = ALLOCATIONS.filter(a=>a.status==="Active").length;
+      return `
+        <div class="hero-banner">
+          <h2>Welcome, Dr. Kamran Shah 🎯</h2>
+          <p>You have ${pendingFyps} FYP applications and ${pendingRes} resource requests pending review.</p>
+          <div class="hero-meta">
+            <div class="hero-meta-item">🆔 FYP-HEAD-001</div>
+            <div class="hero-meta-item">🏢 Computer Science</div>
+            <div class="hero-meta-item">💻 ${RESOURCES.reduce((s,r)=>s+r.available,0)} Resources Available</div>
+          </div>
+        </div>
+
+        <div class="stat-grid">
+          ${statCard("🎯","Pending FYPs", pendingFyps, "Need review")}
+          ${statCard("💻","Resource Requests", pendingRes, "Pending allocation")}
+          ${statCard("📊","Active Allocations", activeAllocs, "Currently running")}
+          ${statCard("🏛️","Labs Available", LABS.length, "Total managed")}
+        </div>
+
+        <div class="grid-2">
+          <div class="panel">
+            <div class="panel-header"><h3>🎯 Recent FYP Submissions</h3><button class="btn btn-sm btn-outline" onclick="navTo('fypManage','FYP Applications')">View All</button></div>
+            <div class="notif-list">
+              ${FYP_APPLICATIONS.slice(0,3).map(f=>`
+                <div class="notif-item">
+                  <h4>${f.title}</h4>
+                  <p>${f.groupName} · ${f.domain}</p>
+                  <small>Status: <span class="badge ${f.status==='Approved'?'badge-success':f.status==='Rejected'?'badge-danger':'badge-warning'}">${f.status}</span></small>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><h3>💻 Recent Resource Requests</h3><button class="btn btn-sm btn-outline" onclick="navTo('resourceManage','Resource Requests')">View All</button></div>
+            <div class="notif-list">
+              ${RESOURCE_REQUESTS.slice(0,3).map(r=>`
+                <div class="notif-item">
+                  <h4>${r.projectName}</h4>
+                  <p>${r.groupName} · ${r.resourceType}</p>
+                  <small>Status: <span class="badge ${r.status==='Allocated'?'badge-success':r.status==='Rejected'?'badge-danger':'badge-warning'}">${r.status}</span></small>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header"><h3>📊 Quick Resource Overview</h3></div>
+          <div class="forms-grid">
+            ${RESOURCES.slice(0,4).map(r=>`
+              <div class="resource-card">
+                <div class="res-head">
+                  <div class="res-icon">${r.type==='GPU'?'🎮':r.type==='CPU'?'⚙️':'🖥️'}</div>
+                  <span class="badge badge-${r.available>0?'success':'danger'}">${r.status}</span>
+                </div>
+                <h4>${r.name}</h4>
+                <div class="res-spec">${r.specs}</div>
+                <div class="res-stats">
+                  <div><b>${r.quantity}</b>Total</div>
+                  <div><b>${r.available}</b>Available</div>
+                  <div><b>${r.quantity-r.available}</b>In Use</div>
+                </div>
+              </div>
+            `).join("")}
+          </div>
+        </div>`;
+  }
+  return "<p>Section not found.</p>";
+}
+
+// ============================================================
+// 11. FYP APPLICATION MODULE (STUDENT)
+// ============================================================
+function renderFYPApply() {
+  const portal = PORTALS.student;
+  const existing = FYP_APPLICATIONS.find(f => f.applicantId === portal.id);
+
+  if (existing && existing.status !== "Rejected") {
+    return `
+      <div class="hero-banner">
+        <h2>🎯 FYP Application</h2>
+        <p>You have already submitted an FYP application. View its status on "My FYP Status" page.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Your Current Application</h3>
+          <span class="badge ${existing.status==='Approved'?'badge-success':existing.status==='Rejected'?'badge-danger':'badge-warning'}">${existing.status}</span>
+        </div>
+        <p style="color:var(--muted); margin-bottom:14px;">You can only have one active FYP application at a time.</p>
+        <button class="btn btn-gradient" onclick="navTo('myFYP','My FYP Status')">View FYP Status →</button>
+        ${existing.status==="Pending" ? `<button class="btn btn-outline" style="margin-left:10px;" onclick="openFYPModal('${existing.id}')">✏️ Edit Application</button>` : ""}
+      </div>
+    `;
+  }
+
+  return `
+    <div class="hero-banner">
+      <h2>🎯 Submit FYP Application</h2>
+      <p>Fill out your Final Year Project details for official approval by the FYP Head.</p>
+    </div>
+
+    <div class="ai-suggest">
+      <div class="ai-icon">🤖</div>
+      <div style="flex:1; position:relative; z-index:2;">
+        <h4>FYP Tips by AI</h4>
+        <p>Choose a trending domain like AI, Blockchain, Cloud, or Cybersecurity. Add at least 3 group members for better evaluation.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📝 FYP Application Form</h3></div>
+      <div class="form-group"><label>FYP Title *</label><input type="text" id="fyp_title" placeholder="e.g. AI-Powered Smart Healthcare System"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Project Domain *</label>
+          <select id="fyp_domain">
+            <option>Artificial Intelligence</option>
+            <option>Machine Learning</option>
+            <option>Blockchain / Web3</option>
+            <option>Cybersecurity</option>
+            <option>Cloud Computing</option>
+            <option>Web Development</option>
+            <option>Mobile App Development</option>
+            <option>IoT</option>
+            <option>Augmented Reality</option>
+            <option>Data Science</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Department *</label><input type="text" id="fyp_dept" value="${PORTALS.student.dept}"/></div>
+      </div>
+      <div class="form-group"><label>Project Description *</label><textarea id="fyp_desc" placeholder="Describe project objectives, scope, and expected outcomes..."></textarea></div>
+      <div class="form-group"><label>Technologies Used *</label><input type="text" id="fyp_tech" placeholder="e.g. Python, TensorFlow, React, MongoDB"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Group Name *</label><input type="text" id="fyp_group" placeholder="e.g. NeuralMinds"/></div>
+        <div class="form-group"><label>Semester *</label>
+          <select id="fyp_sem"><option>Fall 2025</option><option>Spring 2026</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Group Members (Full Names) *</label><textarea id="fyp_members" placeholder="e.g. Ahmad Khan, Bilal Ahmed, Sara Iqbal"></textarea></div>
+      <div class="form-group"><label>Student Registration Numbers *</label><input type="text" id="fyp_regnos" placeholder="e.g. FA21-BCS-045, FA21-BCS-012, FA21-BCS-078"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>Supervisor Preference *</label>
+          <select id="fyp_supervisor">
+            <option>Dr. Sara Ali</option>
+            <option>Dr. Kamran Shah</option>
+            <option>Dr. Hassan Raza</option>
+            <option>Dr. Ayesha Khan</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Submission Date</label><input type="date" id="fyp_date" value="${new Date().toISOString().split('T')[0]}"/></div>
+      </div>
+      <button class="btn btn-gradient" onclick="submitFYP()">📤 Submit FYP Application</button>
+    </div>
+  `;
+}
+
+// Submit FYP - "API endpoint"
+function submitFYP() {
+  const portal = PORTALS.student;
+  const data = {
+    title: document.getElementById("fyp_title").value.trim(),
+    domain: document.getElementById("fyp_domain").value,
+    description: document.getElementById("fyp_desc").value.trim(),
+    technologies: document.getElementById("fyp_tech").value.trim(),
+    groupName: document.getElementById("fyp_group").value.trim(),
+    members: document.getElementById("fyp_members").value.trim(),
+    registrationNos: document.getElementById("fyp_regnos").value.trim(),
+    supervisorPref: document.getElementById("fyp_supervisor").value,
+    department: document.getElementById("fyp_dept").value.trim(),
+    semester: document.getElementById("fyp_sem").value,
+    submissionDate: document.getElementById("fyp_date").value
+  };
+
+  // Validation
+  const missing = [];
+  if (!data.title) missing.push("Title");
+  if (!data.description) missing.push("Description");
+  if (!data.technologies) missing.push("Technologies");
+  if (!data.groupName) missing.push("Group Name");
+  if (!data.members) missing.push("Members");
+  if (!data.registrationNos) missing.push("Registration Numbers");
+  if (missing.length) { toast("⚠️ Missing: " + missing.join(", "), "error"); return; }
+
+  const newApp = {
+    id: "FYP-2025-" + String(FYP_APPLICATIONS.length + 1).padStart(3,"0"),
+    ...data,
+    status: "Pending",
+    remarks: "",
+    applicant: portal.user,
+    applicantId: portal.id
+  };
+  FYP_APPLICATIONS.push(newApp);
+
+  // Trigger notifications
+  pushNotification("fypHead", "New FYP Application", `Group ${data.groupName} submitted: ${data.title}`);
+
+  toast("✅ FYP Application submitted successfully!");
+  setTimeout(()=>navTo("myFYP","My FYP Status"), 800);
+}
+
+// Open FYP edit modal
+function openFYPModal(fypId) {
+  const fyp = FYP_APPLICATIONS.find(f=>f.id===fypId);
+  if (!fyp) return;
+  activeModalContext = {type:"editFyp", id:fypId};
+
+  document.getElementById("modalTitle").textContent = `✏️ Edit FYP Application`;
+  document.getElementById("modalBody").innerHTML = `
+    <div class="form-group"><label>FYP Title</label><input type="text" id="ef_title" value="${fyp.title}"/></div>
+    <div class="form-group"><label>Description</label><textarea id="ef_desc">${fyp.description}</textarea></div>
+    <div class="form-group"><label>Technologies</label><input type="text" id="ef_tech" value="${fyp.technologies}"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Group Name</label><input type="text" id="ef_group" value="${fyp.groupName}"/></div>
+      <div class="form-group"><label>Supervisor</label>
+        <select id="ef_supervisor">
+          <option ${fyp.supervisorPref==='Dr. Sara Ali'?'selected':''}>Dr. Sara Ali</option>
+          <option ${fyp.supervisorPref==='Dr. Kamran Shah'?'selected':''}>Dr. Kamran Shah</option>
+          <option ${fyp.supervisorPref==='Dr. Hassan Raza'?'selected':''}>Dr. Hassan Raza</option>
+          <option ${fyp.supervisorPref==='Dr. Ayesha Khan'?'selected':''}>Dr. Ayesha Khan</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Members</label><textarea id="ef_members">${fyp.members}</textarea></div>
+  `;
+  document.getElementById("modalSubmitBtn").textContent = "💾 Save Changes";
+  document.getElementById("modal").classList.add("active");
+}
+
+// Render student's own FYP status
+function renderMyFYP() {
+  const portal = PORTALS.student;
+  const mine = FYP_APPLICATIONS.filter(f => f.applicantId === portal.id);
+
+  return `
+    <div class="hero-banner">
+      <h2>📋 My FYP Status</h2>
+      <p>Track your FYP application progress in real-time.</p>
+    </div>
+
+    ${mine.length === 0 ? `
+      <div class="panel">
+        <div style="text-align:center; padding:40px;">
+          <h3 style="color:var(--muted); margin-bottom:10px;">No FYP Application Yet</h3>
+          <p style="color:var(--muted); margin-bottom:20px;">You haven't submitted any FYP application.</p>
+          <button class="btn btn-gradient" onclick="navTo('fypApply','FYP Application')">📤 Submit Now</button>
+        </div>
+      </div>
+    ` : mine.map(f => `
+      <div class="panel">
+        <div class="panel-header">
+          <h3>🎯 ${f.title}</h3>
+          <span class="badge ${f.status==='Approved'?'badge-success':f.status==='Rejected'?'badge-danger':'badge-warning'}">${f.status}</span>
+        </div>
+
+        <div class="workflow">
+          <div class="workflow-step done"><div class="circle">1</div><div class="label">Submitted</div></div>
+          <div class="workflow-step ${f.status!=='Pending'?'done':'active'}"><div class="circle">2</div><div class="label">Under Review</div></div>
+          <div class="workflow-step ${f.status==='Approved'||f.status==='Rejected'?'done':''}"><div class="circle">3</div><div class="label">${f.status==='Rejected'?'Rejected':'Approved'}</div></div>
+        </div>
+
+        <div class="grid-2" style="gap:15px;">
+          <div><b>📋 Application ID:</b> ${f.id}</div>
+          <div><b>🌐 Domain:</b> ${f.domain}</div>
+          <div><b>👥 Group:</b> ${f.groupName}</div>
+          <div><b>👨‍🏫 Supervisor:</b> ${f.supervisorPref}</div>
+          <div><b>🏢 Department:</b> ${f.department}</div>
+          <div><b>📅 Submitted:</b> ${f.submissionDate}</div>
+        </div>
+        <p style="margin-top:14px;"><b>💻 Technologies:</b> ${f.technologies}</p>
+        <p style="margin-top:8px;"><b>👥 Members:</b> ${f.members}</p>
+        <p style="margin-top:8px;"><b>🆔 Reg #:</b> ${f.registrationNos}</p>
+        <p style="margin-top:8px;"><b>📝 Description:</b> ${f.description}</p>
+        ${f.remarks ? `<div style="background:var(--gradient-soft); padding:14px; border-radius:10px; margin-top:14px;"><b>💬 Remarks:</b> ${f.remarks}</div>` : ""}
+
+        <div style="margin-top:18px; display:flex; gap:10px;">
+          ${f.status==='Pending' ? `<button class="btn btn-outline" onclick="openFYPModal('${f.id}')">✏️ Edit</button>` : ""}
+          <button class="btn btn-outline" onclick="toast('Downloaded FYP application as PDF','info')">📄 Download PDF</button>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
+// ============================================================
+// 12. FYP MANAGEMENT (FYP HEAD)
+// ============================================================
+let fypFilter = "all";
+let fypSearch = "";
+
+function renderFYPManage() {
+  let list = [...FYP_APPLICATIONS];
+  if (fypFilter !== "all") list = list.filter(f => f.status.toLowerCase() === fypFilter);
+  if (fypSearch) {
+    const q = fypSearch.toLowerCase();
+    list = list.filter(f => f.title.toLowerCase().includes(q) || f.groupName.toLowerCase().includes(q) || f.applicant.toLowerCase().includes(q));
+  }
+
+  return `
+    <div class="hero-banner">
+      <h2>🎯 FYP Applications Management</h2>
+      <p>Review, approve, reject, and manage all FYP submissions across the department.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("📤","Total Submitted", FYP_APPLICATIONS.length, "All time")}
+      ${statCard("⏳","Pending", FYP_APPLICATIONS.filter(f=>f.status==="Pending").length, "Need review")}
+      ${statCard("✅","Approved", FYP_APPLICATIONS.filter(f=>f.status==="Approved").length, "Successful")}
+      ${statCard("❌","Rejected", FYP_APPLICATIONS.filter(f=>f.status==="Rejected").length, "Not accepted")}
+    </div>
+
+    <div class="forms-toolbar">
+      <input type="text" placeholder="🔍 Search by title, group, or applicant..." value="${fypSearch}" oninput="fypSearch=this.value; showSection('fypManage','FYP Applications');"/>
+      <select onchange="fypFilter=this.value; showSection('fypManage','FYP Applications');">
+        <option value="all" ${fypFilter==='all'?'selected':''}>All Status</option>
+        <option value="pending" ${fypFilter==='pending'?'selected':''}>Pending</option>
+        <option value="approved" ${fypFilter==='approved'?'selected':''}>Approved</option>
+        <option value="rejected" ${fypFilter==='rejected'?'selected':''}>Rejected</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 All FYP Applications (${list.length})</h3></div>
+      ${list.length === 0 ? `<p style="text-align:center; padding:30px; color:var(--muted);">No applications found.</p>` :
+      `<table>
+        <tr><th>ID</th><th>Title</th><th>Group</th><th>Domain</th><th>Supervisor</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+        ${list.map(f => `
+          <tr>
+            <td><b>${f.id}</b></td>
+            <td>${f.title}</td>
+            <td>${f.groupName}</td>
+            <td><span class="badge badge-info">${f.domain}</span></td>
+            <td>${f.supervisorPref}</td>
+            <td>${f.submissionDate}</td>
+            <td><span class="badge ${f.status==='Approved'?'badge-success':f.status==='Rejected'?'badge-danger':'badge-warning'}">${f.status}</span></td>
+            <td>
+              <button class="btn btn-sm btn-outline" onclick="viewFYPDetail('${f.id}')">👁️ View</button>
+              ${f.status === 'Pending' ? `
+                <button class="btn btn-sm btn-success" onclick="actOnFYP('${f.id}','Approved')">✓ Approve</button>
+                <button class="btn btn-sm btn-danger" onclick="actOnFYP('${f.id}','Rejected')">✗ Reject</button>
+              ` : ""}
+            </td>
+          </tr>
+        `).join("")}
+      </table>`}
+    </div>
+  `;
+}
+
+function viewFYPDetail(fypId) {
+  const f = FYP_APPLICATIONS.find(x=>x.id===fypId);
+  if (!f) return;
+  activeModalContext = {type:"viewFyp", id:fypId};
+  document.getElementById("modalTitle").textContent = `🎯 ${f.title}`;
+  document.getElementById("modalBody").innerHTML = `
+    <div class="grid-2" style="gap:12px;">
+      <div><b>ID:</b> ${f.id}</div>
+      <div><b>Status:</b> <span class="badge ${f.status==='Approved'?'badge-success':f.status==='Rejected'?'badge-danger':'badge-warning'}">${f.status}</span></div>
+      <div><b>Domain:</b> ${f.domain}</div>
+      <div><b>Department:</b> ${f.department}</div>
+      <div><b>Group:</b> ${f.groupName}</div>
+      <div><b>Semester:</b> ${f.semester}</div>
+      <div><b>Supervisor:</b> ${f.supervisorPref}</div>
+      <div><b>Submitted:</b> ${f.submissionDate}</div>
+    </div>
+    <p style="margin-top:14px;"><b>Technologies:</b> ${f.technologies}</p>
+    <p style="margin-top:8px;"><b>Members:</b> ${f.members}</p>
+    <p style="margin-top:8px;"><b>Reg #:</b> ${f.registrationNos}</p>
+    <p style="margin-top:8px;"><b>Description:</b> ${f.description}</p>
+    ${f.remarks ? `<div style="background:var(--gradient-soft); padding:12px; border-radius:8px; margin-top:14px;"><b>Remarks:</b> ${f.remarks}</div>` : ""}
+    ${f.status === 'Pending' ? `
+      <div class="form-group" style="margin-top:15px;">
+        <label>Add Remarks (optional)</label>
+        <textarea id="fyp_remarks" placeholder="Add comments before approving/rejecting..."></textarea>
+      </div>
+    ` : ""}
+  `;
+  // Replace footer buttons for approve/reject
+  const foot = document.getElementById("modalFoot");
+  if (f.status === 'Pending') {
+    foot.innerHTML = `
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-danger" onclick="actOnFYP('${f.id}','Rejected', true)">✗ Reject</button>
+      <button class="btn btn-success" onclick="actOnFYP('${f.id}','Approved', true)">✓ Approve</button>
+    `;
+  } else {
+    foot.innerHTML = `<button class="btn btn-outline" onclick="closeModal()">Close</button>`;
+  }
+  document.getElementById("modal").classList.add("active");
+}
+
+// Approve / Reject FYP - "API endpoint"
+function actOnFYP(fypId, action, fromModal=false) {
+  const f = FYP_APPLICATIONS.find(x=>x.id===fypId);
+  if (!f) return;
+  let remarks = "";
+  if (fromModal) {
+    const r = document.getElementById("fyp_remarks");
+    if (r) remarks = r.value.trim();
+  }
+  f.status = action;
+  if (remarks) f.remarks = remarks;
+  else if (!f.remarks) f.remarks = action === "Approved" ? "Approved by FYP Head." : "Not approved.";
+
+  // Notify student
+  pushNotification("student", `FYP ${action}`, `Your FYP '${f.title}' has been ${action.toLowerCase()}.`);
+
+  toast(`FYP ${action} successfully`, action === "Approved" ? "info" : "error");
+  if (fromModal) closeModal();
+  setTimeout(()=>showSection("fypManage","FYP Applications"), 300);
+}
+
+// ============================================================
+// 13. RESOURCE REQUEST MODULE (STUDENT)
+// ============================================================
+function renderResourceRequest() {
+  return `
+    <div class="hero-banner">
+      <h2>💻 Request Computing Resource</h2>
+      <p>Apply for GPU, CPU, or Workstation access for your FYP development needs.</p>
+    </div>
+
+    <div class="ai-suggest">
+      <div class="ai-icon">🤖</div>
+      <div style="flex:1; position:relative; z-index:2;">
+        <h4>AI Recommendation</h4>
+        <p>For deep learning projects, request RTX 4090 or A100. For blockchain, a Workstation will suffice.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📝 Resource Request Form</h3></div>
+      <div class="form-group"><label>Project Name *</label><input type="text" id="rr_project" placeholder="Your FYP title"/></div>
+      <div class="form-row">
+        <div class="form-group"><label>FYP Group Name *</label><input type="text" id="rr_group" placeholder="e.g. NeuralMinds"/></div>
+        <div class="form-group"><label>Supervisor Name *</label>
+          <select id="rr_supervisor">
+            <option>Dr. Sara Ali</option>
+            <option>Dr. Kamran Shah</option>
+            <option>Dr. Hassan Raza</option>
+            <option>Dr. Ayesha Khan</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Group Members *</label><textarea id="rr_members" placeholder="e.g. Ahmad Khan, Bilal Ahmed, Sara Iqbal"></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Resource Type *</label>
+          <select id="rr_type">
+            <option>GPU</option>
+            <option>CPU</option>
+            <option>Workstation</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Required Configuration *</label>
+          <select id="rr_config">
+            <option>RTX 4090, 64GB RAM, 2TB SSD</option>
+            <option>RTX 4080, 32GB RAM, 1TB SSD</option>
+            <option>RTX 3090, 32GB RAM, 1TB SSD</option>
+            <option>A100 80GB</option>
+            <option>H100 80GB</option>
+            <option>i9 Processor, 32GB RAM</option>
+            <option>Custom Configuration</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Purpose of Usage *</label><textarea id="rr_purpose" placeholder="e.g. Training deep CNN models for medical image classification..."></textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label>Start Date *</label><input type="date" id="rr_start" value="${new Date().toISOString().split('T')[0]}"/></div>
+        <div class="form-group"><label>End Date *</label><input type="date" id="rr_end"/></div>
+      </div>
+      <div class="form-group"><label>Preferred Time Slot *</label>
+        <select id="rr_slot">
+          <option>08:00 AM - 12:00 PM</option>
+          <option>10:00 AM - 02:00 PM</option>
+          <option>02:00 PM - 06:00 PM</option>
+          <option>04:00 PM - 08:00 PM</option>
+          <option>06:00 PM - 10:00 PM</option>
+        </select>
+      </div>
+      <button class="btn btn-gradient" onclick="submitResource()">📤 Submit Resource Request</button>
+    </div>
+  `;
+}
+
+// Submit Resource Request - "API endpoint"
+function submitResource() {
+  const portal = PORTALS.student;
+  const data = {
+    projectName: document.getElementById("rr_project").value.trim(),
+    groupName: document.getElementById("rr_group").value.trim(),
+    members: document.getElementById("rr_members").value.trim(),
+    supervisor: document.getElementById("rr_supervisor").value,
+    resourceType: document.getElementById("rr_type").value,
+    config: document.getElementById("rr_config").value,
+    purpose: document.getElementById("rr_purpose").value.trim(),
+    startDate: document.getElementById("rr_start").value,
+    endDate: document.getElementById("rr_end").value,
+    timeSlot: document.getElementById("rr_slot").value
+  };
+
+  const missing = [];
+  if (!data.projectName) missing.push("Project Name");
+  if (!data.groupName) missing.push("Group Name");
+  if (!data.members) missing.push("Members");
+  if (!data.purpose) missing.push("Purpose");
+  if (!data.endDate) missing.push("End Date");
+  if (missing.length) { toast("⚠️ Missing: " + missing.join(", "), "error"); return; }
+
+  const newReq = {
+    id: "RES-2025-" + String(RESOURCE_REQUESTS.length + 1).padStart(3,"0"),
+    ...data,
+    status: "Pending",
+    applicant: portal.user,
+    applicantId: portal.id,
+    submissionDate: new Date().toISOString().split('T')[0]
+  };
+  RESOURCE_REQUESTS.push(newReq);
+
+  pushNotification("fypHead", "New Resource Request", `Group ${data.groupName} requested ${data.resourceType}.`);
+
+  toast("✅ Resource request submitted!");
+  setTimeout(()=>navTo("myAllocations","My Allocations"), 800);
+}
+
+// Render student's own resource requests + allocations
+function renderMyAllocations() {
+  const portal = PORTALS.student;
+  const myRequests = RESOURCE_REQUESTS.filter(r => r.applicantId === portal.id);
+  const myAllocs = ALLOCATIONS.filter(a => myRequests.some(r => r.id === a.requestId));
+
+  return `
+    <div class="hero-banner">
+      <h2>🖥️ My Resource Allocations</h2>
+      <p>View all your resource requests and active allocations.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("📤","Total Requests", myRequests.length, "Submitted")}
+      ${statCard("✅","Allocated", myRequests.filter(r=>r.status==="Allocated").length, "Active")}
+      ${statCard("⏳","Pending", myRequests.filter(r=>r.status==="Pending").length, "In review")}
+      ${statCard("❌","Rejected", myRequests.filter(r=>r.status==="Rejected").length, "Not approved")}
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 My Resource Requests</h3></div>
+      ${myRequests.length === 0 ? `<p style="text-align:center; padding:30px; color:var(--muted);">No requests yet. <a style="color:var(--primary); cursor:pointer;" onclick="navTo('resourceRequest','Request Resource')">Request now →</a></p>` :
+      `<table>
+        <tr><th>ID</th><th>Project</th><th>Type</th><th>Config</th><th>Period</th><th>Status</th></tr>
+        ${myRequests.map(r=>`
+          <tr>
+            <td><b>${r.id}</b></td>
+            <td>${r.projectName}</td>
+            <td><span class="badge badge-info">${r.resourceType}</span></td>
+            <td style="font-size:11px;">${r.config}</td>
+            <td>${r.startDate} → ${r.endDate}</td>
+            <td><span class="badge ${r.status==='Allocated'?'badge-success':r.status==='Rejected'?'badge-danger':'badge-warning'}">${r.status}</span></td>
+          </tr>
+        `).join("")}
+      </table>`}
+    </div>
+
+    ${myAllocs.length > 0 ? `
+      <div class="panel">
+        <div class="panel-header"><h3>✅ Active Allocations</h3></div>
+        ${myAllocs.map(a=>`
+          <div class="resource-card" style="margin-bottom:14px;">
+            <div class="res-head">
+              <div class="res-icon">🖥️</div>
+              <span class="badge ${a.status==='Active'?'badge-success':a.status==='Expired'?'badge-danger':'badge-warning'}">${a.status}</span>
+            </div>
+            <h4>${a.resource} Allocated</h4>
+            <div class="grid-2" style="margin-top:10px; font-size:13px;">
+              <div><b>🏛️ Lab:</b> ${a.lab}</div>
+              <div><b>👥 Group:</b> ${a.groupName}</div>
+              <div><b>📅 Start:</b> ${a.startDate}</div>
+              <div><b>📅 End:</b> ${a.endDate}</div>
+              <div><b>🕐 Time Slot:</b> ${a.timeSlot}</div>
+              <div><b>👨‍🏫 Allocated By:</b> ${a.allocatedBy}</div>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+    ` : ""}
+  `;
+}
+
+// ============================================================
+// 14. RESOURCE MANAGEMENT (FYP HEAD)
+// ============================================================
+let resFilter = "all";
+
+function renderResourceManage() {
+  let list = [...RESOURCE_REQUESTS];
+  if (resFilter !== "all") list = list.filter(r => r.status.toLowerCase() === resFilter);
+
+  return `
+    <div class="hero-banner">
+      <h2>💻 Resource Requests Management</h2>
+      <p>Review, approve, reject, and allocate computing resources to student FYP groups.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("📤","Total", RESOURCE_REQUESTS.length, "All requests")}
+      ${statCard("⏳","Pending", RESOURCE_REQUESTS.filter(r=>r.status==="Pending").length, "Need action")}
+      ${statCard("✅","Allocated", RESOURCE_REQUESTS.filter(r=>r.status==="Allocated").length, "Active")}
+      ${statCard("❌","Rejected", RESOURCE_REQUESTS.filter(r=>r.status==="Rejected").length, "Denied")}
+    </div>
+
+    <div class="forms-toolbar">
+      <select onchange="resFilter=this.value; showSection('resourceManage','Resource Requests');">
+        <option value="all" ${resFilter==='all'?'selected':''}>All Status</option>
+        <option value="pending" ${resFilter==='pending'?'selected':''}>Pending</option>
+        <option value="allocated" ${resFilter==='allocated'?'selected':''}>Allocated</option>
+        <option value="rejected" ${resFilter==='rejected'?'selected':''}>Rejected</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 Resource Requests (${list.length})</h3></div>
+      ${list.length === 0 ? `<p style="text-align:center; padding:30px; color:var(--muted);">No requests found.</p>` :
+      `<table>
+        <tr><th>ID</th><th>Project</th><th>Group</th><th>Type</th><th>Config</th><th>Period</th><th>Status</th><th>Actions</th></tr>
+        ${list.map(r=>`
+          <tr>
+            <td><b>${r.id}</b></td>
+            <td>${r.projectName}</td>
+            <td>${r.groupName}</td>
+            <td><span class="badge badge-info">${r.resourceType}</span></td>
+            <td style="font-size:11px;">${r.config}</td>
+            <td style="font-size:11px;">${r.startDate} → ${r.endDate}</td>
+            <td><span class="badge ${r.status==='Allocated'?'badge-success':r.status==='Rejected'?'badge-danger':'badge-warning'}">${r.status}</span></td>
+            <td>
+              ${r.status === 'Pending' ? `
+                <button class="btn btn-sm btn-success" onclick="openAllocateModal('${r.id}')">✓ Allocate</button>
+                <button class="btn btn-sm btn-danger" onclick="rejectResource('${r.id}')">✗ Reject</button>
+              ` : r.status === 'Allocated' ? `
+                <span class="badge badge-success">Done</span>
+              ` : `<span class="badge badge-danger">Rejected</span>`}
+            </td>
+          </tr>
+        `).join("")}
+      </table>`}
+    </div>
+  `;
+}
+
+// Open allocate modal
+function openAllocateModal(reqId) {
+  const r = RESOURCE_REQUESTS.find(x=>x.id===reqId);
+  if (!r) return;
+  activeModalContext = {type:"allocate", id:reqId};
+  document.getElementById("modalTitle").textContent = `✅ Allocate Resource: ${r.projectName}`;
+  document.getElementById("modalBody").innerHTML = `
+    <div style="background:var(--gradient-soft); padding:14px; border-radius:10px; margin-bottom:18px;">
+      <b>Group:</b> ${r.groupName} · <b>Type:</b> ${r.resourceType}<br>
+      <b>Required:</b> ${r.config}<br>
+      <b>Purpose:</b> ${r.purpose}
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Assign Lab *</label>
+        <select id="al_lab">
+          ${LABS.map(l=>`<option value="${l.name} (${l.number})">${l.name} (${l.number})</option>`).join("")}
+        </select>
+      </div>
+      <div class="form-group"><label>Assign Resource *</label>
+        <select id="al_resource">
+          ${RESOURCES.filter(res=>res.type===r.resourceType && res.available>0).map(res=>`<option value="${res.name}|${res.id}">${res.name} (${res.available} available)</option>`).join("")}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Start Date *</label><input type="date" id="al_start" value="${r.startDate}"/></div>
+      <div class="form-group"><label>End Date *</label><input type="date" id="al_end" value="${r.endDate}"/></div>
+    </div>
+    <div class="form-group"><label>Daily Time Slot *</label><input type="text" id="al_slot" value="${r.timeSlot}"/></div>
+  `;
+  document.getElementById("modalFoot").innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-gradient" onclick="confirmAllocate('${reqId}')">✓ Confirm Allocation</button>
+  `;
+  document.getElementById("modal").classList.add("active");
+}
+
+// Confirm allocation - "API endpoint"
+function confirmAllocate(reqId) {
+  const r = RESOURCE_REQUESTS.find(x=>x.id===reqId);
+  if (!r) return;
+  const lab = document.getElementById("al_lab").value;
+  const resourceData = document.getElementById("al_resource").value.split("|");
+  const resourceName = resourceData[0];
+  const resourceId = resourceData[1];
+  const start = document.getElementById("al_start").value;
+  const end = document.getElementById("al_end").value;
+  const slot = document.getElementById("al_slot").value;
+
+  if (!lab || !resourceName || !start || !end) { toast("Please fill all fields","error"); return; }
+
+  // Update request status
+  r.status = "Allocated";
+
+  // Decrease available count
+  const resource = RESOURCES.find(res=>res.id===resourceId);
+  if (resource && resource.available > 0) resource.available -= 1;
+
+  // Create allocation entry
+  const newAlloc = {
+    id: "ALLOC-" + String(ALLOCATIONS.length + 1).padStart(3,"0"),
+    requestId: reqId,
+    groupName: r.groupName,
+    members: r.members,
+    lab: lab,
+    resource: resourceName,
+    resourceId: resourceId,
+    startDate: start,
+    endDate: end,
+    timeSlot: slot,
+    status: "Active",
+    allocatedBy: PORTALS.fypHead.user,
+    allocatedDate: new Date().toISOString().split('T')[0]
+  };
+  ALLOCATIONS.push(newAlloc);
+
+  // Notify student
+  pushNotification("student", "Resource Allocated ✓", `${resourceName} has been allocated to ${r.groupName} in ${lab}.`);
+
+  closeModal();
+  toast("✅ Resource allocated successfully!");
+  setTimeout(()=>showSection("resourceManage","Resource Requests"), 400);
+}
+
+// Reject resource - "API endpoint"
+function rejectResource(reqId) {
+  const r = RESOURCE_REQUESTS.find(x=>x.id===reqId);
+  if (!r) return;
+  r.status = "Rejected";
+  pushNotification("student", "Resource Request Rejected", `Your request for ${r.resourceType} (${r.projectName}) was not approved.`);
+  toast("Request rejected","error");
+  setTimeout(()=>showSection("resourceManage","Resource Requests"), 300);
+}
+
+// ============================================================
+// 15. ALLOCATION TRACKING
+// ============================================================
+function renderAllocationTrack() {
+  const today = new Date().toISOString().split('T')[0];
+  const active = ALLOCATIONS.filter(a => a.status==="Active" && a.endDate >= today);
+  const upcoming = ALLOCATIONS.filter(a => a.startDate > today);
+  const expired = ALLOCATIONS.filter(a => a.endDate < today);
+
+  return `
+    <div class="hero-banner">
+      <h2>📊 Allocation Tracking Dashboard</h2>
+      <p>Live tracking of all GPU/CPU/Workstation allocations across labs.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("✅","Active", active.length, "Currently running")}
+      ${statCard("📅","Upcoming", upcoming.length, "Scheduled")}
+      ${statCard("⏰","Expired", expired.length, "Completed")}
+      ${statCard("🏛️","Labs Active", new Set(active.map(a=>a.lab)).size, "Currently used")}
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 All Allocations</h3></div>
+      <table>
+        <tr><th>ID</th><th>Group</th><th>Resource</th><th>Lab</th><th>Period</th><th>Time Slot</th><th>Status</th></tr>
+        ${ALLOCATIONS.map(a => {
+          const isActive = a.status === "Active" && a.endDate >= today;
+          const isUpcoming = a.startDate > today;
+          const isExpired = a.endDate < today;
+          const stat = isExpired ? "Expired" : isUpcoming ? "Upcoming" : "Active";
+          const cls = isExpired ? "badge-danger" : isUpcoming ? "badge-info" : "badge-success";
+          return `
+            <tr>
+              <td><b>${a.id}</b></td>
+              <td>${a.groupName}</td>
+              <td><span class="badge badge-purple">${a.resource}</span></td>
+              <td>${a.lab}</td>
+              <td>${a.startDate} → ${a.endDate}</td>
+              <td>${a.timeSlot}</td>
+              <td><span class="badge ${cls}">${stat}</span></td>
+            </tr>
+          `;
+        }).join("")}
+      </table>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>🖥️ Current Resource Availability</h3></div>
+      <div class="forms-grid">
+        ${RESOURCES.map(r=>{
+          const utilization = Math.round(((r.quantity-r.available)/r.quantity)*100);
+          return `
+            <div class="resource-card">
+              <div class="res-head">
+                <div class="res-icon">${r.type==='GPU'?'🎮':r.type==='CPU'?'⚙️':'🖥️'}</div>
+                <span class="badge badge-${r.available>0?'success':'danger'}">${r.available>0?'Available':'Full'}</span>
+              </div>
+              <h4>${r.name}</h4>
+              <div class="res-spec">${r.specs}</div>
+              <div class="res-stats">
+                <div><b>${r.quantity}</b>Total</div>
+                <div><b>${r.available}</b>Free</div>
+                <div><b>${utilization}%</b>Used</div>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// 16. LABS MANAGEMENT (FYP HEAD)
+// ============================================================
+function renderLabsManage() {
+  return `
+    <div class="hero-banner">
+      <h2>🏛️ Manage Labs</h2>
+      <p>Add, edit, and manage university computing labs.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("🏛️","Total Labs", LABS.length, "Available")}
+      ${statCard("👥","Total Capacity", LABS.reduce((s,l)=>s+l.capacity,0), "Seats combined")}
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 All Labs</h3><button class="btn btn-sm btn-gradient" onclick="openLabModal()">+ Add Lab</button></div>
+      <table>
+        <tr><th>ID</th><th>Lab Name</th><th>Lab Number</th><th>Capacity</th><th>Action</th></tr>
+        ${LABS.map(l=>`
+          <tr>
+            <td><b>${l.id}</b></td>
+            <td>${l.name}</td>
+            <td>${l.number}</td>
+            <td>${l.capacity} seats</td>
+            <td><button class="btn btn-sm btn-outline" onclick="toast('Edit lab '+'${l.id}','info')">Edit</button></td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `;
+}
+
+function openLabModal() {
+  activeModalContext = {type:"addLab"};
+  document.getElementById("modalTitle").textContent = "🏛️ Add New Lab";
+  document.getElementById("modalBody").innerHTML = `
+    <div class="form-group"><label>Lab Name *</label><input type="text" id="lab_name" placeholder="e.g. AI Research Lab"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Lab Number *</label><input type="text" id="lab_number" placeholder="e.g. Lab-8"/></div>
+      <div class="form-group"><label>Capacity *</label><input type="number" id="lab_capacity" placeholder="e.g. 20"/></div>
+    </div>
+  `;
+  document.getElementById("modalFoot").innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-gradient" onclick="addLab()">+ Add Lab</button>
+  `;
+  document.getElementById("modal").classList.add("active");
+}
+
+function addLab() {
+  const name = document.getElementById("lab_name").value.trim();
+  const number = document.getElementById("lab_number").value.trim();
+  const cap = parseInt(document.getElementById("lab_capacity").value);
+  if (!name || !number || !cap) { toast("Fill all fields","error"); return; }
+  LABS.push({
+    id: "LAB-" + String(LABS.length + 1).padStart(3,"0"),
+    name, number, capacity: cap
+  });
+  closeModal();
+  toast("✅ Lab added successfully!");
+  setTimeout(()=>showSection("labsManage","Manage Labs"), 300);
+}
+
+// ============================================================
+// 17. RESOURCES INVENTORY (FYP HEAD)
+// ============================================================
+function renderResourcesInventory() {
+  return `
+    <div class="hero-banner">
+      <h2>🖥️ Manage Resources Inventory</h2>
+      <p>Manage all GPUs, CPUs, and Workstations available for student FYP allocation.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("🎮","Total GPUs", RESOURCES.filter(r=>r.type==="GPU").reduce((s,r)=>s+r.quantity,0), "All models")}
+      ${statCard("⚙️","Total CPUs", RESOURCES.filter(r=>r.type==="CPU").reduce((s,r)=>s+r.quantity,0), "All models")}
+      ${statCard("🖥️","Workstations", RESOURCES.filter(r=>r.type==="Workstation").reduce((s,r)=>s+r.quantity,0), "All units")}
+      ${statCard("✅","Available", RESOURCES.reduce((s,r)=>s+r.available,0), "Ready to allocate")}
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 All Resources</h3><button class="btn btn-sm btn-gradient" onclick="openResourceModal()">+ Add Resource</button></div>
+      <table>
+        <tr><th>ID</th><th>Name</th><th>Type</th><th>Model</th><th>Specs</th><th>Qty</th><th>Available</th><th>Status</th></tr>
+        ${RESOURCES.map(r=>`
+          <tr>
+            <td><b>${r.id}</b></td>
+            <td>${r.name}</td>
+            <td><span class="badge badge-info">${r.type}</span></td>
+            <td>${r.model}</td>
+            <td style="font-size:11px;">${r.specs}</td>
+            <td>${r.quantity}</td>
+            <td><b style="color:${r.available>0?'var(--success)':'var(--danger)'}">${r.available}</b></td>
+            <td><span class="badge ${r.status==='Active'?'badge-success':'badge-danger'}">${r.status}</span></td>
+          </tr>
+        `).join("")}
+      </table>
+    </div>
+  `;
+}
+
+function openResourceModal() {
+  activeModalContext = {type:"addResource"};
+  document.getElementById("modalTitle").textContent = "🖥️ Add New Resource";
+  document.getElementById("modalBody").innerHTML = `
+    <div class="form-row">
+      <div class="form-group"><label>Resource Name *</label><input type="text" id="res_name" placeholder="e.g. RTX 4090"/></div>
+      <div class="form-group"><label>Type *</label>
+        <select id="res_type"><option>GPU</option><option>CPU</option><option>Workstation</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Model *</label><input type="text" id="res_model" placeholder="e.g. NVIDIA GeForce RTX 4090"/></div>
+    <div class="form-group"><label>Specs *</label><input type="text" id="res_specs" placeholder="e.g. 24GB GDDR6X, 16384 CUDA cores"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Quantity *</label><input type="number" id="res_qty" placeholder="e.g. 4"/></div>
+      <div class="form-group"><label>Available *</label><input type="number" id="res_avail" placeholder="e.g. 4"/></div>
+    </div>
+  `;
+  document.getElementById("modalFoot").innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-gradient" onclick="addResource()">+ Add Resource</button>
+  `;
+  document.getElementById("modal").classList.add("active");
+}
+
+function addResource() {
+  const name = document.getElementById("res_name").value.trim();
+  const type = document.getElementById("res_type").value;
+  const model = document.getElementById("res_model").value.trim();
+  const specs = document.getElementById("res_specs").value.trim();
+  const qty = parseInt(document.getElementById("res_qty").value);
+  const avail = parseInt(document.getElementById("res_avail").value);
+  if (!name || !model || !specs || !qty) { toast("Fill all fields","error"); return; }
+  const prefix = type === "GPU" ? "GPU" : type === "CPU" ? "CPU" : "WS";
+  RESOURCES.push({
+    id: prefix + "-" + String(RESOURCES.filter(r=>r.type===type).length + 1).padStart(3,"0"),
+    name, model, type, specs,
+    quantity: qty, available: avail,
+    status: "Active"
+  });
+  closeModal();
+  toast("✅ Resource added successfully!");
+  setTimeout(()=>showSection("resourcesInventory","Manage Resources"), 300);
+}
+
+// ============================================================
+// 18. REPORTS (FYP HEAD)
+// ============================================================
+function renderReports() {
+  const totalFyp = FYP_APPLICATIONS.length;
+  const approvedFyp = FYP_APPLICATIONS.filter(f=>f.status==="Approved").length;
+  const rejectedFyp = FYP_APPLICATIONS.filter(f=>f.status==="Rejected").length;
+  const pendingFyp = FYP_APPLICATIONS.filter(f=>f.status==="Pending").length;
+  const totalRes = RESOURCE_REQUESTS.length;
+  const allocRes = RESOURCE_REQUESTS.filter(r=>r.status==="Allocated").length;
+  const totalQty = RESOURCES.reduce((s,r)=>s+r.quantity,0);
+  const usedQty = RESOURCES.reduce((s,r)=>s+(r.quantity-r.available),0);
+  const utilization = Math.round((usedQty/totalQty)*100);
+
+  return `
+    <div class="hero-banner">
+      <h2>📈 Reports & Analytics</h2>
+      <p>Comprehensive analytics across FYP applications and resource utilization.</p>
+    </div>
+
+    <div class="stat-grid">
+      ${statCard("🎯","Total FYP Requests", totalFyp, "All time")}
+      ${statCard("💻","Total Resource Requests", totalRes, "All time")}
+      ${statCard("✅","Approved (FYP)", approvedFyp, "Successful")}
+      ${statCard("❌","Rejected (FYP)", rejectedFyp, "Not accepted")}
+      ${statCard("🔥","Active Allocations", ALLOCATIONS.filter(a=>a.status==="Active").length, "Running now")}
+      ${statCard("📊","Resource Utilization", utilization, "% in use")}
+    </div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-header"><h3>🎯 FYP Status Distribution</h3></div>
+        <div style="display:flex; justify-content:space-around; padding:20px 0;">
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:800; color:var(--success);">${approvedFyp}</div>
+            <div style="color:var(--muted); font-size:12px;">Approved</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:800; color:var(--warning);">${pendingFyp}</div>
+            <div style="color:var(--muted); font-size:12px;">Pending</div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:36px; font-weight:800; color:var(--danger);">${rejectedFyp}</div>
+            <div style="color:var(--muted); font-size:12px;">Rejected</div>
+          </div>
+        </div>
+        <div style="height:30px; background:var(--gray); border-radius:15px; overflow:hidden; display:flex;">
+          ${totalFyp > 0 ? `
+            <div style="width:${(approvedFyp/totalFyp)*100}%; background:var(--success);"></div>
+            <div style="width:${(pendingFyp/totalFyp)*100}%; background:var(--warning);"></div>
+            <div style="width:${(rejectedFyp/totalFyp)*100}%; background:var(--danger);"></div>
+          ` : ""}
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header"><h3>💻 Resource Allocation Breakdown</h3></div>
+        <table>
+          <tr><th>Resource</th><th>Total</th><th>Used</th><th>%</th></tr>
+          ${RESOURCES.map(r=>{
+            const used = r.quantity - r.available;
+            const pct = Math.round((used/r.quantity)*100);
+            return `<tr><td>${r.name}</td><td>${r.quantity}</td><td>${used}</td><td><span class="badge ${pct>70?'badge-danger':pct>40?'badge-warning':'badge-success'}">${pct}%</span></td></tr>`;
+          }).join("")}
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📊 Summary Report</h3>
+        <button class="btn btn-sm btn-outline" onclick="toast('Report exported as PDF','info')">📄 Export PDF</button>
+      </div>
+      <table>
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Total FYP Applications</td><td><b>${totalFyp}</b></td></tr>
+        <tr><td>FYP Approval Rate</td><td><b>${totalFyp>0?Math.round((approvedFyp/totalFyp)*100):0}%</b></td></tr>
+        <tr><td>Total Resource Requests</td><td><b>${totalRes}</b></td></tr>
+        <tr><td>Resource Allocation Rate</td><td><b>${totalRes>0?Math.round((allocRes/totalRes)*100):0}%</b></td></tr>
+        <tr><td>Active Allocations</td><td><b>${ALLOCATIONS.filter(a=>a.status==="Active").length}</b></td></tr>
+        <tr><td>Total Resources in Inventory</td><td><b>${totalQty}</b></td></tr>
+        <tr><td>Resources Currently in Use</td><td><b>${usedQty}</b></td></tr>
+        <tr><td>Overall Utilization</td><td><b>${utilization}%</b></td></tr>
+      </table>
+    </div>
+  `;
+}
+
+// ============================================================
+// 19. NOTIFICATIONS
+// ============================================================
+function renderNotifications() {
+  const list = NOTIFICATIONS[currentRole] || [];
+  // Mark as read
+  list.forEach(n => n.read = true);
+  updateNotifBadge();
+
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <h3>🔔 All Notifications</h3>
+        <button class="btn btn-sm btn-outline" onclick="clearNotifications()">Clear All</button>
+      </div>
+      ${list.length === 0 ? `<p style="text-align:center; padding:30px; color:var(--muted);">No notifications.</p>` :
+      `<div class="notif-list">
+        ${list.map(n=>`
+          <div class="notif-item">
+            <h4>${n.title}</h4>
+            <p>${n.msg}</p>
+            <small>${n.time}</small>
+          </div>
+        `).join("")}
+      </div>`}
+    </div>
+  `;
+}
+
+function clearNotifications() {
+  NOTIFICATIONS[currentRole] = [];
+  updateNotifBadge();
+  toast("All notifications cleared","info");
+  showSection("notifications","Notifications");
+}
+
+// Push notification - "API endpoint"
+function pushNotification(role, title, msg) {
+  if (!NOTIFICATIONS[role]) NOTIFICATIONS[role] = [];
+  NOTIFICATIONS[role].unshift({
+    id: Date.now(),
+    title, msg, time: "Just now", read: false
+  });
+  if (role === currentRole) updateNotifBadge();
+}
+
+// ============================================================
+// 20. UNIVERSITY FORMS CENTER
+// ============================================================
+function renderFormsCenter() {
+  const roleForms = FORM_LIBRARY[currentRole] || [];
+  let filtered = roleForms;
+  if (formSearchQuery) {
+    const q = formSearchQuery.toLowerCase();
+    filtered = filtered.filter(f => f.title.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q));
+  }
+
+  const mine = SUBMISSIONS.filter(s => s.role === currentRole);
+
+  return `
+    <div class="hero-banner">
+      <h2>📑 University Forms Center</h2>
+      <p>Submit, track and manage all your university forms in one place — with smart digital workflow.</p>
+    </div>
+
+    ${renderAISuggestion(currentRole)}
+
+    <div class="stat-grid">
+      ${statCard("📤","Submitted", mine.filter(s=>s.status==="Submitted").length, "Awaiting review")}
+      ${statCard("⏳","Under Review", mine.filter(s=>s.status==="Under Review").length, "In progress")}
+      ${statCard("✅","Approved", mine.filter(s=>s.status==="Approved").length, "Successful")}
+      ${statCard("❌","Rejected", mine.filter(s=>s.status==="Rejected").length, "Need revision")}
+    </div>
+
+    <div class="forms-toolbar">
+      <input type="text" placeholder="🔍 Search forms..." value="${formSearchQuery}" oninput="formSearchQuery=this.value; refreshFormsList();"/>
+      <select onchange="filterByRecipient(this.value)">
+        <option value="">All Recipients</option>
+        ${RECIPIENT_OPTIONS.map(r=>`<option>${r}</option>`).join("")}
+      </select>
+      <button class="btn btn-gradient btn-sm" onclick="navTo('myForms','My Submissions')">📊 My Submissions</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h3>📋 Available Forms (${filtered.length})</h3></div>
+      <div class="forms-grid" id="formsGrid">
+        ${filtered.map(f => formCard(f)).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function formCard(f) {
+  return `
+    <div class="form-card" onclick="openFormModal('${f.id}')">
+      <div class="form-card-icon">${f.icon}</div>
+      <h4>${f.title}</h4>
+      <p>${f.desc}</p>
+      <div class="form-card-foot">
+        <small>📨 ${f.recipient}</small>
+        <span class="badge badge-info">Open →</span>
+      </div>
+    </div>
+  `;
+}
+
+function refreshFormsList() {
+  const roleForms = FORM_LIBRARY[currentRole] || [];
+  let filtered = roleForms;
+  if (formSearchQuery) {
+    const q = formSearchQuery.toLowerCase();
+    filtered = filtered.filter(f => f.title.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q));
+  }
+  const grid = document.getElementById("formsGrid");
+  if (grid) grid.innerHTML = filtered.map(f => formCard(f)).join("");
+}
+
+function filterByRecipient(rec) {
+  const roleForms = FORM_LIBRARY[currentRole] || [];
+  const grid = document.getElementById("formsGrid");
+  const filtered = rec ? roleForms.filter(f=>f.recipient===rec) : roleForms;
+  if (grid) grid.innerHTML = filtered.map(f => formCard(f)).join("");
+}
+
+function openFormModal(formId) {
+  const allForms = [...FORM_LIBRARY.student, ...FORM_LIBRARY.faculty, ...FORM_LIBRARY.manager];
+  const f = allForms.find(x => x.id === formId);
+  if (!f) return;
+  activeFormId = formId;
+  activeModalContext = {type:"form", id:formId};
+
+  const portal = PORTALS[currentRole];
+  document.getElementById("modalTitle").textContent = `${f.icon} ${f.title}`;
+  document.getElementById("modalBody").innerHTML = `
+    <div class="workflow">
+      <div class="workflow-step active"><div class="circle">1</div><div class="label">Submitted</div></div>
+      <div class="workflow-step"><div class="circle">2</div><div class="label">Under Review</div></div>
+      <div class="workflow-step"><div class="circle">3</div><div class="label">Approved / Rejected</div></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Applicant Name *</label><input type="text" id="f_name" value="${portal.user}"/></div>
+      <div class="form-group"><label>Applicant ID *</label><input type="text" id="f_id" value="${portal.id}"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Department *</label><input type="text" id="f_dept" value="${portal.dept}"/></div>
+      <div class="form-group"><label>Email *</label><input type="email" id="f_email" value="${portal.user.toLowerCase().replace(/[^a-z]/g,'')}@university.edu"/></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Submit To *</label>
+        <select id="f_recipient">
+          ${RECIPIENT_OPTIONS.map(r=>`<option ${r===f.recipient?'selected':''}>${r}</option>`).join("")}
+        </select>
+      </div>
+      <div class="form-group"><label>Recipient ID</label><input type="text" id="f_recid" placeholder="e.g. HOD-CS-001"/></div>
+    </div>
+    <div class="form-group"><label>Form Details / Reason *</label><textarea id="f_details" placeholder="Provide complete details..."></textarea></div>
+    <div class="form-row">
+      <div class="form-group"><label>Attach Document</label><input type="file" id="f_file"/></div>
+      <div class="form-group"><label>Submission Date</label><input type="date" id="f_date" value="${new Date().toISOString().split('T')[0]}"/></div>
+    </div>
+  `;
+  document.getElementById("modalFoot").innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-gradient" onclick="submitDynamicForm()">📤 Submit Form</button>
+  `;
+  document.getElementById("modal").classList.add("active");
+}
+
+function closeModal() {
+  document.getElementById("modal").classList.remove("active");
+  activeFormId = null;
+  activeModalContext = null;
+  // Reset footer to default
+  document.getElementById("modalFoot").innerHTML = `
+    <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-gradient" onclick="submitDynamicForm()">📤 Submit</button>
+  `;
+}
+
+function submitDynamicForm() {
+  // Context-aware dispatcher
+  if (activeModalContext && activeModalContext.type === "editFyp") {
+    return saveFYPEdit(activeModalContext.id);
+  }
+
+  const name = document.getElementById("f_name").value.trim();
+  const id = document.getElementById("f_id").value.trim();
+  const dept = document.getElementById("f_dept").value.trim();
+  const email = document.getElementById("f_email").value.trim();
+  const recipient = document.getElementById("f_recipient").value;
+  const details = document.getElementById("f_details").value.trim();
+
+  const missing = [];
+  if (!name) missing.push("Name"); if (!id) missing.push("ID");
+  if (!dept) missing.push("Dept"); if (!email) missing.push("Email");
+  if (!details) missing.push("Details");
+  if (missing.length) { toast("⚠️ Missing: " + missing.join(", "), "error"); return; }
+
+  const allForms = [...FORM_LIBRARY.student, ...FORM_LIBRARY.faculty, ...FORM_LIBRARY.manager];
+  const f = allForms.find(x => x.id === activeFormId);
+  const newSub = {
+    id: "USP-" + (1100 + SUBMISSIONS.length),
+    formTitle: f.title, applicant: name, role: currentRole,
+    recipient: recipient, date: new Date().toISOString().split('T')[0],
+    status: "Submitted", step: 1
+  };
+  SUBMISSIONS.unshift(newSub);
+  closeModal();
+  toast(`✅ ${f.title} submitted!`);
+  setTimeout(()=>navTo("myForms","My Submissions"), 800);
+}
+
+function saveFYPEdit(fypId) {
+  const f = FYP_APPLICATIONS.find(x=>x.id===fypId);
+  if (!f) return;
+  f.title = document.getElementById("ef_title").value.trim();
+  f.description = document.getElementById("ef_desc").value.trim();
+  f.technologies = document.getElementById("ef_tech").value.trim();
+  f.groupName = document.getElementById("ef_group").value.trim();
+  f.supervisorPref = document.getElementById("ef_supervisor").value;
+  f.members = document.getElementById("ef_members").value.trim();
+  closeModal();
+  toast("✅ FYP Application updated!");
+  setTimeout(()=>navTo("myFYP","My FYP Status"), 400);
+}
+
+// ============================================================
+// 21. MY SUBMISSIONS / FORMS TO REVIEW
+// ============================================================
+function renderMySubmissions() {
+  const mine = SUBMISSIONS.filter(s => s.role === currentRole);
+  return `
+    <div class="hero-banner">
+      <h2>📊 My Form Submissions</h2>
+      <p>Track all your submitted forms in real-time.</p>
+    </div>
+    <div class="stat-grid">
+      ${statCard("📤","Total", mine.length, "All time")}
+      ${statCard("⏳","Pending", mine.filter(s=>s.status!=="Approved" && s.status!=="Rejected").length, "In progress")}
+      ${statCard("✅","Approved", mine.filter(s=>s.status==="Approved").length, "Completed")}
+      ${statCard("📈","Success Rate", Math.round((mine.filter(s=>s.status==="Approved").length / Math.max(mine.length,1)) * 100), "% approval")}
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>📋 All My Submissions</h3>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-sm btn-outline" onclick="toast('Exported','info')">📄 Export PDF</button>
+          <button class="btn btn-sm btn-outline" onclick="window.print()">🖨️ Print</button>
+        </div>
+      </div>
+      ${mine.length ? renderSubmissionRows(mine) : `<p style="color:var(--muted); text-align:center; padding:30px;">No submissions yet.</p>`}
+    </div>
+  `;
+}
+
+function renderSubmissionRows(list) {
+  return `
+    <table>
+      <tr><th>ID</th><th>Form</th><th>Recipient</th><th>Date</th><th>Status</th><th>Progress</th></tr>
+      ${list.map(s => {
+        const badge = s.status==="Approved" ? "badge-success" :
+                      s.status==="Rejected" ? "badge-danger" :
+                      s.status==="Under Review" ? "badge-warning" : "badge-info";
+        return `<tr>
+          <td><b>${s.id}</b></td><td>${s.formTitle}</td><td>${s.recipient}</td>
+          <td>${s.date}</td><td><span class="badge ${badge}">${s.status}</span></td>
+          <td>${renderTrackBar(s.step)}</td>
+        </tr>`;
+      }).join("")}
+    </table>
+  `;
+}
+
+function renderTrackBar(step) {
+  return `<div class="track-bar">
+    <div class="dot ${step>=1?'done':''}"></div><div class="line ${step>=2?'done':''}"></div>
+    <div class="dot ${step>=2?(step===2?'active':'done'):''}"></div><div class="line ${step>=3?'done':''}"></div>
+    <div class="dot ${step>=3?'done':''}"></div>
+  </div>`;
+}
+
+function renderFormsToReview() {
+  const incoming = SUBMISSIONS.filter(s => s.role !== currentRole && s.status !== "Approved" && s.status !== "Rejected");
+  return `
+    <div class="hero-banner">
+      <h2>📥 Forms Awaiting Your Review</h2>
+      <p>Process incoming form submissions efficiently.</p>
+    </div>
+    <div class="stat-grid">
+      ${statCard("📥","Pending Review", incoming.length, "Need action")}
+      ${statCard("⏰","Urgent", incoming.filter(s=>s.status==="Submitted").length, "Awaiting")}
+      ${statCard("✅","Reviewed Today","8","Done")}
+      ${statCard("📊","Avg Response","2.3","days")}
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h3>📋 Incoming Submissions</h3></div>
+      ${incoming.length ? `<table>
+        <tr><th>ID</th><th>Form</th><th>Applicant</th><th>Date</th><th>Status</th><th>Action</th></tr>
+        ${incoming.map(s => `<tr>
+          <td><b>${s.id}</b></td><td>${s.formTitle}</td><td>${s.applicant}</td><td>${s.date}</td>
+          <td><span class="badge ${s.status==="Submitted"?"badge-info":"badge-warning"}">${s.status}</span></td>
+          <td>
+            <button class="btn btn-sm btn-success" onclick="reviewForm('${s.id}','Approved')">Approve</button>
+            <button class="btn btn-sm btn-danger" onclick="reviewForm('${s.id}','Rejected')">Reject</button>
+          </td></tr>`).join("")}
+      </table>` : `<p style="color:var(--muted); text-align:center; padding:30px;">All caught up! 🎉</p>`}
+    </div>
+  `;
+}
+
+function reviewForm(id, action) {
+  const s = SUBMISSIONS.find(x => x.id === id);
+  if (s) { s.status = action; s.step = 3; }
+  toast(`Form ${id} marked as ${action}`, action === "Approved" ? "info" : "error");
+  setTimeout(()=> showSection("reviewForms","Forms to Review"), 400);
+}
+
+// ============================================================
+// 22. AI SMART SUGGESTIONS
+// ============================================================
+function renderAISuggestion(role) {
+  const suggestions = {
+    student: {
+      title: "AI Recommends for You",
+      msg: "Based on your activity, you might need these soon:",
+      tags: ["FYP Application","GPU Resource","Transcript Request"]
+    },
+    faculty: {
+      title: "AI Assistant Suggests",
+      msg: "Mid-term season is here. Consider these forms:",
+      tags: ["Exam Paper Submission","Course Outline","Leave Request"]
+    },
+    manager: {
+      title: "Coordinator AI Insights",
+      msg: "High activity detected. You may want to handle:",
+      tags: ["Timetable Approval","Faculty Assignment","Result Approval"]
+    },
+    fypHead: {
+      title: "FYP Head AI Insights",
+      msg: "Pending tasks need your attention:",
+      tags: ["Pending FYPs","Resource Requests","Allocate GPUs"]
+    }
+  };
+  const s = suggestions[role];
+  if (!s) return "";
+  return `
+    <div class="ai-suggest">
+      <div class="ai-icon">🤖</div>
+      <div style="flex:1; position:relative; z-index:2;">
+        <h4>${s.title}</h4>
+        <p>${s.msg}</p>
+        <div class="ai-tags">
+          ${s.tags.map(t=>`<span>📑 ${t}</span>`).join("")}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================
+// 23. UTILITIES
+// ============================================================
+function statCard(icon,label,value,sub,trendCls="",trendTxt="") {
+  return `
+    <div class="stat-card">
+      <div class="stat-top">
+        <div>
+          <div class="label">${label}</div>
+          <div class="value" data-target="${value}">0</div>
+        </div>
+        <div class="icon-circle">${icon}</div>
+      </div>
+      <div class="sub ${trendCls}">${trendTxt} ${sub}</div>
+    </div>
+  `;
+}
+
+function animateCounters() {
+  document.querySelectorAll(".stat-card .value").forEach(el => {
+    const target = parseFloat(el.dataset.target);
+    if (isNaN(target)) { el.textContent = el.dataset.target; return; }
+    let cur = 0;
+    const step = target / 30;
+    const isFloat = el.dataset.target.includes(".");
+    const t = setInterval(()=>{
+      cur += step;
+      if (cur >= target) { cur = target; clearInterval(t); }
+      el.textContent = isFloat ? cur.toFixed(2) : Math.floor(cur);
+    }, 22);
+  });
+}
+
+function toast(msg, type="success") {
+  const t = document.createElement("div");
+  t.className = "toast " + (type==="error"?"error":type==="info"?"info":"");
+  const icon = type==="error" ? "✕" : type==="info" ? "i" : "✓";
+  t.innerHTML = `<div class="ti">${icon}</div><div>${msg}</div>`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2800);
+}
+
+function navTo(id, label) {
+  showSection(id, label);
+  setActiveById(id);
+}
+
+function globalSearch(e) {
+  if (e.key === "Enter") {
+    const q = e.target.value.trim();
+    if (!q) return;
+    const lower = q.toLowerCase();
+    // Search across multiple modules
+    const fyp = FYP_APPLICATIONS.find(f => f.title.toLowerCase().includes(lower) || f.groupName.toLowerCase().includes(lower));
+    if (fyp && (currentRole === "fypHead" || currentRole === "student")) {
+      toast(`Found FYP: ${fyp.title}`, "info");
+      navTo(currentRole === "student" ? "myFYP" : "fypManage", currentRole === "student" ? "My FYP Status" : "FYP Applications");
+      return;
+    }
+    const allForms = FORM_LIBRARY[currentRole] || [];
+    const match = allForms.find(f => f.title.toLowerCase().includes(lower));
+    if (match) {
+      formSearchQuery = q;
+      navTo("forms","Forms Center");
+    } else {
+      toast(`No results for "${q}"`, "info");
+    }
+  }
+}
+
+document.getElementById("modal").addEventListener("click", function(e) {
+  if (e.target === this) closeModal();
+});
+document.addEventListener("keydown", function(e) {
+  if (e.key === "Escape") closeModal();
+});
+</script>
+</body>
+</html>
