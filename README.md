@@ -101,6 +101,11 @@ Out of scope (per the deck): attendance, results, fees, events.
 
 ## Deployment
 
-Vercel project `unisphere` (root `apps/web`), env pushed via `vercel env`. Migrations run with
-`bunx prisma migrate deploy` against `DIRECT_URL`; runtime uses pooled `DATABASE_URL`.
-See `docs/demo-script.md` for the defence walkthrough and `docs/offline-demo.md` for the offline kit.
+**Live:** https://unisphere-hazel.vercel.app (production alias; preview deploys are
+protected). Vercel project `unisphere` builds from the **repo root** (`vercel.json`
+runs `bun install` then `cd apps/web && bun run build`). Env lives in Vercel project
+settings — never in the repo. Migrations run with `bunx prisma migrate deploy`
+against `DIRECT_URL`; runtime uses pooled `DATABASE_URL`.
+Demo accounts: `bun run scripts/link-clerk-users.ts` links Clerk users to the seeded
+personas. See `docs/demo-script.md` for the defence walkthrough,
+`docs/offline-demo.md` for the offline kit, `docs/demo/screenshots/` for captures.

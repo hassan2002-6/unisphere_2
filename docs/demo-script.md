@@ -14,8 +14,9 @@ Five seeded demo accounts (password set in Clerk for all: see the team password 
 
 ## 1. Landing & auth (0:00–0:45)
 
-- Open the production URL. Point out the UniSphere landing page and that `/dashboard` bounces to
-  Clerk when signed out — *"auth is enforced at the edge, and every page re-checks the role server-side."*
+- Open **https://unisphere-hazel.vercel.app**. Point out the UniSphere landing page and that
+  `/dashboard` bounces to Clerk when signed out (307 → `/sign-in?redirect_url=…`) — *"auth is
+  enforced at the edge, and every page re-checks the role server-side."*
 - Sign in as student. Dashboard shows live counts (forms, complaints, FYP, unread notifications).
 
 ## 2. Timetable + clash detection (0:45–2:45) — the FYP-I pain point
