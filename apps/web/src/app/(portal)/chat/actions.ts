@@ -1,0 +1,36 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { prisma } from "@/lib/db";
+import { requireUser } from "@/lib/auth";
+import { ask, getOrCreateSession } from "@/server/ai/assistant";
+
+export async function sendMessageAction(formData: FormData) {
+  const user = await requireUser();
+  const sessionId = String(formData.get("sessionId") ?? "");
+  const question = String(formData.get("question") ?? "").trim();
+  if (!sessionId || question.length < 2) return;
+
+  try {
+    await ask(user, sessionId, question);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "The assistant failed to answer";
+    redirect(`/chat?s=${sessionId}&error=${encodeURIComponent(msg)}`);
+  }
+  revalidatePath("/chat");
+  redirect(`/chat?s=${sessionId}`);
+}
+
+export async function newSessionAction() {
+  const user = await requireUser();
+  const session = await prisma.chatSession.create({ data: { userId: user.id, title: "New chat" } });
+  revalidatePath("/chat");
+  redirect(`/chat?s=${session.id}`);
+}
+
+export async function ensureSessionAction() {
+  const user = await requireUser();
+  const session = await getOrCreateSession(user);
+  redirect(`/chat?s=${session.id}`);
+}
