@@ -3,16 +3,23 @@ import { PrismaPg } from "@prisma/adapter-pg";
 
 /**
  * Single PrismaClient instance for the whole app (dev-HMR safe via globalThis).
- * Prisma 7 uses driver adapters — no Rust engine.
+ * Prisma 7 uses driver adapters — no Rust engine. Construction is lazy:
+ * importing this module never throws, even when DATABASE_URL is unset —
+ * queries fail at call time with a clear error instead.
  */
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createClient(): PrismaClient {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
-    throw new Error("DATABASE_URL is not set — copy .env.example to .env and fill it in.");
+    console.warn(
+      "[@unisphere/db] DATABASE_URL is not set — database queries will fail. " +
+        "Copy .env.example to .env and fill it in.",
+    );
   }
-  const adapter = new PrismaPg({ connectionString });
+  const adapter = new PrismaPg({
+    connectionString: connectionString ?? "postgresql://unset:unset@localhost:5432/unset",
+  });
   return new PrismaClient({ adapter });
 }
 
