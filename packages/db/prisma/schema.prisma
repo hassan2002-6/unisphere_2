@@ -138,6 +138,7 @@ model User {
   chatSessions           ChatSession[]
   notifications          Notification[]
   classes                CourseClass[]           @relation("ClassFaculty")
+  clashResolutions       ClashResolution[]       @relation("ClashResolver")
 }
 
 model StudentProfile {
@@ -508,4 +509,16 @@ model DegreePlanCourse {
   prereq     String?
 
   @@unique([program, semester, courseCode])
+}
+
+// Coordinator acknowledgement that a computed clash has been dealt with.
+// Clashes themselves are computed live (deterministic keys) — this only
+// records resolution notes, per plan §11 2a ("approximate resolution").
+model ClashResolution {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  note         String?
+  resolvedById String
+  resolvedAt   DateTime @default(now())
+  resolvedBy   User     @relation("ClashResolver", fields: [resolvedById], references: [id])
 }

@@ -409,6 +409,17 @@ CREATE TABLE "DegreePlanCourse" (
     CONSTRAINT "DegreePlanCourse_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "ClashResolution" (
+    "id" TEXT NOT NULL,
+    "key" TEXT NOT NULL,
+    "note" TEXT,
+    "resolvedById" TEXT NOT NULL,
+    "resolvedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ClashResolution_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_clerkId_key" ON "User"("clerkId");
 
@@ -486,6 +497,9 @@ CREATE INDEX "MentorshipSession_status_idx" ON "MentorshipSession"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DegreePlanCourse_program_semester_courseCode_key" ON "DegreePlanCourse"("program", "semester", "courseCode");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ClashResolution_key_key" ON "ClashResolution"("key");
 
 -- AddForeignKey
 ALTER TABLE "StudentProfile" ADD CONSTRAINT "StudentProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -588,4 +602,7 @@ ALTER TABLE "ChatSession" ADD CONSTRAINT "ChatSession_userId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_sessionId_fkey" FOREIGN KEY ("sessionId") REFERENCES "ChatSession"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ClashResolution" ADD CONSTRAINT "ClashResolution_resolvedById_fkey" FOREIGN KEY ("resolvedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
