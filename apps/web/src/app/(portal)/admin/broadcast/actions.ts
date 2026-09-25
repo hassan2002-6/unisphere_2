@@ -8,7 +8,7 @@ import type { Role } from "@unisphere/db";
 const AUDIENCES: Role[] = ["STUDENT", "FACULTY", "COORDINATOR", "FYP_HEAD", "MENTOR"];
 
 export async function sendBroadcast(formData: FormData) {
-  const user = await requireCapability("broadcast");
+  await requireCapability("broadcast");
 
   const audience = String(formData.get("audience") ?? "") as Role;
   const title = String(formData.get("title") ?? "").trim().slice(0, 120);

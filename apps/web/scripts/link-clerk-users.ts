@@ -27,7 +27,7 @@ async function clerk(path: string, init?: RequestInit) {
     headers: {
       authorization: `Bearer ${SECRET}`,
       "content-type": "application/json",
-      ...(init?.headers ?? {}),
+      ...init?.headers,
     },
   });
   if (!res.ok) throw new Error(`clerk ${path} → ${res.status}: ${(await res.text()).slice(0, 200)}`);
@@ -44,7 +44,15 @@ async function ensureClerkUser(email: string, password: string): Promise<string>
   const match = Array.isArray(found)
     ? found.find((u) => u.email_addresses?.some((e) => e.email_address === email))
     : undefined;
-  if (match) return match.id;
+
+  if (match) {
+    // Keep the demo password deterministic even for pre-existing users.
+    await clerk(`/users/${match.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ password, skip_password_checks: true }),
+    });
+    return match.id;
+  }
 
   const created = (await clerk(`/users`, {
     method: "POST",

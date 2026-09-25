@@ -669,6 +669,73 @@ async function main() {
     });
   }
 
+  // ── Sample form submissions + internship applications ──────────────────
+  const coordinator = await prisma.user.findUnique({ where: { email: "coordinator@shu.edu.pk" } });
+  const reviewerFor = (role: string | null | undefined) =>
+    role === "FACULTY" ? faculty.id : role === "FYP_HEAD" ? fypHead.id : (coordinator?.id ?? faculty.id);
+  const tplSample = await prisma.formTemplate.findMany({ orderBy: { key: "asc" }, take: 3 });
+
+  const sampleSubs: { i: number; by: string; status: "SUBMITTED" | "APPROVED" | "REJECTED"; payload: Prisma.JsonObject; trail: string[] }[] = [
+    {
+      i: 0, by: student.id, status: "SUBMITTED",
+      payload: { courseCode: "CS-302", reason: "Medical emergency during quiz week", duration: "3 days" },
+      trail: ["Submitted for review"],
+    },
+    {
+      i: 1, by: student2.id, status: "APPROVED",
+      payload: { purpose: "Bank account opening at university branch", copies: 2, deliveryMode: "Collect from office" },
+      trail: ["Submitted for review", "Documents verified with registrar", "Approved — collect from the Academic Office"],
+    },
+    {
+      i: 2, by: student.id, status: "REJECTED",
+      payload: { eventName: "IEEE Student Congress", dates: "Oct 12–14", fundingRequired: "Rs. 8,000", justification: "Presenting our FYP poster" },
+      trail: ["Submitted for review", "Missing advisor recommendation letter", "Rejected — resubmit with the advisor's letter"],
+    },
+  ];
+
+  for (const s of sampleSubs) {
+    const tpl = tplSample[s.i];
+    if (!tpl) continue;
+    const exists = await prisma.formSubmission.findFirst({ where: { templateId: tpl.id, submittedById: s.by } });
+    if (exists) continue;
+    const reviewerId = reviewerFor(tpl.reviewerRole);
+    const chain: ("SUBMITTED" | "UNDER_REVIEW" | "APPROVED" | "REJECTED")[] =
+      s.status === "SUBMITTED" ? ["SUBMITTED"] : ["SUBMITTED", "UNDER_REVIEW", s.status];
+    await prisma.formSubmission.create({
+      data: {
+        templateId: tpl.id,
+        submittedById: s.by,
+        payload: s.payload,
+        status: s.status,
+        reviewerId: s.status === "SUBMITTED" ? null : reviewerId,
+        events: {
+          create: chain.map((to, idx) => ({
+            actorId: idx === 0 ? s.by : reviewerId,
+            toStatus: to,
+            comment: s.trail[Math.min(idx, s.trail.length - 1)],
+          })),
+        },
+      },
+    });
+  }
+
+  const internshipRows = await prisma.internship.findMany({ orderBy: { createdAt: "asc" }, take: 3 });
+  const sampleApps: { i: number; studentId: string; status: "APPLIED" | "SHORTLISTED" | "ACCEPTED"; note: string }[] = [
+    { i: 0, studentId: student.id, status: "APPLIED", note: "React + Next.js portfolio attached; available from December." },
+    { i: 1, studentId: student2.id, status: "SHORTLISTED", note: "Shortlisted — technical interview scheduled next week." },
+    { i: 2, studentId: student.id, status: "ACCEPTED", note: "Offer accepted; onboarding starts after finals." },
+  ];
+  for (const a of sampleApps) {
+    const intern = internshipRows[a.i];
+    if (!intern) continue;
+    await prisma.internshipApplication.upsert({
+      where: { internshipId_studentId: { internshipId: intern.id, studentId: a.studentId } },
+      update: {},
+      create: { internshipId: intern.id, studentId: a.studentId, status: a.status, note: a.note },
+    });
+  }
+  console.log("✓ sample form submissions + internship applications");
+
   // ── Notifications (a few for the demo student) ─────────────────────────
   const notifCount = await prisma.notification.count({ where: { userId: student.id } });
   if (notifCount === 0) {

@@ -106,6 +106,13 @@ protected). Vercel project `unisphere` builds from the **repo root** (`vercel.js
 runs `bun install` then `cd apps/web && bun run build`). Env lives in Vercel project
 settings — never in the repo. Migrations run with `bunx prisma migrate deploy`
 against `DIRECT_URL`; runtime uses pooled `DATABASE_URL`.
+
+**Live environment (2026-09-25):** Neon Postgres `unisphere` (aws-ap-southeast-1) is
+provisioned and seeded — `GET /api/health` returns
+`{"ok":true,"db":"up","ai":{"provider":"commandcode","model":"deepseek/deepseek-v4.1-flash"}}`.
+The AI assistant uses CommandCode (`COMMANDCODE_API_KEY`); Groq/OpenAI/OpenRouter or any
+OpenAI-compatible `AI_BASE_URL` also work — first configured wins. `AI_FALLBACK_MODE=1`
+keeps demos offline (knowledge-base answers, no provider calls).
 Demo accounts: `bun run scripts/link-clerk-users.ts` links Clerk users to the seeded
 personas. See `docs/demo-script.md` for the defence walkthrough,
 `docs/offline-demo.md` for the offline kit, `docs/demo/screenshots/` for captures.

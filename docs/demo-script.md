@@ -1,16 +1,16 @@
 # UniSphere — defence demo script (~12 minutes)
 
-Five seeded demo accounts (password set in Clerk for all: see the team password manager):
+Five seeded demo accounts (passwords set in Clerk by `link-clerk-users.ts` — see DEMO_USERS there):
 
 | Role       | Email (demo)              | Lands on                |
 | ---------- | ------------------------- | ----------------------- |
-| Student    | student@shu.demo          | Dashboard (student)     |
-| Faculty    | faculty@shu.demo          | Dashboard (faculty)     |
-| Coordinator| coordinator@shu.demo      | Dashboard (coordinator) |
-| FYP Head   | fyphead@shu.demo          | Dashboard (FYP head)    |
-| Mentor     | mentor@shu.demo           | Mentor console          |
+| Student    | student@shu.edu.pk        | Dashboard (student)     |
+| Faculty    | faculty@shu.edu.pk        | Dashboard (faculty)     |
+| Coordinator| coordinator@shu.edu.pk    | Dashboard (coordinator) |
+| FYP Head   | fyphead@shu.edu.pk        | Dashboard (FYP head)    |
+| Mentor     | mentor@shu.edu.pk         | Mentor console          |
 
-> Always start signed in as **student@shu.demo**. Switch roles from the Clerk user menu.
+> Always start signed in as **student@shu.edu.pk**. Switch roles from the Clerk user menu.
 
 ## 1. Landing & auth (0:00–0:45)
 

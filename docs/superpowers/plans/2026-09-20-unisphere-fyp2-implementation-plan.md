@@ -592,7 +592,44 @@ amendment (bun/turbo/oxc) was recorded earlier in §7 and holds.
 **Verification evidence:** `bun run lint|typecheck|test|build` all green; 235 tests (rbac, clash,
 status, validation, ai, security); production deploy current on Vercel with Clerk env live.
 
-**Pending external inputs:** Neon API key (unblocks `migrate deploy`, seed, integration +
-concurrency tests), Groq API key (full AI answers; canned fallback works meanwhile), Vercel
+**Pending external inputs:** ~~Neon API key (unblocks `migrate deploy`, seed, integration +
+concurrency tests), Groq API key (full AI answers; canned fallback works meanwhile)~~, Vercel
 deployment-protection toggle (dashboard approval), real-profile browser E2E (Playwright CDN
 blocked — using `channel: "chrome"`).
+
+## Appendix F — Live environment (amendment, 2026-09-25)
+
+**Neon (live).** Provisioned from the signed-in browser session via the Neon CLI (`neon auth`
+device+localhost OAuth; no API key pasted anywhere). Project **unisphere** (`calm-rain-34138616`,
+aws-ap-southeast-1). `bunx prisma migrate deploy` applied `20260924100000_init` +
+`20260924100100_knowledge_fts` to `neondb`; the idempotent seed loaded the full demo dataset
+(9 users, 40 course-plan rows, 6 classes with one deliberate Monday room clash, 6 GPU resources,
+6 form templates, 6 internships, **27** knowledge docs, sample flows). Pooled URL → runtime,
+direct URL → migrations; both live in Vercel production+preview env and in `.env.local`
+(gitignored).
+
+**AI (live).** Provider default is now **CommandCode** — `COMMANDCODE_API_KEY` +
+`https://api.commandcode.ai/provider/v1`, model **`deepseek/deepseek-v4.1-flash`**
+(`AI_MODEL` overridable; `AI_FALLBACK_MODE=1` = knowledge-base-only demos). Resolution priority:
+CommandCode → Groq → OpenAI → OpenRouter → custom `AI_BASE_URL`. Retrieval ranking fixed:
+natural-language questions are tokenised, stop-worded and OR-joined (previously
+`websearch_to_tsquery` ANDed every word and matched nothing), with title-weighted `ts_rank`
+and an ILIKE fallback.
+
+**Verification evidence (all re-run against live Neon + live CommandCode):**
+- `bun run test` → **238 passed** (incl. new CommandCode resolution/priority/override cases).
+- `scripts/eval-ai.ts` → **33/33 retrieval checks pass** (was 4/33 before the ranking fix).
+- `scripts/test-concurrency.ts` → **PASS**: 8 concurrent allocators race the last GPU unit,
+  exactly one wins, no negative availability (`SELECT … FOR UPDATE` path verified live).
+- `scripts/smoke-ai.ts` → **PASS**: real `deepseek-v4.1-flash` answers all three demo questions,
+  cites retrieved docs, persists 6 chat messages.
+- `scripts/link-clerk-users.ts` → all five demo personas (`@shu.edu.pk`) linked to Clerk users;
+  sign-in lands on seeded roles/data.
+- Production `GET /api/health` → `{"ok":true,"db":"up","ai":{"provider":"commandcode",…}}`.
+
+**Milestone deltas:** M0 ✅ (Neon + AI both live). M6 ✅ — live-DB integration + last-GPU race no
+longer pending; screenshots/recording remain (see `docs/demo/screenshots/`).
+
+**Remaining open questions (§14):** unchanged — FYP-II dates, corpus validator, real alumni
+mentors, defence on university machines vs live URL. Demo passwords live only in
+`apps/web/scripts/link-clerk-users.ts` (DEMO_USERS) and the team password manager.
