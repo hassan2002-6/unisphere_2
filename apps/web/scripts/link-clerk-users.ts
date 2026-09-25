@@ -12,11 +12,11 @@
 import { prisma } from "@unisphere/db";
 
 const DEMO_USERS = [
-  { email: "student@shu.demo", password: "UniSphere#Demo1" },
-  { email: "faculty@shu.demo", password: "UniSphere#Demo2" },
-  { email: "coordinator@shu.demo", password: "UniSphere#Demo3" },
-  { email: "fyphead@shu.demo", password: "UniSphere#Demo4" },
-  { email: "mentor@shu.demo", password: "UniSphere#Demo5" },
+  { email: "student@shu.edu.pk", password: "UniSphere#Demo1" },
+  { email: "faculty@shu.edu.pk", password: "UniSphere#Demo2" },
+  { email: "coordinator@shu.edu.pk", password: "UniSphere#Demo3" },
+  { email: "fyphead@shu.edu.pk", password: "UniSphere#Demo4" },
+  { email: "mentor@shu.edu.pk", password: "UniSphere#Demo5" },
 ];
 
 const SECRET = process.env.CLERK_SECRET_KEY;
@@ -34,9 +34,17 @@ async function clerk(path: string, init?: RequestInit) {
   return res.json();
 }
 
+type ClerkUser = { id: string; email_addresses?: { email_address: string }[] };
+
 async function ensureClerkUser(email: string, password: string): Promise<string> {
-  const found = (await clerk(`/users?email_address[]=${encodeURIComponent(email)}`)) as { id: string }[];
-  if (Array.isArray(found) && found.length > 0) return found[0].id;
+  // The list endpoint's email filter is best-effort — verify the match client-side.
+  const found = (await clerk(
+    `/users?email_address[]=${encodeURIComponent(email)}`,
+  )) as ClerkUser[];
+  const match = Array.isArray(found)
+    ? found.find((u) => u.email_addresses?.some((e) => e.email_address === email))
+    : undefined;
+  if (match) return match.id;
 
   const created = (await clerk(`/users`, {
     method: "POST",
@@ -46,7 +54,7 @@ async function ensureClerkUser(email: string, password: string): Promise<string>
       skip_password_checks: true,
       skip_password_requirement: false,
     }),
-  })) as { id: string };
+  })) as ClerkUser;
   return created.id;
 }
 
@@ -71,6 +79,13 @@ async function main() {
       console.log(`  ok   ${u.email}: already linked (${existing.role})`);
       continue;
     }
+    // A stale row may hold this clerkId from an earlier partial run — release it first
+    // (clerkId is non-nullable, so moved rows get a unique placeholder).
+    const stale = await prisma.user.updateMany({
+      where: { clerkId, NOT: { id: existing.id } },
+      data: { clerkId: `seed:stale:${Date.now()}:${Math.random().toString(36).slice(2, 8)}` },
+    });
+    if (stale.count > 0) console.log(`  note ${u.email}: released ${stale.count} stale clerkId holder(s)`);
     await prisma.user.update({ where: { id: existing.id }, data: { clerkId } });
     console.log(`  link ${u.email}: clerkId updated → stays ${existing.role} with its seeded data`);
   }

@@ -3,7 +3,16 @@ import { aiStatus, callLLM, resolveProvider } from "@/server/ai/provider";
 import { buildSystemPrompt } from "@/server/ai/retrieval";
 import { parseSources } from "@/server/ai/assistant";
 
-const KEYS = ["GROQ_API_KEY", "OPENAI_API_KEY", "OPENROUTER_API_KEY", "AI_API_KEY", "AI_BASE_URL", "AI_MODEL"];
+const KEYS = [
+  "COMMANDCODE_API_KEY",
+  "COMMANDCODE_BASE_URL",
+  "GROQ_API_KEY",
+  "OPENAI_API_KEY",
+  "OPENROUTER_API_KEY",
+  "AI_API_KEY",
+  "AI_BASE_URL",
+  "AI_MODEL",
+];
 let saved: Record<string, string | undefined> = {};
 
 beforeEach(() => {
@@ -27,7 +36,27 @@ describe("provider resolution", () => {
     expect(aiStatus()).toEqual({ configured: false, provider: "offline", model: "canned-fallback" });
   });
 
-  it("prefers groq when GROQ_API_KEY is set", () => {
+  it("prefers commandcode with the project default model", () => {
+    process.env.COMMANDCODE_API_KEY = "test-key";
+    const p = resolveProvider();
+    expect(p?.name).toBe("commandcode");
+    expect(p?.baseUrl).toBe("https://api.commandcode.ai/provider/v1");
+    expect(p?.model).toBe("deepseek/deepseek-v4.1-flash");
+  });
+
+  it("commandcode wins over groq when both keys are set", () => {
+    process.env.COMMANDCODE_API_KEY = "cc-key";
+    process.env.GROQ_API_KEY = "groq-key";
+    expect(resolveProvider()?.name).toBe("commandcode");
+  });
+
+  it("honours COMMANDCODE_BASE_URL overrides without a trailing slash", () => {
+    process.env.COMMANDCODE_API_KEY = "k";
+    process.env.COMMANDCODE_BASE_URL = "http://localhost:8080/provider/v1/";
+    expect(resolveProvider()?.baseUrl).toBe("http://localhost:8080/provider/v1");
+  });
+
+  it("prefers groq when only GROQ_API_KEY is set", () => {
     process.env.GROQ_API_KEY = "test-key";
     const p = resolveProvider();
     expect(p?.name).toBe("groq");

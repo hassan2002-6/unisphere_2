@@ -18,6 +18,21 @@ export type LLMResult = {
 type ProviderConfig = { name: string; baseUrl: string; apiKey: string; model: string };
 
 export function resolveProvider(): ProviderConfig | null {
+  // Explicit offline mode (demos without network): AI_FALLBACK_MODE=1 answers
+  // from the knowledge base only.
+  if (process.env.AI_FALLBACK_MODE === "1") return null;
+
+  // CommandCode (project default) — OpenAI-compatible, model ids like
+  // "deepseek/deepseek-v4.1-flash". Base URL overridable for self-hosting.
+  const cc = process.env.COMMANDCODE_API_KEY;
+  if (cc) {
+    return {
+      name: "commandcode",
+      baseUrl: (process.env.COMMANDCODE_BASE_URL ?? "https://api.commandcode.ai/provider/v1").replace(/\/$/, ""),
+      apiKey: cc,
+      model: process.env.AI_MODEL ?? "deepseek/deepseek-v4.1-flash",
+    };
+  }
   const groq = process.env.GROQ_API_KEY;
   if (groq) {
     return {

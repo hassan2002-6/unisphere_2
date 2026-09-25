@@ -10,21 +10,65 @@ import type { User } from "@unisphere/db";
 
 export type Source = { title: string; source: string; snippet: string };
 
-/** Knowledge corpus search — websearch_to_tsquery over title+content (GIN index). */
+const STOPWORDS = new Set([
+  "the", "a", "an", "is", "are", "was", "were", "be", "been", "do", "does", "did", "how", "what",
+  "when", "where", "who", "why", "which", "can", "could", "should", "would", "will", "my", "me",
+  "i", "you", "we", "it", "its", "this", "that", "these", "those", "for", "of", "to", "in", "on",
+  "at", "by", "with", "about", "and", "or", "if", "then", "than", "there", "here", "get", "got",
+  "have", "has", "had", "but", "not", "no", "yes", "from", "as", "so", "up", "out", "into", "over",
+]);
+
+/**
+ * Knowledge corpus search — websearch_to_tsquery over title+content (GIN index).
+ *
+ * Natural-language questions must not AND their words (that matches nothing):
+ * tokens are stripped of stopwords/punctuation and OR-ed, then ranked by
+ * ts_rank. Falls back to an ILIKE scan when FTS still finds nothing.
+ */
 export async function retrieveKnowledge(query: string, limit = 5): Promise<Source[]> {
   const q = query.trim();
   if (q.length < 2) return [];
+
+  const tokens = Array.from(
+    new Set(
+      q
+        .toLowerCase()
+        .split(/[^a-z0-9.+-]+/)
+        .map((t) => t.replace(/^[.+-]+|[.+-]+$/g, ""))
+        .filter((t) => t.length >= 3 && !STOPWORDS.has(t)),
+    ),
+  ).slice(0, 10);
+
   try {
-    const rows = await prisma.$queryRaw<{ title: string; source: string; snippet: string }[]>`
+    if (tokens.length > 0) {
+      const orQuery = tokens.join(" OR ");
+      const rows = await prisma.$queryRaw<{ title: string; source: string; snippet: string }[]>`
+        SELECT "title",
+               "source",
+               LEFT("content", 400) AS "snippet"
+        FROM "KnowledgeDoc"
+        WHERE to_tsvector('english', "title" || ' ' || "content") @@ websearch_to_tsquery('english', ${orQuery})
+        ORDER BY ts_rank(
+                   setweight(to_tsvector('english', "title"), 'A') ||
+                   setweight(to_tsvector('english', "content"), 'B'),
+                   websearch_to_tsquery('english', ${orQuery})
+                 ) DESC
+        LIMIT ${limit}
+      `;
+      if (rows.length > 0) return rows;
+    }
+
+    // ILIKE fallback (accent/short-word queries that FTS tokenisation drops).
+    const needle = `%${q.replace(/[%_]/g, "")}%`;
+    const first = tokens[0] ?? q;
+    return await prisma.$queryRaw<{ title: string; source: string; snippet: string }[]>`
       SELECT "title",
              "source",
              LEFT("content", 400) AS "snippet"
       FROM "KnowledgeDoc"
-      WHERE to_tsvector('english', "title" || ' ' || "content") @@ websearch_to_tsquery('english', ${q})
-      ORDER BY ts_rank(to_tsvector('english', "title" || ' ' || "content"), websearch_to_tsquery('english', ${q})) DESC
+      WHERE "content" ILIKE ${needle} OR "title" ILIKE ${needle} OR "content" ILIKE ${`%${first}%`}
       LIMIT ${limit}
     `;
-    return rows;
   } catch {
     return [];
   }
