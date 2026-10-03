@@ -1,10 +1,16 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, FileText } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getTemplateByKey } from "@/server/services/forms";
 import { formFieldsSchema } from "@/lib/validation";
 import { DynamicForm } from "@/components/dynamic-form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ROLE_LABELS } from "@/lib/rbac";
 import { submitFormAction } from "../../actions";
 
 export const dynamic = "force-dynamic";
@@ -28,30 +34,54 @@ export default async function SubmitFormPage({ params }: { params: Promise<{ key
   const boundAction = submitFormAction.bind(null, template.key, fields.data);
 
   return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{template.title}</h1>
-        <p className="text-sm text-muted-foreground">{template.description}</p>
-        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="secondary">→ {template.recipientLabel}</Badge>
-          {template.slaDays ? <Badge variant="outline">SLA ~{template.slaDays} days</Badge> : null}
-        </div>
-      </div>
+    <>
+      <PageHeader
+        icon={FileText}
+        breadcrumbs={[
+          { label: "Forms Center", href: "/forms" },
+          { label: template.title },
+        ]}
+        title={template.title}
+        description={template.description}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">Routed to {template.recipientLabel}</Badge>
+            {template.slaDays ? <Badge variant="outline">SLA ~{template.slaDays} day(s)</Badge> : null}
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/forms">
+                <ArrowLeft className="h-4 w-4" />
+                All forms
+              </Link>
+            </Button>
+          </div>
+        }
+      />
+
+      {!canSubmit ? (
+        <Alert variant="warning">
+          <AlertTitle>This form isn&apos;t available for your role</AlertTitle>
+          <AlertDescription>
+            It&apos;s designed for {ROLE_LABELS[template.audienceRole]} users. You can still browse the
+            catalogue — pick a form addressed to your role.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Submission details</CardTitle>
-          {!canSubmit ? (
-            <CardDescription className="text-destructive">
-              This form is for {template.audienceRole.toLowerCase()} users — you cannot submit it with your current
-              role.
-            </CardDescription>
-          ) : null}
-        </CardHeader>
-        <CardContent>
-          {canSubmit ? <DynamicForm fields={fields.data} action={boundAction} /> : null}
+        <CardContent className="pt-6">
+          {canSubmit ? (
+            <DynamicForm fields={fields.data} action={boundAction} />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Submission is disabled for your role.{" "}
+              <Link href="/forms" className="font-medium text-foreground underline underline-offset-2">
+                Browse the Forms Center
+              </Link>{" "}
+              instead.
+            </p>
+          )}
         </CardContent>
       </Card>
-    </main>
+    </>
   );
 }

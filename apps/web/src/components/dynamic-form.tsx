@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "cn";
 import type { FormFieldSpec } from "@/lib/validation";
 
 export type FormActionState = {
@@ -12,6 +14,9 @@ export type FormActionState = {
   error?: string;
   fieldErrors?: { path: string; message: string }[];
 };
+
+const CONTROL_CLASS =
+  "border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none transition-shadow focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:border-destructive aria-invalid:ring-destructive/20";
 
 /**
  * Renders a form from a template's field spec (plan C7). The server action
@@ -21,7 +26,7 @@ export type FormActionState = {
 export function DynamicForm({
   fields,
   action,
-  submitLabel = "Submit",
+  submitLabel = "Submit request",
 }: {
   fields: FormFieldSpec[];
   action: (prev: FormActionState | undefined, fd: FormData) => Promise<FormActionState>;
@@ -31,61 +36,96 @@ export function DynamicForm({
   const errorFor = (name: string) => state.fieldErrors?.find((e) => e.path === name)?.message;
 
   return (
-    <form action={formAction} className="grid max-w-xl gap-4">
+    <form action={formAction} className="grid max-w-xl gap-5">
       {state.error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive"
+        >
           {state.error}
         </div>
       ) : null}
 
-      {fields.map((f) => (
-        <div key={f.name} className="grid gap-1.5">
-          <Label htmlFor={f.name}>
-            {f.label}
-            {f.required ? <span className="ml-1 text-destructive">*</span> : null}
-          </Label>
+      {fields.map((f) => {
+        const err = errorFor(f.name);
+        return (
+          <div key={f.name} className="grid gap-1.5">
+            <Label htmlFor={f.name} className="text-sm">
+              {f.label}
+              {f.required ? <span className="ml-1 text-destructive" aria-hidden>*</span> : null}
+              {!f.required ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">optional</span> : null}
+            </Label>
 
-          {f.type === "textarea" ? (
-            <Textarea id={f.name} name={f.name} placeholder={f.placeholder} rows={4} required={f.required} />
-          ) : f.type === "select" ? (
-            <select
-              id={f.name}
-              name={f.name}
-              required={f.required}
-              defaultValue=""
-              className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            >
-              <option value="" disabled>
-                Select…
-              </option>
-              {(f.options ?? []).map((o) => (
-                <option key={o} value={o}>
-                  {o}
+            {f.type === "textarea" ? (
+              <Textarea
+                id={f.name}
+                name={f.name}
+                placeholder={f.placeholder}
+                rows={4}
+                required={f.required}
+                aria-invalid={err ? true : undefined}
+              />
+            ) : f.type === "select" ? (
+              <select
+                id={f.name}
+                name={f.name}
+                required={f.required}
+                defaultValue=""
+                aria-invalid={err ? true : undefined}
+                className={cn(CONTROL_CLASS, "appearance-none bg-[length:1rem] pr-8")}
+              >
+                <option value="" disabled>
+                  Select…
                 </option>
-              ))}
-            </select>
-          ) : f.type === "checkbox" ? (
-            <div className="flex items-center gap-2">
-              <input id={f.name} name={f.name} type="checkbox" className="size-4 accent-primary" />
-              <span className="text-sm text-muted-foreground">{f.placeholder ?? "Tick to confirm"}</span>
-            </div>
-          ) : (
-            <Input
-              id={f.name}
-              name={f.name}
-              type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
-              placeholder={f.placeholder}
-              required={f.required}
-            />
-          )}
+                {(f.options ?? []).map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            ) : f.type === "checkbox" ? (
+              <label
+                htmlFor={f.name}
+                className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5"
+              >
+                <input
+                  id={f.name}
+                  name={f.name}
+                  type="checkbox"
+                  className="size-4 shrink-0 accent-primary"
+                  aria-invalid={err ? true : undefined}
+                />
+                <span className="text-sm text-muted-foreground">{f.placeholder ?? "Tick to confirm"}</span>
+              </label>
+            ) : (
+              <Input
+                id={f.name}
+                name={f.name}
+                type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+                placeholder={f.placeholder}
+                required={f.required}
+                aria-invalid={err ? true : undefined}
+              />
+            )}
 
-          {errorFor(f.name) ? <p className="text-xs text-destructive">{errorFor(f.name)}</p> : null}
-        </div>
-      ))}
+            {err ? (
+              <p role="alert" className="text-xs font-medium text-destructive">
+                {err}
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
 
-      <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "Submitting…" : submitLabel}
-      </Button>
+      <div className="flex items-center gap-3 pt-1">
+        <Button type="submit" disabled={pending} className="w-fit">
+          {pending ? <Loader2 className="animate-spin" /> : null}
+          {pending ? "Submitting…" : submitLabel}
+        </Button>
+        <p className="text-xs text-muted-foreground">
+          You&apos;ll get a notification with the reviewer&apos;s decision.
+        </p>
+      </div>
     </form>
   );
 }

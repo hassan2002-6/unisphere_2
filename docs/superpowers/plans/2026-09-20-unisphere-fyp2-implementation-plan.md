@@ -633,3 +633,44 @@ longer pending; screenshots/recording remain (see `docs/demo/screenshots/`).
 **Remaining open questions (§14):** unchanged — FYP-II dates, corpus validator, real alumni
 mentors, defence on university machines vs live URL. Demo passwords live only in
 `apps/web/scripts/link-clerk-users.ts` (DEMO_USERS) and the team password manager.
+
+## Appendix G — UI/UX overhaul (amendment, 2026-10-04)
+
+**Motivation.** The M1–M6 build was feature-complete but visually inconsistent: every page rolled
+its own header/empty/error markup, there was no dark-mode support, no mobile navigation, and the
+landing page still read like a prototype. This amendment records the design-system pass delivered
+on top of the same plan (no scope change — §6.5 palette and §6.4 route map still hold).
+
+**Design foundations.**
+- Rewritten `globals.css`: OKLCH palette (light + dark), semantic tokens for
+  `success/warning/info`, sidebar tokens, `text-gradient`, `.card-lift` hover, `@utility page`
+  page-frame (consistent gutters + `max-w-6xl` for every route).
+- `ThemeProvider` (next-themes, class strategy) + `ThemeToggle` in the portal header; `Toaster`
+  (sonner) mounted app-wide.
+
+**Component kit (new shared primitives).**
+- Shell: mobile nav via a `Sheet` drawer, sticky header with section label + page title, unread
+  bell, user card, persisted theme toggle.
+- `PageHeader` (icon, title, description, breadcrumbs, actions), `StatCard` (tone-mapped KPI),
+  `EmptyState` (icon + CTA), `Alert` (variants: default/success/warning/destructive/muted),
+  `SubmitButton` (+`FormError`, `useFormStatus` pending states), `ConfirmAction` (dialog around a
+  server action with optional remarks), `StatusBadge` v2 (tone map across every status machine in
+  §6.2), `ReviewActions` (shared pending state for queue decisions), `AuthShell` (split-screen auth).
+
+**Page passes.** Landing rebuilt (hero with CSS app-mock, features, roles, trust, CTA, footer);
+role-aware dashboards (per-role KPIs + today's classes/review queues/approvals/clash monitor/
+pending requests + quick actions, assembled by `server/services/dashboard.ts`); timetable (today
+highlight, legend, clash alerts), exams (next-exam countdown + clash banner), planning, forms
+centre, dynamic form (field-level server errors, inline validation styling), submissions list +
+detail (vertical event timeline, withdraw confirmation), shared review queue/decisions, chat
+(sticky composer, suggestion chips, source cards, provider status), auth + not-provisioned/
+setup-needed states, loading/error/404 boundaries.
+
+**Verification.** `tsc --noEmit`, oxlint and the full vitest suite pass after the pass; landing +
+auth routes rendered against the local dev server (headless Chrome DOM check, no runtime errors).
+Authenticated walk-throughs in production could not be automated from this network
+(`vercel.com` + the production alias are unreachable from this ISP — see Appendix F note); the
+demo-script screenshots remain the manual capture step.
+
+**No DB/API changes.** Every server action, query, RBAC guard and route is untouched — this was a
+markup/UX pass only.

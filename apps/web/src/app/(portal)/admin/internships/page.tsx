@@ -1,12 +1,19 @@
+import { Briefcase, Clock, Inbox, Users } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { listManagedInternships } from "@/server/services/internships";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { EmptyState } from "@/components/empty-state";
+import { ConfirmAction } from "@/components/confirm-action";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { createInternshipAction, setInternshipStatusAction, updateApplicationAction } from "../../internships/actions";
 
 export const dynamic = "force-dynamic";
@@ -26,103 +33,171 @@ export default async function AdminInternshipsPage({
     internships = null;
   }
 
+  const openCount = internships?.filter((i) => i.status === "OPEN").length ?? 0;
+  const applicationCount = internships?.reduce((n, i) => n + i.applications.length, 0) ?? 0;
+  const awaitingDecision =
+    internships?.reduce(
+      (n, i) => n + i.applications.filter((a) => a.status === "APPLIED" || a.status === "SHORTLISTED").length,
+      0,
+    ) ?? 0;
+
   return (
-    <main className="space-y-4 p-6">
+    <>
+      <PageHeader
+        icon={Briefcase}
+        title="Internships (Manage)"
+        description="Post openings and move applications through shortlist → accept/reject."
+      />
+
       {created ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Internship posted — students can apply immediately.
-        </div>
+        <Alert variant="success">
+          <AlertTitle>Internship posted</AlertTitle>
+          <AlertDescription>Students can apply immediately from /internships.</AlertDescription>
+        </Alert>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Couldn&apos;t post the internship</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Internships (Manage)</h1>
-        <p className="text-sm text-muted-foreground">
-          Post openings and move applications through shortlist → accept/reject.
-        </p>
-      </div>
-
       {internships === null ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Internships unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTitle>Internships unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      ) : internships.length === 0 ? (
+        <EmptyState
+          icon={Briefcase}
+          title="No internships posted yet"
+          description="Use the form below to post the first opening — it appears on /internships instantly and students can apply right away."
+        />
       ) : (
-        <div className="space-y-3">
-          {internships.map((i) => (
-            <Card key={i.id}>
-              <CardHeader className="py-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base">
-                    {i.title} <span className="text-sm font-normal text-muted-foreground">— {i.company}</span>
-                  </CardTitle>
-                  <div className="flex items-center gap-2">
+        <>
+          <section aria-label="Internship summary" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Postings"
+              value={internships.length}
+              hint={`${openCount} open · ${internships.length - openCount} closed`}
+              icon={Briefcase}
+              tone="primary"
+            />
+            <StatCard label="Applications" value={applicationCount} hint="Across all postings" icon={Users} tone="info" />
+            <StatCard
+              label="Awaiting decision"
+              value={awaitingDecision}
+              hint={awaitingDecision > 0 ? "Shortlist or accept/reject" : "Application queue is clear"}
+              icon={Clock}
+              tone={awaitingDecision > 0 ? "warning" : "success"}
+            />
+          </section>
+
+          <div className="space-y-4">
+            {internships.map((i) => (
+              <Card key={i.id} className="gap-0 overflow-hidden py-0">
+                <CardHeader className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-4">
+                  <div className="min-w-0 space-y-1">
+                    <CardTitle className="text-base">
+                      {i.title} <span className="text-sm font-normal text-muted-foreground">— {i.company}</span>
+                    </CardTitle>
+                    <CardDescription className="line-clamp-2">{i.description}</CardDescription>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
                     <Badge variant="outline">{i.applications.length} applicants</Badge>
                     {i.status === "OPEN" ? <Badge variant="secondary">Open</Badge> : <Badge variant="outline">Closed</Badge>}
-                    <form action={setInternshipStatusAction}>
-                      <input type="hidden" name="id" value={i.id} />
-                      <input type="hidden" name="status" value={i.status === "OPEN" ? "CLOSED" : "OPEN"} />
-                      <Button type="submit" variant="ghost" size="sm">
-                        {i.status === "OPEN" ? "Close" : "Reopen"}
-                      </Button>
-                    </form>
+                    <ConfirmAction
+                      action={setInternshipStatusAction}
+                      values={{ id: i.id, status: i.status === "OPEN" ? "CLOSED" : "OPEN" }}
+                      title={i.status === "OPEN" ? "Close this posting?" : "Reopen this posting?"}
+                      description={i.status === "OPEN" ? "It stops accepting applications until you reopen it." : "Students will be able to apply again right away."}
+                      confirmLabel={i.status === "OPEN" ? "Close posting" : "Reopen posting"}
+                      trigger={
+                        <Button variant="ghost" size="sm">
+                          {i.status === "OPEN" ? "Close" : "Reopen"}
+                        </Button>
+                      }
+                    />
                   </div>
-                </div>
-                <CardDescription className="line-clamp-2">{i.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {i.applications.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No applications yet.</p>
-                ) : (
-                  i.applications.map((a) => (
-                    <div key={a.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
-                      <div className="min-w-0">
-                        <p className="text-sm">
-                          <span className="font-medium">{a.student.name}</span>{" "}
-                          <span className="text-muted-foreground">
-                            {a.student.registrationNo ? `· ${a.student.registrationNo} ` : ""}· {a.student.email}
-                          </span>
-                        </p>
-                        {a.note ? <p className="text-xs text-muted-foreground">{a.note}</p> : null}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={a.status} />
-                        {a.status === "APPLIED" || a.status === "SHORTLISTED" ? (
-                          <form action={updateApplicationAction} className="flex items-center gap-1">
-                            <input type="hidden" name="applicationId" value={a.id} />
-                            {a.status === "APPLIED" ? (
-                              <Button type="submit" name="status" value="SHORTLISTED" variant="secondary" size="sm">
-                                Shortlist
-                              </Button>
-                            ) : null}
-                            <Button
-                              type="submit"
-                              name="status"
-                              value="ACCEPTED"
-                              size="sm"
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              Accept
-                            </Button>
-                            <Button type="submit" name="status" value="REJECTED" variant="destructive" size="sm">
-                              Reject
-                            </Button>
-                          </form>
-                        ) : null}
-                      </div>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {i.applications.length === 0 ? (
+                    <div className="p-5">
+                      <EmptyState
+                        compact
+                        icon={Inbox}
+                        title="No applications yet"
+                        description="Student applications show up here the moment they arrive."
+                      />
                     </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  ) : (
+                    <ul className="divide-y">
+                      {i.applications.map((a) => (
+                        <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+                          <div className="min-w-0">
+                            <p className="text-sm">
+                              <span className="font-medium">{a.student.name}</span>{" "}
+                              <span className="text-muted-foreground">
+                                {a.student.registrationNo ? `· ${a.student.registrationNo} ` : ""}· {a.student.email}
+                              </span>
+                            </p>
+                            {a.note ? <p className="mt-0.5 text-xs text-muted-foreground">{a.note}</p> : null}
+                          </div>
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            <StatusBadge status={a.status} />
+                            {a.status === "APPLIED" || a.status === "SHORTLISTED" ? (
+                              <div className="flex items-center gap-1.5">
+                                {a.status === "APPLIED" ? (
+                                  <ConfirmAction
+                                    action={updateApplicationAction}
+                                    values={{ applicationId: a.id, status: "SHORTLISTED" }}
+                                    title="Shortlist this application?"
+                                    description={`${a.student.name} moves to the shortlist — you can still accept or reject them afterwards.`}
+                                    confirmLabel="Shortlist"
+                                    trigger={
+                                      <Button variant="secondary" size="sm">
+                                        Shortlist
+                                      </Button>
+                                    }
+                                  />
+                                ) : null}
+                                <ConfirmAction
+                                  action={updateApplicationAction}
+                                  values={{ applicationId: a.id, status: "ACCEPTED" }}
+                                  title="Accept this application?"
+                                  description={`${a.student.name} will be marked as accepted for ${i.title}.`}
+                                  confirmLabel="Accept"
+                                  trigger={
+                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                                      Accept
+                                    </Button>
+                                  }
+                                />
+                                <ConfirmAction
+                                  action={updateApplicationAction}
+                                  values={{ applicationId: a.id, status: "REJECTED" }}
+                                  title="Reject this application?"
+                                  description={`${a.student.name} will be marked as rejected for ${i.title}.`}
+                                  confirmLabel="Reject"
+                                  variant="destructive"
+                                  trigger={
+                                    <Button variant="destructive" size="sm">
+                                      Reject
+                                    </Button>
+                                  }
+                                />
+                              </div>
+                            ) : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       <Card>
@@ -180,12 +255,12 @@ export default async function AdminInternshipsPage({
                 <Input id="tags" name="tags" placeholder="react, node, internship" />
               </div>
             </div>
-            <Button type="submit" className="w-fit">
+            <SubmitButton className="w-fit" pendingLabel="Posting…">
               Post internship
-            </Button>
+            </SubmitButton>
           </form>
         </CardContent>
       </Card>
-    </main>
+    </>
   );
 }

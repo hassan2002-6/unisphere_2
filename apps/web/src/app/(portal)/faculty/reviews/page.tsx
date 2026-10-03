@@ -1,8 +1,10 @@
+import { Inbox } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { listReviewQueue } from "@/server/services/forms";
 import { ReviewQueue } from "@/components/review-queue";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -11,34 +13,35 @@ export default async function FacultyReviewsPage() {
 
   if (!can(user.role, "forms.review")) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No review access</CardTitle>
-            <CardDescription>The review queue is only available to faculty, coordinators and the FYP Head.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={Inbox} title="Review Queue (Faculty)" />
+        <Alert variant="warning">
+          <AlertTitle>No review access</AlertTitle>
+          <AlertDescription>
+            The review queue is only available to faculty, coordinators and the FYP Head.
+          </AlertDescription>
+        </Alert>
+      </>
     );
   }
 
   let data: Awaited<ReturnType<typeof listReviewQueue>> | null = null;
   try {
     data = await listReviewQueue(user);
-  } catch {
+  } catch (error) {
+    console.error("faculty review queue load failed:", error);
     data = null;
   }
 
   if (!data) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Review queue unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={Inbox} title="Review Queue (Faculty)" />
+        <Alert variant="destructive">
+          <AlertTitle>Review queue unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 

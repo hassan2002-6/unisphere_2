@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { Bell, BellOff } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { listNotifications } from "@/server/services/notifications";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { markAllNotificationsRead, markNotificationRead } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -31,82 +36,79 @@ export default async function NotificationsPage() {
 
   if (!data) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Notifications unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={Bell} title="Notifications" />
+        <Alert variant="destructive">
+          <AlertTitle>Notifications unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check DATABASE_URL and the Neon project.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
   const unread = data.items.filter((n) => !n.readAt).length;
 
   return (
-    <main className="space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
-          <p className="text-sm text-muted-foreground">
-            {unread > 0 ? `${unread} unread` : "You're all caught up."}
-          </p>
-        </div>
-        {unread > 0 ? (
-          <form action={markAllNotificationsRead}>
-            <Button type="submit" variant="secondary" size="sm">
-              Mark all as read
-            </Button>
-          </form>
-        ) : null}
-      </div>
+    <>
+      <PageHeader
+        icon={Bell}
+        title="Notifications"
+        description={unread > 0 ? `${unread} unread` : "You're all caught up."}
+        actions={
+          unread > 0 ? (
+            <form action={markAllNotificationsRead}>
+              <SubmitButton variant="secondary" size="sm" pendingLabel="Marking…">
+                Mark all as read
+              </SubmitButton>
+            </form>
+          ) : null
+        }
+      />
 
       {data.items.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Nothing here yet</CardTitle>
-            <CardDescription>
-              Notifications appear when your forms, complaints, requests or sessions change state.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          icon={BellOff}
+          title="Nothing here yet"
+          description="Notifications appear when your forms, complaints, requests or sessions change state."
+        />
       ) : (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {data.items.map((n) => (
-            <Card key={n.id} className={n.readAt ? "opacity-70" : "border-l-4 border-l-primary"}>
-              <CardContent className="flex items-start justify-between gap-4 py-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">{TYPE_LABELS[n.type] ?? n.type}</Badge>
-                    <span className="text-sm font-medium">{n.title}</span>
-                    {!n.readAt ? <span className="h-2 w-2 rounded-full bg-primary" aria-label="unread" /> : null}
+            <li key={n.id}>
+              <Card className={n.readAt ? "gap-0 py-0 opacity-70" : "gap-0 border-l-4 border-l-primary py-0"}>
+                <CardContent className="flex items-start justify-between gap-4 p-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">{TYPE_LABELS[n.type] ?? n.type}</Badge>
+                      <span className="text-sm font-medium">{n.title}</span>
+                      {!n.readAt ? <span className="h-2 w-2 rounded-full bg-primary" aria-label="unread" /> : null}
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {n.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </p>
                   </div>
-                  <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {n.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  {n.link ? (
-                    <Button asChild variant="ghost" size="sm">
-                      <Link href={n.link}>Open</Link>
-                    </Button>
-                  ) : null}
-                  {!n.readAt ? (
-                    <form action={markNotificationRead}>
-                      <input type="hidden" name="id" value={n.id} />
-                      <Button type="submit" variant="secondary" size="sm">
-                        Mark read
+                  <div className="flex shrink-0 items-center gap-2">
+                    {n.link ? (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={n.link}>Open</Link>
                       </Button>
-                    </form>
-                  ) : null}
-                </div>
-              </CardContent>
-            </Card>
+                    ) : null}
+                    {!n.readAt ? (
+                      <form action={markNotificationRead}>
+                        <input type="hidden" name="id" value={n.id} />
+                        <SubmitButton variant="secondary" size="sm" pendingLabel="Working…">
+                          Mark read
+                        </SubmitButton>
+                      </form>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </main>
+    </>
   );
 }

@@ -1,8 +1,10 @@
+import { MessageSquareWarning } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { listManagedComplaints } from "@/server/services/complaints";
 import { ComplaintManager } from "@/components/complaint-manager";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -11,14 +13,13 @@ export default async function FacultyComplaintsPage() {
 
   if (!can(user.role, "complaints.manage")) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No access</CardTitle>
-            <CardDescription>Complaint management is limited to faculty and coordinators.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={MessageSquareWarning} title="Complaints (Faculty)" />
+        <Alert variant="warning">
+          <AlertTitle>No access</AlertTitle>
+          <AlertDescription>Complaint management is limited to faculty and coordinators.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
@@ -31,14 +32,13 @@ export default async function FacultyComplaintsPage() {
 
   if (!data) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Complaints unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={MessageSquareWarning} title="Complaints (Faculty)" />
+        <Alert variant="destructive">
+          <AlertTitle>Complaints unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 

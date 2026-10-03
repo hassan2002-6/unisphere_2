@@ -1,11 +1,15 @@
+import { Boxes } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { listResources } from "@/server/services/resources";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { createResourceAction, updateResourceAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -20,81 +24,93 @@ export default async function AdminInventoryPage() {
     resources = null;
   }
 
-  return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Inventory</h1>
-        <p className="text-sm text-muted-foreground">
-          Compute inventory with live availability — allocations decrement <em>available</em> atomically.
-        </p>
-      </div>
+  if (!resources) {
+    return (
+      <>
+        <PageHeader
+          icon={Boxes}
+          title="Inventory"
+          description="Compute inventory with live availability — allocations decrement available atomically."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Inventory unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
+    );
+  }
 
-      {resources === null ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Inventory unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-base">Resources ({resources.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {resources.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No resources yet — add the first one below.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Resource</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Specs</TableHead>
-                    <TableHead>Availability</TableHead>
-                    <TableHead className="text-right">Adjust</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {resources.map((r) => {
-                    const utilization = r.quantity > 0 ? Math.round(((r.quantity - r.available) / r.quantity) * 100) : 0;
-                    return (
-                      <TableRow key={r.id}>
-                        <TableCell>
-                          <span className="font-medium">{r.name}</span>{" "}
-                          <span className="text-muted-foreground">— {r.model}</span>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="secondary">{r.type}</Badge>
-                        </TableCell>
-                        <TableCell className="max-w-56 text-xs text-muted-foreground">{r.specs}</TableCell>
-                        <TableCell className="text-sm">
-                          {r.available}/{r.quantity} free
-                          <span className="ml-2 text-xs text-muted-foreground">({utilization}% in use)</span>
-                        </TableCell>
-                        <TableCell>
-                          <form action={updateResourceAction} className="flex items-center justify-end gap-2">
-                            <input type="hidden" name="id" value={r.id} />
-                            <Input name="quantity" type="number" min={1} defaultValue={r.quantity} className="h-8 w-20" />
-                            <Input name="available" type="number" min={0} defaultValue={r.available} className="h-8 w-20" />
-                            <Button type="submit" variant="secondary" size="sm">
-                              Save
-                            </Button>
-                          </form>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      )}
+  return (
+    <>
+      <PageHeader
+        icon={Boxes}
+        title="Inventory"
+        description={
+          <>
+            Compute inventory with live availability — allocations decrement <em>available</em> atomically.
+          </>
+        }
+      />
+
+      <Card className="gap-0 overflow-hidden py-0">
+        <CardHeader className="border-b px-5 py-3.5">
+          <CardTitle className="text-sm font-semibold">Resources ({resources.length})</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {resources.length === 0 ? (
+            <div className="px-5 py-5">
+              <EmptyState compact icon={Boxes} title="No resources yet" description="Add the first one below." />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-5">Resource</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Specs</TableHead>
+                  <TableHead>Availability</TableHead>
+                  <TableHead className="pr-5 text-right">Adjust</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {resources.map((r) => {
+                  const utilization = r.quantity > 0 ? Math.round(((r.quantity - r.available) / r.quantity) * 100) : 0;
+                  return (
+                    <TableRow key={r.id}>
+                      <TableCell className="pl-5">
+                        <span className="font-medium">{r.name}</span>{" "}
+                        <span className="text-muted-foreground">— {r.model}</span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{r.type}</Badge>
+                      </TableCell>
+                      <TableCell className="max-w-56 text-xs text-muted-foreground">{r.specs}</TableCell>
+                      <TableCell className="text-sm tabular-nums">
+                        {r.available}/{r.quantity} free
+                        <span className="ml-2 text-xs text-muted-foreground">({utilization}% in use)</span>
+                      </TableCell>
+                      <TableCell className="pr-5">
+                        <form action={updateResourceAction} className="flex items-center justify-end gap-2">
+                          <input type="hidden" name="id" value={r.id} />
+                          <Input name="quantity" type="number" min={1} defaultValue={r.quantity} className="h-8 w-20" />
+                          <Input name="available" type="number" min={0} defaultValue={r.available} className="h-8 w-20" />
+                          <SubmitButton variant="secondary" size="sm" pendingLabel="Saving…">
+                            Save
+                          </SubmitButton>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Add a resource</CardTitle>
+        <CardHeader className="py-3.5">
+          <CardTitle className="text-sm font-semibold">Add a resource</CardTitle>
           <CardDescription>New stock starts fully available.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -129,10 +145,10 @@ export default async function AdminInventoryPage() {
               <Label htmlFor="quantity">Quantity</Label>
               <Input id="quantity" name="quantity" type="number" min={1} required defaultValue={1} className="w-24" />
             </div>
-            <Button type="submit">Add resource</Button>
+            <SubmitButton pendingLabel="Adding…">Add resource</SubmitButton>
           </form>
         </CardContent>
       </Card>
-    </main>
+    </>
   );
 }

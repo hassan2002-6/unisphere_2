@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft, Briefcase, Building2, CalendarClock, FileText, MapPin, Users, Wallet } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getInternship } from "@/server/services/internships";
 import { prisma } from "@/lib/db";
@@ -8,6 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { applyAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -41,49 +46,79 @@ export default async function InternshipDetailPage({
   }
 
   return (
-    <main className="space-y-4 p-6">
+    <>
+      <PageHeader
+        breadcrumbs={[{ label: "Internships", href: "/internships" }, { label: internship.title }]}
+        icon={Briefcase}
+        title={internship.title}
+        description={`${internship.company} · posted by ${internship.postedBy.name}`}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge status={internship.status} />
+            {myApplication ? <StatusBadge status={myApplication.status} /> : null}
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/internships">
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </Link>
+            </Button>
+          </div>
+        }
+      />
+
       {applied ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Application sent — the poster will review it.
-        </div>
+        <Alert variant="success">
+          <AlertTitle>Application sent</AlertTitle>
+          <AlertDescription>The poster will review it — you can track the status on this page.</AlertDescription>
+        </Alert>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Could not apply</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
-
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{internship.title}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {internship.company} · posted by {internship.postedBy.name}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {internship.status === "OPEN" ? <Badge variant="secondary">Open</Badge> : <Badge variant="outline">Closed</Badge>}
-          {myApplication ? <StatusBadge status={myApplication.status} /> : null}
-        </div>
-      </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <Card>
           <CardHeader className="py-4">
-            <CardTitle className="text-base">About the role</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              About the role
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <p className="whitespace-pre-wrap text-muted-foreground">{internship.description}</p>
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              {internship.location ? <span>📍 {internship.location}</span> : null}
-              {internship.mode ? <span>🏢 {internship.mode}</span> : null}
-              {internship.stipend ? <span>💰 {internship.stipend}</span> : null}
+            <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
+              {internship.location ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {internship.location}
+                </span>
+              ) : null}
+              {internship.mode ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Building2 className="h-3.5 w-3.5" />
+                  {internship.mode}
+                </span>
+              ) : null}
+              {internship.stipend ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Wallet className="h-3.5 w-3.5" />
+                  {internship.stipend}
+                </span>
+              ) : null}
               {internship.deadline ? (
-                <span>
-                  ⏳ apply by{" "}
+                <span className="inline-flex items-center gap-1.5">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  apply by{" "}
                   {internship.deadline.toLocaleDateString("en-GB", { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" })}
                 </span>
               ) : null}
-              <span>👥 {internship._count.applications} applicants</span>
+              <span className="inline-flex items-center gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                {internship._count.applications} applicants
+              </span>
             </div>
             <div className="flex flex-wrap gap-1">
               {internship.tags.map((t) => (
@@ -105,7 +140,7 @@ export default async function InternshipDetailPage({
 
         <Card className="h-fit">
           <CardHeader className="py-4">
-            <CardTitle className="text-base">Apply</CardTitle>
+            <CardTitle className="text-sm font-semibold">Apply</CardTitle>
             <CardDescription>
               {myApplication
                 ? "You've applied — status shown at the top of this page."
@@ -129,18 +164,20 @@ export default async function InternshipDetailPage({
                   <Label htmlFor="note">Note to the poster (optional)</Label>
                   <Textarea id="note" name="note" rows={4} maxLength={1000} placeholder="Why you're a fit…" />
                 </div>
-                <Button type="submit">Apply now</Button>
+                <SubmitButton pendingLabel="Applying…">Apply now</SubmitButton>
               </form>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                {internship.status === "OPEN"
-                  ? "Sign in as a student account to apply."
-                  : "Applications are closed for this posting."}
-              </p>
+              <Alert variant={internship.status === "OPEN" ? "warning" : "muted"}>
+                <AlertDescription>
+                  {internship.status === "OPEN"
+                    ? "Sign in as a student account to apply."
+                    : "Applications are closed for this posting."}
+                </AlertDescription>
+              </Alert>
             )}
           </CardContent>
         </Card>
       </div>
-    </main>
+    </>
   );
 }

@@ -1,83 +1,115 @@
+import Link from "next/link";
+import {
+  ArrowRight,
+  BookOpen,
+  ClipboardList,
+  Cpu,
+  FlaskConical,
+  Megaphone,
+  ShieldAlert,
+  Sparkles,
+} from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { prisma } from "@/lib/db";
-import { ROLE_LABELS, type Role } from "@/lib/rbac";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getDashboard, type DashboardPanel, type DashboardStat } from "@/server/services/dashboard";
+import { ROLE_LABELS } from "@/lib/rbac";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { StatusBadge } from "@/components/status-badge";
+import { EmptyState } from "@/components/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Role } from "@unisphere/db";
 
 export const dynamic = "force-dynamic";
 
-type Stat = { label: string; value: string | number };
+const QUICK_ACTIONS: Record<Role, { label: string; href: string; icon: typeof BookOpen }[]> = {
+  STUDENT: [
+    { label: "Submit a form", href: "/forms", icon: ClipboardList },
+    { label: "Request GPU / lab", href: "/resources/request", icon: Cpu },
+    { label: "Ask the assistant", href: "/chat", icon: Sparkles },
+  ],
+  FACULTY: [
+    { label: "Review queue", href: "/faculty/reviews", icon: ClipboardList },
+    { label: "My courses", href: "/faculty/courses", icon: BookOpen },
+  ],
+  COORDINATOR: [
+    { label: "Clash desk", href: "/coordinator/clashes", icon: ShieldAlert },
+    { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone },
+    { label: "Approvals", href: "/coordinator/approvals", icon: ClipboardList },
+  ],
+  FYP_HEAD: [
+    { label: "FYP proposals", href: "/admin/fyp", icon: BookOpen },
+    { label: "Resource requests", href: "/admin/requests", icon: Cpu },
+    { label: "Reports", href: "/admin/reports", icon: FlaskConical },
+  ],
+  MENTOR: [{ label: "Mentor console", href: "/mentor", icon: ClipboardList }],
+};
 
-async function loadStats(userId: string, role: Role): Promise<Stat[]> {
-  switch (role) {
-    case "STUDENT": {
-      const [forms, complaints, fyp, unread] = await Promise.all([
-        prisma.formSubmission.count({ where: { submittedById: userId } }),
-        prisma.complaint.count({ where: { submittedById: userId, status: { in: ["OPEN", "IN_REVIEW"] } } }),
-        prisma.fypApplication.count({ where: { applicantId: userId } }),
-        prisma.notification.count({ where: { userId, readAt: null } }),
-      ]);
-      return [
-        { label: "My form submissions", value: forms },
-        { label: "Open complaints", value: complaints },
-        { label: "FYP applications", value: fyp },
-        { label: "Unread notifications", value: unread },
-      ];
-    }
-    case "FACULTY": {
-      const [toReview, courses, complaints] = await Promise.all([
-        prisma.formSubmission.count({
-          where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, template: { reviewerRole: "FACULTY" } },
-        }),
-        prisma.courseClass.count({ where: { facultyId: userId } }),
-        prisma.complaint.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] }, category: "Faculty" } }),
-      ]);
-      return [
-        { label: "Forms awaiting review", value: toReview },
-        { label: "My courses", value: courses },
-        { label: "Faculty complaints", value: complaints },
-      ];
-    }
-    case "COORDINATOR": {
-      const [toReview, openComplaints, internships] = await Promise.all([
-        prisma.formSubmission.count({
-          where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, template: { reviewerRole: "COORDINATOR" } },
-        }),
-        prisma.complaint.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }),
-        prisma.internship.count({ where: { status: "OPEN" } }),
-      ]);
-      return [
-        { label: "Forms awaiting review", value: toReview },
-        { label: "Open complaints", value: openComplaints },
-        { label: "Open internships", value: internships },
-      ];
-    }
-    case "FYP_HEAD": {
-      const [pendingFyp, pendingRequests, activeAllocations] = await Promise.all([
-        prisma.fypApplication.count({ where: { status: "PENDING" } }),
-        prisma.resourceRequest.count({ where: { status: { in: ["PENDING", "RECOMMENDED"] } } }),
-        prisma.allocation.count({ where: { status: "ACTIVE" } }),
-      ]);
-      return [
-        { label: "FYP applications pending", value: pendingFyp },
-        { label: "Resource requests open", value: pendingRequests },
-        { label: "Active allocations", value: activeAllocations },
-      ];
-    }
-    case "MENTOR": {
-      const [pending, active, sessions] = await Promise.all([
-        prisma.mentorshipRequest.count({ where: { mentorId: userId, status: "PENDING" } }),
-        prisma.mentorshipRequest.count({ where: { mentorId: userId, status: "ACCEPTED" } }),
-        prisma.mentorshipSession.count({
-          where: { request: { mentorId: userId }, status: { in: ["PROPOSED", "CONFIRMED"] } },
-        }),
-      ]);
-      return [
-        { label: "Pending requests", value: pending },
-        { label: "Active mentees", value: active },
-        { label: "Upcoming sessions", value: sessions },
-      ];
-    }
-  }
+function greeting(): string {
+  const h = new Date().getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function Panel({ panel }: { panel: DashboardPanel }) {
+  return (
+    <Card className="gap-0 overflow-hidden py-0">
+      <CardHeader className="flex-row items-center justify-between gap-2 border-b px-5 py-3.5">
+        <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+          <panel.icon className="h-4 w-4 text-muted-foreground" />
+          {panel.title}
+        </CardTitle>
+        {panel.href ? (
+          <Link
+            href={panel.href}
+            className="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+          >
+            {panel.hrefLabel ?? "View all"}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
+        ) : null}
+      </CardHeader>
+      <CardContent className="p-0">
+        {panel.items.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">{panel.emptyText || "Nothing here yet."}</p>
+        ) : (
+          <ul className="divide-y">
+            {panel.items.map((item) => {
+              const inner = (
+                <div className="flex items-start justify-between gap-3 px-5 py-3.5">
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="truncate text-sm font-medium">{item.title}</p>
+                    {item.subtitle ? (
+                      <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{item.subtitle}</p>
+                    ) : null}
+                    {item.meta ? <p className="text-[11px] text-muted-foreground/80">{item.meta}</p> : null}
+                  </div>
+                  {item.status ? (
+                    <span className="shrink-0">
+                      <StatusBadge status={item.status} />
+                    </span>
+                  ) : null}
+                </div>
+              );
+              return (
+                <li key={item.id} className="transition-colors hover:bg-muted/40">
+                  {item.href ? (
+                    <Link href={item.href} className="block">
+                      {inner}
+                    </Link>
+                  ) : (
+                    inner
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 export default async function DashboardPage({
@@ -88,60 +120,92 @@ export default async function DashboardPage({
   const user = await requireUser();
   const { denied } = await searchParams;
 
-  let stats: Stat[] | null = null;
+  const noDb = !process.env.DATABASE_URL;
+  let data: { stats: DashboardStat[]; panels: DashboardPanel[] } | null = null;
   let dbError = false;
-  if (process.env.DATABASE_URL) {
+  if (!noDb) {
     try {
-      stats = await loadStats(user.id, user.role);
-    } catch {
+      data = await getDashboard(user);
+    } catch (error) {
+      console.error("dashboard load failed:", error);
       dbError = true;
     }
   }
 
+  const firstName = user.name.split(" ").slice(-1)[0] || user.name;
+
   return (
-    <main className="space-y-6 p-6">
+    <>
+      <PageHeader
+        title={`${greeting()}, ${firstName}`}
+        description={
+          <>
+            {ROLE_LABELS[user.role]} portal ·{" "}
+            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+          </>
+        }
+        actions={
+          <>
+            {(QUICK_ACTIONS[user.role] ?? []).map((a) => (
+              <Button key={a.href} variant={a === QUICK_ACTIONS[user.role][0] ? "default" : "outline"} size="sm" asChild>
+                <Link href={a.href}>
+                  <a.icon className="h-4 w-4" />
+                  {a.label}
+                </Link>
+              </Button>
+            ))}
+          </>
+        }
+      />
+
       {denied ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          You don&apos;t have access to that page with your current role.
-        </div>
+        <Alert variant="warning">
+          <AlertTitle>Access denied</AlertTitle>
+          <AlertDescription>
+            That page isn&apos;t available for your role. Pick a destination from the sidebar.
+          </AlertDescription>
+        </Alert>
       ) : null}
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome, {user.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {ROLE_LABELS[user.role]} portal · Salim Habib University
-        </p>
-      </div>
+      {noDb || dbError ? (
+        <Alert variant={dbError ? "destructive" : "warning"}>
+          <AlertTitle>{dbError ? "Database unreachable" : "No database configured"}</AlertTitle>
+          <AlertDescription>
+            {dbError
+              ? "The portal is live but the database didn't answer. Check the Neon project and the DATABASE_URL setting."
+              : "Set DATABASE_URL (see .env.example) and run `prisma migrate deploy && bun run seed` to unlock live data."}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
-      {stats ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((s) => (
-            <Card key={s.label}>
-              <CardHeader className="pb-2">
-                <CardDescription>{s.label}</CardDescription>
-                <CardTitle className="text-3xl">{s.value}</CardTitle>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {dbError ? "Database unreachable" : "Database not connected yet"}
-            </CardTitle>
-            <CardDescription>
-              {dbError
-                ? "DATABASE_URL is set but the database did not answer. Check the Neon project and connection string."
-                : "Set DATABASE_URL (see .env.example) and run `prisma migrate dev && bun run seed` to unlock live data."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            The portal shell, role navigation and auth are functional — module data arrives with the
-            database connection.
-          </CardContent>
-        </Card>
-      )}
-    </main>
+      {data ? (
+        <>
+          <section aria-label="Key numbers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {data.stats.map((s) => (
+              <StatCard key={s.label} {...s} />
+            ))}
+          </section>
+
+          <section aria-label="Work in progress" className="grid items-start gap-4 lg:grid-cols-2">
+            {data.panels.map((panel) => (
+              <Panel key={panel.title} panel={panel} />
+            ))}
+          </section>
+        </>
+      ) : null}
+
+      {data && data.stats.every((s) => s.value === 0 || s.value === "None" || s.value === "0 / 0") ? (
+        <EmptyState
+          icon={Sparkles}
+          title="A clean slate"
+          description="Nothing needs your attention yet. Explore the sidebar to get started — or ask the AI assistant what's possible."
+          action={
+            <Button asChild>
+              <Link href="/chat">Ask the assistant</Link>
+            </Button>
+          }
+        />
+      ) : null}
+    </>
   );
 }

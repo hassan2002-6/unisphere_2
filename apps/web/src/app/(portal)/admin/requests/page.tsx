@@ -1,10 +1,15 @@
+import { Cpu, Inbox, Server, ThumbsDown, ThumbsUp } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { listLabs, listRequestQueue, listResources } from "@/server/services/resources";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { ConfirmAction } from "@/components/confirm-action";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { allocateAction, recommendAction, rejectRequestAction } from "../../resources/actions";
 
 export const dynamic = "force-dynamic";
@@ -22,37 +27,40 @@ export default async function AdminRequestsPage() {
     dbError = true;
   }
 
-  return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Resource Requests</h1>
-        <p className="text-sm text-muted-foreground">
-          Recommend, then allocate real inventory — availability decrements atomically.
-        </p>
-      </div>
+  if (dbError) {
+    return (
+      <>
+        <PageHeader
+          icon={Cpu}
+          title="Resource Requests"
+          description="Recommend, then allocate real inventory — availability decrements atomically."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Requests unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
+    );
+  }
 
-      {dbError ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Requests unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      ) : queue.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No open requests</CardTitle>
-            <CardDescription>New GPU/lab requests will land here for review.</CardDescription>
-          </CardHeader>
-        </Card>
+  return (
+    <>
+      <PageHeader
+        icon={Cpu}
+        title="Resource Requests"
+        description="Recommend, then allocate real inventory — availability decrements atomically."
+      />
+
+      {queue.length === 0 ? (
+        <EmptyState icon={Inbox} title="No open requests" description="New GPU/lab requests will land here for review." />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-4">
           {queue.map((r) => (
-            <Card key={r.id}>
-              <CardHeader className="py-4">
+            <Card key={r.id} className="gap-0 overflow-hidden py-0">
+              <CardHeader className="border-b px-5 py-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <CardTitle className="text-base">{r.projectName}</CardTitle>
-                  <div className="flex items-center gap-2">
+                  <CardTitle className="text-sm font-semibold">{r.projectName}</CardTitle>
+                  <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">
                       {r.resourceType} · {r.config}
                     </Badge>
@@ -66,7 +74,7 @@ export default async function AdminRequestsPage() {
                   {r.supervisor ? ` · supervisor: ${r.supervisor}` : ""}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-3 px-5 py-4">
                 <p className="text-sm text-muted-foreground">{r.purpose}</p>
                 <p className="text-xs text-muted-foreground">
                   Window:{" "}
@@ -77,70 +85,112 @@ export default async function AdminRequestsPage() {
                 </p>
 
                 {r.status === "PENDING" ? (
-                  <form className="flex flex-wrap items-end gap-2">
-                    <input type="hidden" name="id" value={r.id} />
-                    <div className="min-w-64 flex-1">
-                      <Input name="remarks" placeholder="Remarks (optional)" className="h-9" />
-                    </div>
-                    <Button formAction={recommendAction} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                      Recommend
-                    </Button>
-                    <Button formAction={rejectRequestAction} variant="destructive" size="sm">
-                      Reject
-                    </Button>
-                  </form>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <ConfirmAction
+                      action={recommendAction}
+                      values={{ id: r.id }}
+                      title={`Recommend "${r.projectName}"?`}
+                      description="Moves the request to the allocation step."
+                      confirmLabel="Recommend"
+                      trigger={
+                        <Button size="sm">
+                          <ThumbsUp className="h-4 w-4" />
+                          Recommend
+                        </Button>
+                      }
+                      reason={{ name: "remarks", label: "Remarks (optional)", required: false }}
+                    />
+                    <ConfirmAction
+                      action={rejectRequestAction}
+                      values={{ id: r.id }}
+                      title={`Reject "${r.projectName}"?`}
+                      description="The requester is notified immediately."
+                      confirmLabel="Reject"
+                      variant="destructive"
+                      trigger={
+                        <Button variant="destructive" size="sm">
+                          <ThumbsDown className="h-4 w-4" />
+                          Reject
+                        </Button>
+                      }
+                      reason={{ name: "remarks", label: "Remarks (optional)", required: false }}
+                    />
+                  </div>
                 ) : null}
 
                 {r.status === "RECOMMENDED" ? (
-                  <form action={allocateAction} className="flex flex-wrap items-end gap-2 rounded-md border border-dashed p-3">
-                    <input type="hidden" name="id" value={r.id} />
-                    <div className="grid gap-1">
-                      <label className="text-xs font-medium text-muted-foreground">Resource</label>
-                      <select
-                        name="resourceId"
-                        required
-                        className="border-input h-9 min-w-56 rounded-md border bg-transparent px-3 text-sm"
-                      >
-                        <option value="">Pick resource…</option>
-                        {resources.map((res) => (
-                          <option key={res.id} value={res.id} disabled={res.available <= 0}>
-                            {res.name} — {res.available}/{res.quantity} free
-                          </option>
-                        ))}
-                      </select>
+                  <ConfirmAction
+                    action={allocateAction}
+                    values={{ id: r.id }}
+                    title={`Allocate "${r.projectName}"`}
+                    description="Reserves inventory right away — availability decrements atomically."
+                    confirmLabel="Allocate"
+                    trigger={
+                      <Button size="sm">
+                        <Server className="h-4 w-4" />
+                        Allocate
+                      </Button>
+                    }
+                    reason={{ name: "notes", label: "Allocation notes", required: false }}
+                  >
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid gap-1.5">
+                        <Label htmlFor={`resource-${r.id}`}>Resource</Label>
+                        <select
+                          id={`resource-${r.id}`}
+                          name="resourceId"
+                          required
+                          className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                        >
+                          <option value="">Pick resource…</option>
+                          {resources.map((res) => (
+                            <option key={res.id} value={res.id} disabled={res.available <= 0}>
+                              {res.name} — {res.available}/{res.quantity} free
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label htmlFor={`lab-${r.id}`}>Lab (optional)</Label>
+                        <select
+                          id={`lab-${r.id}`}
+                          name="labId"
+                          className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm"
+                        >
+                          <option value="">No lab</option>
+                          {labs.map((l) => (
+                            <option key={l.id} value={l.id}>
+                              Lab {l.number} — {l.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div className="grid gap-1">
-                      <label className="text-xs font-medium text-muted-foreground">Lab (optional)</label>
-                      <select name="labId" className="border-input h-9 min-w-40 rounded-md border bg-transparent px-3 text-sm">
-                        <option value="">No lab</option>
-                        {labs.map((l) => (
-                          <option key={l.id} value={l.id}>
-                            Lab {l.number} — {l.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="min-w-48 flex-1">
-                      <Input name="notes" placeholder="Allocation notes" className="h-9" />
-                    </div>
-                    <Button type="submit" size="sm">
-                      Allocate
-                    </Button>
-                  </form>
+                  </ConfirmAction>
                 ) : null}
 
                 {r.allocation ? (
-                  <p className="text-xs text-emerald-700">
-                    Allocated {r.allocation.resource.name}
-                    {r.allocation.lab ? ` in Lab ${r.allocation.lab.number}` : ""} — active until{" "}
-                    {r.allocation.endDate.toLocaleDateString("en-GB", { timeZone: "UTC", day: "2-digit", month: "short", year: "numeric" })}
-                  </p>
+                  <Alert variant="success">
+                    <AlertTitle>
+                      Allocated {r.allocation.resource.name}
+                      {r.allocation.lab ? ` in Lab ${r.allocation.lab.number}` : ""}
+                    </AlertTitle>
+                    <AlertDescription>
+                      Active until{" "}
+                      {r.allocation.endDate.toLocaleDateString("en-GB", {
+                        timeZone: "UTC",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </AlertDescription>
+                  </Alert>
                 ) : null}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
-    </main>
+    </>
   );
 }

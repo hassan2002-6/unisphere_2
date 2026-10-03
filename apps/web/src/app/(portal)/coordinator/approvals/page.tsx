@@ -1,9 +1,12 @@
-import Link from "next/link";
+import { ClipboardList, GraduationCap, MessageSquareWarning } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import type { StatTone } from "@/components/stat-card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const dynamic = "force-dynamic";
 
@@ -13,14 +16,13 @@ export default async function CoordinatorApprovalsPage() {
 
   if (!can(user.role, "forms.review")) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No access</CardTitle>
-            <CardDescription>Approvals are limited to coordinators and faculty.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={ClipboardList} title="Approvals" />
+        <Alert variant="warning">
+          <AlertTitle>No access</AlertTitle>
+          <AlertDescription>Approvals are limited to coordinators and faculty.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
@@ -38,47 +40,44 @@ export default async function CoordinatorApprovalsPage() {
     dbError = true;
   }
 
-  const tiles = [
-    { label: "Form submissions awaiting review", value: pendingForms, href: "/reviews", show: can(user.role, "forms.review") },
-    { label: "Open complaints", value: openComplaints, href: "/coordinator/complaints", show: can(user.role, "complaints.manage") },
-    { label: "FYP applications pending", value: fypPending, href: "/admin/fyp", show: can(user.role, "fyp.decide") },
+  const tiles: { label: string; value: number; hint: string; href: string; icon: LucideIcon; tone: StatTone; show: boolean }[] = [
+    { label: "Form submissions awaiting review", value: pendingForms, hint: "Submitted or in review", href: "/reviews", icon: ClipboardList, tone: "primary", show: can(user.role, "forms.review") },
+    { label: "Open complaints", value: openComplaints, hint: "Awaiting first response", href: "/coordinator/complaints", icon: MessageSquareWarning, tone: "warning", show: can(user.role, "complaints.manage") },
+    { label: "FYP applications pending", value: fypPending, hint: "Awaiting a decision", href: "/admin/fyp", icon: GraduationCap, tone: "info", show: can(user.role, "fyp.decide") },
   ];
+  const visible = tiles.filter((t) => t.show);
 
   return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Approvals</h1>
-        <p className="text-sm text-muted-foreground">
-          Everything waiting on a human decision, across modules — jump straight to the queue.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        icon={ClipboardList}
+        title="Approvals"
+        description="Everything waiting on a human decision, across modules — jump straight to the queue."
+      />
 
       {dbError ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Approval counts unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTitle>Approval counts unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
       ) : (
-        <div className="grid gap-4 md:grid-cols-3">
-          {tiles
-            .filter((t) => t.show)
-            .map((t) => (
-              <Card key={t.label}>
-                <CardHeader className="py-4">
-                  <CardTitle className="text-3xl font-semibold tabular-nums">{t.value}</CardTitle>
-                  <CardDescription>{t.label}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Button asChild variant="secondary" size="sm">
-                    <Link href={t.href}>Open queue</Link>
-                  </Button>
-                </CardContent>
-              </Card>
+        <>
+          <section aria-label="Approval queues" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {visible.map((t) => (
+              <StatCard key={t.label} label={t.label} value={t.value} hint={t.hint} icon={t.icon} tone={t.tone} href={t.href} />
             ))}
-        </div>
+          </section>
+
+          {visible.every((t) => t.value === 0) ? (
+            <Alert variant="muted">
+              <AlertTitle>All caught up</AlertTitle>
+              <AlertDescription>
+                Nothing is waiting for a decision right now — queues update live as new items arrive.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+        </>
       )}
-    </main>
+    </>
   );
 }

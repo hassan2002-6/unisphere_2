@@ -1,8 +1,15 @@
+import { Clock, Handshake, UserCheck } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { listAllMentorProfiles } from "@/server/services/mentorship";
+import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { EmptyState } from "@/components/empty-state";
+import { ConfirmAction } from "@/components/confirm-action";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { setMentorApprovalAction } from "@/app/(portal)/mentorship/actions";
 
 export const dynamic = "force-dynamic";
@@ -19,74 +26,104 @@ export default async function AdminMentorsPage() {
 
   if (!profiles) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Mentor profiles unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={Handshake} title="Mentors" />
+        <Alert variant="destructive">
+          <AlertTitle>Mentor profiles unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
   const pending = profiles.filter((p) => !p.isApproved);
+  const live = profiles.length - pending.length;
 
   return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Mentors</h1>
-        <p className="text-sm text-muted-foreground">
-          {pending.length} awaiting approval · {profiles.length - pending.length} live in the directory.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        icon={Handshake}
+        title="Mentors"
+        description="Approve, pause and audit mentor profiles."
+      />
 
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Mentor profiles ({profiles.length})</CardTitle>
-          <CardDescription>Only approved mentors appear to students on /mentorship.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {profiles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No mentor profiles yet — users create them from the Mentor Console.
-            </p>
-          ) : (
-            profiles.map((p) => (
-              <div key={p.id} className="flex flex-wrap items-start justify-between gap-3 rounded-md border p-3">
-                <div className="min-w-0">
-                  <p className="text-sm">
-                    <span className="font-medium">{p.user.name}</span>{" "}
-                    <span className="text-muted-foreground">· {p.headline}</span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.user.email} · {p.user.role}
-                    {p.company ? ` · ${p.company}` : ""}
-                  </p>
-                  {p.bio ? <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{p.bio}</p> : null}
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {p.expertise.map((t) => (
-                      <Badge key={t} variant="secondary" className="text-[10px]">
-                        {t}
-                      </Badge>
-                    ))}
+      <section aria-label="Mentor summary" className="grid gap-4 sm:grid-cols-2">
+        <StatCard
+          label="Awaiting approval"
+          value={pending.length}
+          hint={pending.length > 0 ? "Approve to add them to the directory" : "No pending requests"}
+          icon={Clock}
+          tone={pending.length > 0 ? "warning" : "default"}
+        />
+        <StatCard
+          label="Live in the directory"
+          value={live}
+          hint="Visible to students on /mentorship"
+          icon={UserCheck}
+          tone={live > 0 ? "success" : "default"}
+        />
+      </section>
+
+      {profiles.length === 0 ? (
+        <EmptyState
+          icon={Handshake}
+          title="No mentor profiles yet"
+          description="Users create mentor profiles from the Mentor Console — submissions land here for approval."
+        />
+      ) : (
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardHeader className="border-b px-5 py-4">
+            <CardTitle className="text-base">Mentor profiles ({profiles.length})</CardTitle>
+            <CardDescription>Only approved mentors appear to students on /mentorship.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y">
+              {profiles.map((p) => (
+                <li key={p.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-4">
+                  <div className="min-w-0 space-y-1">
+                    <p className="text-sm">
+                      <span className="font-medium">{p.user.name}</span>{" "}
+                      <span className="text-muted-foreground">· {p.headline}</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.user.email} · {p.user.role}
+                      {p.company ? ` · ${p.company}` : ""}
+                    </p>
+                    {p.bio ? <p className="line-clamp-2 text-xs text-muted-foreground">{p.bio}</p> : null}
+                    <div className="flex flex-wrap gap-1">
+                      {p.expertise.map((t) => (
+                        <Badge key={t} variant="secondary" className="text-[10px]">
+                          {t}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {p.isApproved ? <Badge variant="secondary">Approved</Badge> : <Badge variant="outline">Pending</Badge>}
-                  <form action={setMentorApprovalAction}>
-                    <input type="hidden" name="userId" value={p.user.id} />
-                    <input type="hidden" name="approved" value={p.isApproved ? "false" : "true"} />
-                    <Button type="submit" variant={p.isApproved ? "outline" : "default"} size="sm">
-                      {p.isApproved ? "Pause" : "Approve"}
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </main>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <StatusBadge status={p.isApproved ? "APPROVED" : "PENDING"} />
+                    <ConfirmAction
+                      action={setMentorApprovalAction}
+                      values={{ userId: p.user.id, approved: p.isApproved ? "false" : "true" }}
+                      title={p.isApproved ? "Pause this mentor?" : "Approve this mentor?"}
+                      description={
+                        p.isApproved
+                          ? "Their profile is hidden from the student-facing mentorship directory until re-approved."
+                          : "They will appear to students in the mentorship directory right away."
+                      }
+                      confirmLabel={p.isApproved ? "Pause" : "Approve"}
+                      variant={p.isApproved ? "destructive" : "default"}
+                      trigger={
+                        <Button variant={p.isApproved ? "outline" : "default"} size="sm">
+                          {p.isApproved ? "Pause" : "Approve"}
+                        </Button>
+                      }
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

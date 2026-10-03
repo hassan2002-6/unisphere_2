@@ -1,7 +1,11 @@
+import { Users } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -12,14 +16,13 @@ export default async function CoordinatorFacultyPage() {
 
   if (!can(user.role, "clashes.view")) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No access</CardTitle>
-            <CardDescription>The faculty directory in this view is limited to the coordination office.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={Users} title="Faculty" />
+        <Alert variant="warning">
+          <AlertTitle>No access</AlertTitle>
+          <AlertDescription>The faculty directory in this view is limited to the coordination office.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
@@ -46,46 +49,52 @@ export default async function CoordinatorFacultyPage() {
   }
 
   return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Faculty</h1>
-        <p className="text-sm text-muted-foreground">Teaching load per faculty member — used when resolving clashes.</p>
-      </div>
+    <>
+      <PageHeader
+        icon={Users}
+        title="Faculty"
+        description="Teaching load per faculty member — used when resolving clashes."
+      />
 
-      <Card>
-        <CardContent className="pt-6">
-          {faculty === null ? (
-            <p className="text-sm text-muted-foreground">
-              The database did not answer — check DATABASE_URL and the Neon project.
-            </p>
-          ) : faculty.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No faculty accounts yet.</p>
-          ) : (
+      {faculty === null ? (
+        <Alert variant="destructive">
+          <AlertTitle>Faculty directory unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      ) : faculty.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title="No faculty accounts yet"
+          description="Faculty accounts are created by the admin office — once added, their teaching load shows up here."
+        />
+      ) : (
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-5">Name</TableHead>
                   <TableHead>Designation</TableHead>
                   <TableHead>Department</TableHead>
                   <TableHead>Email</TableHead>
-                  <TableHead className="text-right">Classes</TableHead>
+                  <TableHead className="pr-5 text-right">Classes</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {faculty.map((f) => (
                   <TableRow key={f.id}>
-                    <TableCell className="font-medium">{f.name}</TableCell>
+                    <TableCell className="pl-5 font-medium">{f.name}</TableCell>
                     <TableCell>{f.designation ?? "—"}</TableCell>
                     <TableCell>{f.department ?? "—"}</TableCell>
                     <TableCell className="text-xs text-muted-foreground">{f.email}</TableCell>
-                    <TableCell className="text-right tabular-nums">{f.courses}</TableCell>
+                    <TableCell className="pr-5 text-right tabular-nums">{f.courses}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

@@ -1,12 +1,18 @@
+import { Clock, GraduationCap, Inbox, Users } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getMentorProfileByUserId, listMentorRequests } from "@/server/services/mentorship";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { EmptyState } from "@/components/empty-state";
+import { ConfirmAction } from "@/components/confirm-action";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import {
   completeSessionAction,
   proposeSessionAction,
@@ -38,37 +44,65 @@ export default async function MentorConsolePage({
   const active = requests.filter((r) => r.status === "ACCEPTED");
 
   return (
-    <main className="space-y-4 p-6">
+    <>
+      <PageHeader
+        icon={GraduationCap}
+        title="Mentor Console"
+        description={
+          dbError
+            ? "Database unavailable — check DATABASE_URL."
+            : profile
+              ? `Your directory listing is ${profile.isApproved ? "live" : "awaiting approval"}.`
+              : "Set up your mentor profile to appear in the directory."
+        }
+        actions={profile ? <StatusBadge status={profile.isApproved ? "APPROVED" : "PENDING"} /> : null}
+      />
+
       {saved ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Profile saved — approvals are handled by the FYP Head.
-        </div>
+        <Alert variant="success">
+          <AlertTitle>Profile saved</AlertTitle>
+          <AlertDescription>Approvals are handled by the FYP Head.</AlertDescription>
+        </Alert>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Something went wrong</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Mentor Console</h1>
-          <p className="text-sm text-muted-foreground">
-            {dbError
-              ? "Database unavailable — check DATABASE_URL."
-              : profile
-                ? `Your directory listing is ${profile.isApproved ? "live" : "awaiting approval"}.`
-                : "Set up your mentor profile to appear in the directory."}
-          </p>
-        </div>
-        {profile ? (
-          profile.isApproved ? <Badge variant="secondary">Approved</Badge> : <Badge variant="outline">Pending approval</Badge>
-        ) : null}
-      </div>
+      {dbError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Mentor data unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check DATABASE_URL and the Neon project.</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {!dbError && (pending.length > 0 || active.length > 0) ? (
+        <section className="grid gap-4 sm:grid-cols-2">
+          <StatCard
+            label="Pending requests"
+            value={pending.length}
+            hint={pending.length > 0 ? "Awaiting your decision" : "Nothing waiting"}
+            icon={Clock}
+            tone={pending.length > 0 ? "warning" : "default"}
+          />
+          <StatCard
+            label="Active mentees"
+            value={active.length}
+            hint="Accepted mentorships"
+            icon={Users}
+            tone={active.length > 0 ? "success" : "default"}
+          />
+        </section>
+      ) : null}
 
       <Card>
         <CardHeader className="py-4">
-          <CardTitle className="text-base">Mentor profile</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <GraduationCap className="h-4 w-4 text-muted-foreground" />
+            Mentor profile
+          </CardTitle>
           <CardDescription>Headline, expertise and a short bio are what students see.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -108,9 +142,9 @@ export default async function MentorConsolePage({
               <Label htmlFor="linkedinUrl">LinkedIn</Label>
               <Input id="linkedinUrl" name="linkedinUrl" defaultValue={profile?.linkedinUrl ?? ""} placeholder="https://linkedin.com/in/…" />
             </div>
-            <Button type="submit" className="w-fit">
+            <SubmitButton className="w-fit" pendingLabel="Saving…">
               {profile ? "Save profile" : "Create profile"}
-            </Button>
+            </SubmitButton>
           </form>
         </CardContent>
       </Card>
@@ -118,7 +152,10 @@ export default async function MentorConsolePage({
       {pending.length > 0 ? (
         <Card>
           <CardHeader className="py-4">
-            <CardTitle className="text-base">Pending requests ({pending.length})</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Clock className="h-4 w-4 text-muted-foreground" />
+              Pending requests ({pending.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {pending.map((r) => (
@@ -132,15 +169,33 @@ export default async function MentorConsolePage({
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">{r.message}</p>
                 </div>
-                <form action={respondToMentorshipAction} className="flex gap-2">
-                  <input type="hidden" name="requestId" value={r.id} />
-                  <Button type="submit" name="decision" value="ACCEPTED" size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                    Accept
-                  </Button>
-                  <Button type="submit" name="decision" value="DECLINED" variant="outline" size="sm">
-                    Decline
-                  </Button>
-                </form>
+                <div className="flex gap-2">
+                  <ConfirmAction
+                    action={respondToMentorshipAction}
+                    values={{ requestId: r.id, decision: "ACCEPTED" }}
+                    title="Accept this mentorship request?"
+                    description="The student will be notified and you'll appear as their mentor."
+                    confirmLabel="Accept"
+                    trigger={
+                      <Button size="sm">
+                        Accept
+                      </Button>
+                    }
+                  />
+                  <ConfirmAction
+                    action={respondToMentorshipAction}
+                    values={{ requestId: r.id, decision: "DECLINED" }}
+                    title="Decline this request?"
+                    description="The student will be notified that you declined."
+                    confirmLabel="Decline"
+                    variant="destructive"
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        Decline
+                      </Button>
+                    }
+                  />
+                </div>
               </div>
             ))}
           </CardContent>
@@ -150,7 +205,10 @@ export default async function MentorConsolePage({
       {active.length > 0 ? (
         <Card>
           <CardHeader className="py-4">
-            <CardTitle className="text-base">Active mentees ({active.length})</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Users className="h-4 w-4 text-muted-foreground" />
+              Active mentees ({active.length})
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {active.map((r) => (
@@ -176,22 +234,40 @@ export default async function MentorConsolePage({
                     <div className="flex items-center gap-2">
                       <StatusBadge status={s.status} />
                       {s.status === "PROPOSED" && s.proposedById !== user.id ? (
-                        <form action={respondToSessionAction} className="flex gap-1">
-                          <input type="hidden" name="sessionId" value={s.id} />
-                          <Button type="submit" name="decision" value="CONFIRMED" size="sm" variant="secondary">
-                            Confirm
-                          </Button>
-                          <Button type="submit" name="decision" value="CANCELLED" size="sm" variant="outline">
-                            Decline
-                          </Button>
-                        </form>
+                        <>
+                          <ConfirmAction
+                            action={respondToSessionAction}
+                            values={{ sessionId: s.id, decision: "CONFIRMED" }}
+                            title="Confirm this session?"
+                            description="The session is locked in for the proposed time."
+                            confirmLabel="Confirm"
+                            trigger={
+                              <Button size="sm" variant="secondary">
+                                Confirm
+                              </Button>
+                            }
+                          />
+                          <ConfirmAction
+                            action={respondToSessionAction}
+                            values={{ sessionId: s.id, decision: "CANCELLED" }}
+                            title="Decline this session?"
+                            description="The student will see the session as declined."
+                            confirmLabel="Decline"
+                            variant="destructive"
+                            trigger={
+                              <Button size="sm" variant="outline">
+                                Decline
+                              </Button>
+                            }
+                          />
+                        </>
                       ) : null}
                       {s.status === "CONFIRMED" ? (
                         <form action={completeSessionAction}>
                           <input type="hidden" name="sessionId" value={s.id} />
-                          <Button type="submit" size="sm">
+                          <SubmitButton size="sm" pendingLabel="Working…">
                             Mark complete
-                          </Button>
+                          </SubmitButton>
                         </form>
                       ) : null}
                     </div>
@@ -218,9 +294,9 @@ export default async function MentorConsolePage({
                       className="border-input h-9 w-40 rounded-md border bg-transparent px-3 text-sm"
                     />
                   </div>
-                  <Button type="submit" size="sm" variant="secondary">
+                  <SubmitButton size="sm" variant="secondary" pendingLabel="Proposing…">
                     Propose session
-                  </Button>
+                  </SubmitButton>
                 </form>
               </div>
             ))}
@@ -229,13 +305,13 @@ export default async function MentorConsolePage({
       ) : null}
 
       {!profile && !dbError ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No requests yet</CardTitle>
-            <CardDescription>Create your profile — once approved, students can request mentorship.</CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          compact
+          icon={Inbox}
+          title="No requests yet"
+          description="Create your profile above — once approved, students can request mentorship."
+        />
       ) : null}
-    </main>
+    </>
   );
 }

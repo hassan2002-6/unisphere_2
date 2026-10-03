@@ -1,39 +1,84 @@
 import { Badge } from "@/components/ui/badge";
+import { cn } from "cn";
 
-const TONE: Record<string, string> = {
-  // green — done well
-  APPROVED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  ACCEPTED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  RESOLVED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  COMPLETED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  ALLOCATED: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  ACTIVE: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  // red — negative terminal
-  REJECTED: "bg-red-100 text-red-800 border-red-200",
-  DECLINED: "bg-red-100 text-red-800 border-red-200",
-  REVOKED: "bg-red-100 text-red-800 border-red-200",
-  // amber — in flight
-  SUBMITTED: "bg-amber-100 text-amber-800 border-amber-200",
-  UNDER_REVIEW: "bg-amber-100 text-amber-800 border-amber-200",
-  PENDING: "bg-amber-100 text-amber-800 border-amber-200",
-  RECOMMENDED: "bg-amber-100 text-amber-800 border-amber-200",
-  IN_REVIEW: "bg-amber-100 text-amber-800 border-amber-200",
-  OPEN: "bg-amber-100 text-amber-800 border-amber-200",
-  PROPOSED: "bg-amber-100 text-amber-800 border-amber-200",
-  SHORTLISTED: "bg-amber-100 text-amber-800 border-amber-200",
-  APPLIED: "bg-amber-100 text-amber-800 border-amber-200",
-  // gray — closed/neutral
-  WITHDRAWN: "bg-slate-100 text-slate-700 border-slate-200",
-  CANCELLED: "bg-slate-100 text-slate-700 border-slate-200",
-  CLOSED: "bg-slate-100 text-slate-700 border-slate-200",
-  CONFIRMED: "bg-sky-100 text-sky-800 border-sky-200",
+type Tone = "progress" | "success" | "danger" | "neutral" | "info";
+
+const STATUS_TONE: Record<string, Tone> = {
+  // positive / done
+  APPROVED: "success",
+  ACCEPTED: "success",
+  RESOLVED: "success",
+  COMPLETED: "success",
+  ALLOCATED: "success",
+  ACTIVE: "success",
+  OPEN: "success",
+  // negative / closed
+  REJECTED: "danger",
+  DECLINED: "danger",
+  REVOKED: "danger",
+  CLOSED: "neutral",
+  WITHDRAWN: "neutral",
+  CANCELLED: "neutral",
+  // in flight
+  SUBMITTED: "progress",
+  UNDER_REVIEW: "progress",
+  PENDING: "progress",
+  RECOMMENDED: "progress",
+  IN_REVIEW: "progress",
+  PROPOSED: "progress",
+  SHORTLISTED: "progress",
+  APPLIED: "info",
+  CONFIRMED: "info",
 };
 
-export function StatusBadge({ status }: { status: string }) {
-  const cls = TONE[status] ?? "bg-slate-100 text-slate-700 border-slate-200";
+const TONE_CLASS: Record<Tone, string> = {
+  success: "border-success/25 bg-success/10 text-success dark:text-[color-mix(in_oklab,var(--success),white_20%)]",
+  danger: "border-destructive/25 bg-destructive/10 text-destructive",
+  progress: "border-warning/30 bg-warning/10 text-warning dark:text-[color-mix(in_oklab,var(--warning),white_15%)]",
+  info: "border-info/25 bg-info/10 text-info dark:text-[color-mix(in_oklab,var(--info),white_15%)]",
+  neutral: "border-border bg-muted text-muted-foreground",
+};
+
+const DOT_CLASS: Record<Tone, string> = {
+  success: "bg-success",
+  danger: "bg-destructive",
+  progress: "bg-warning",
+  info: "bg-info",
+  neutral: "bg-muted-foreground/60",
+};
+
+const FRIENDLY: Record<string, string> = {
+  SUBMITTED: "Submitted",
+  UNDER_REVIEW: "In review",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  WITHDRAWN: "Withdrawn",
+  IN_REVIEW: "In review",
+  RESOLVED: "Resolved",
+  OPEN: "Open",
+  CLOSED: "Closed",
+  PENDING: "Pending",
+  RECOMMENDED: "Recommended",
+  ALLOCATED: "Allocated",
+  ACTIVE: "Active",
+  COMPLETED: "Completed",
+  REVOKED: "Revoked",
+  CANCELLED: "Cancelled",
+  PROPOSED: "Proposed",
+  CONFIRMED: "Confirmed",
+  DECLINED: "Declined",
+  APPLIED: "Applied",
+  SHORTLISTED: "Shortlisted",
+  ACCEPTED: "Accepted",
+};
+
+export function StatusBadge({ status, className }: { status: string; className?: string }) {
+  const tone = STATUS_TONE[status] ?? "neutral";
+  const label = FRIENDLY[status] ?? status.replaceAll("_", " ").toLowerCase();
   return (
-    <Badge variant="outline" className={cls}>
-      {status.replaceAll("_", " ").toLowerCase()}
+    <Badge variant="outline" className={cn("gap-1.5 capitalize", TONE_CLASS[tone], className)}>
+      <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", DOT_CLASS[tone])} />
+      {label}
     </Badge>
   );
 }

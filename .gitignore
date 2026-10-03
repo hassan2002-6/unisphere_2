@@ -38,4 +38,5 @@ test-results/
 !.env.offline.example
 
 # FYP input files stay local (large binaries; not part of the code deliverable)
-resources/
+# NOTE: root-anchored so app routes like apps/web/src/app/(portal)/resources/** stay tracked.
+/resources/

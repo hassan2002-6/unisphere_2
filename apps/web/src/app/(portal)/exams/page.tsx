@@ -1,13 +1,24 @@
+import { AlertTriangle, CalendarClock } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getScheduleData, minToLabel } from "@/server/services/schedule";
 import { ClashBadge } from "@/components/clash-badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { EmptyState } from "@/components/empty-state";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ClashKind } from "@/server/clash";
 
 export const dynamic = "force-dynamic";
 
 const EXAM_CLASH_KINDS: ClashKind[] = ["exam-vs-class", "exam-hall", "exam-cohort"];
+
+function daysUntil(date: Date): number {
+  const ms = date.getTime() - Date.now();
+  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+}
 
 export default async function ExamsPage() {
   const user = await requireUser();
@@ -15,20 +26,22 @@ export default async function ExamsPage() {
   let data: Awaited<ReturnType<typeof getScheduleData>> | null = null;
   try {
     data = await getScheduleData(user);
-  } catch {
+  } catch (error) {
+    console.error("exams load failed:", error);
     data = null;
   }
 
+  const scope = user.role === "STUDENT" ? "your section" : "your scope";
+
   if (!data) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Exams unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={CalendarClock} title="Exam Schedule" description={`Final examination dates for ${scope}.`} />
+        <Alert variant="destructive">
+          <AlertTitle>Exams unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
@@ -47,47 +60,118 @@ export default async function ExamsPage() {
     examClashes.set(examId, list);
   }
 
-  return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Exam Schedule</h1>
-        <p className="text-sm text-muted-foreground">
-          Final examination dates for {user.role === "STUDENT" ? "your section" : "your scope"}.
-        </p>
-      </div>
+  const upcoming = examRows.filter(({ exam }) => exam.date.getTime() >= Date.now() - 12 * 60 * 60 * 1000);
+  const next = upcoming[0];
+  const flagged = examRows.filter(({ exam }) => (examClashes.get(exam.id) ?? []).length > 0).length;
 
-      <Card>
-        <CardContent className="pt-6">
-          {examRows.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No exams scheduled yet.</p>
-          ) : (
+  return (
+    <>
+      <PageHeader
+        icon={CalendarClock}
+        title="Exam Schedule"
+        description={`Final examination dates for ${scope}, ordered by date. Clash flags resolve from the live timetable.`}
+      />
+
+      {examRows.length > 0 ? (
+        <section className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Exams scheduled"
+            value={examRows.length}
+            hint={upcoming.length !== examRows.length ? `${examRows.length - upcoming.length} completed` : "All upcoming"}
+            icon={CalendarClock}
+            tone="primary"
+          />
+          <StatCard
+            label="Next exam"
+            value={next ? `${daysUntil(next.exam.date) <= 0 ? "today" : `in ${daysUntil(next.exam.date)}d`}` : "—"}
+            hint={
+              next
+                ? `${next.cls.courseCode} · ${next.exam.date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "UTC" })}`
+                : "Nothing scheduled"
+            }
+            icon={AlertTriangle}
+            tone={next && daysUntil(next.exam.date) <= 7 ? "warning" : "info"}
+          />
+          <StatCard
+            label="Exams clashing"
+            value={flagged}
+            hint={flagged ? "Needs the exam cell to adjust" : "Date sheet is clean"}
+            icon={AlertTriangle}
+            tone={flagged ? "danger" : "success"}
+          />
+        </section>
+      ) : null}
+
+      {flagged > 0 ? (
+        <Alert variant="warning">
+          <AlertTitle>{flagged} exam{flagged === 1 ? "" : "s"} clash with other events</AlertTitle>
+          <AlertDescription>
+            Seats or timing overlap with a class or another exam. The examination cell resolves these before
+            the date sheet is finalised.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
+      {examRows.length === 0 ? (
+        <EmptyState
+          icon={CalendarClock}
+          title="No exams scheduled yet"
+          description="The date sheet is published a few weeks before the exam period. Check back after the coordinator releases it."
+        />
+      ) : (
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-5">Date</TableHead>
                   <TableHead>Course</TableHead>
                   <TableHead>Time</TableHead>
                   <TableHead>Hall</TableHead>
-                  <TableHead>Flags</TableHead>
+                  <TableHead className="pr-5">Flags</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {examRows.map(({ exam, cls }) => {
                   const flags = examClashes.get(exam.id) ?? [];
+                  const d = daysUntil(exam.date);
                   return (
                     <TableRow key={exam.id}>
-                      <TableCell className="font-medium">
-                        {exam.date.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
+                      <TableCell className="pl-5">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium">
+                            {exam.date.toLocaleDateString("en-GB", {
+                              weekday: "short",
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              timeZone: "UTC",
+                            })}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className={
+                              d < 0
+                                ? "w-fit border-border bg-muted text-muted-foreground"
+                                : d <= 7
+                                  ? "w-fit border-warning/30 bg-warning/10 text-warning"
+                                  : "w-fit border-border bg-muted/60 text-muted-foreground"
+                            }
+                          >
+                            {d < 0 ? "done" : d === 0 ? "today" : `in ${d} days`}
+                          </Badge>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        <span className="font-mono text-xs text-muted-foreground">{cls.courseCode}</span>{" "}
-                        {exam.courseTitle}
+                        <span className="font-mono text-xs text-muted-foreground">{cls.courseCode}</span>
+                        <span className="ml-2">{exam.courseTitle}</span>
+                        <p className="text-xs text-muted-foreground">Section {cls.section}</p>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">
+                      <TableCell className="font-mono text-xs tabular-nums">
                         {minToLabel(exam.startMin)}–{minToLabel(exam.endMin)}
                       </TableCell>
                       <TableCell>{exam.hall ?? "TBA"}</TableCell>
-                      <TableCell className="space-x-1">
+                      <TableCell className="space-x-1 pr-5">
                         {flags.length === 0 ? (
                           <span className="text-xs text-muted-foreground">—</span>
                         ) : (
@@ -99,9 +183,9 @@ export default async function ExamsPage() {
                 })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-geist-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -27,8 +27,13 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -52,74 +57,86 @@
 
 :root {
   /* UniSphere palette — continuity with the FYP-I prototype (plan §6.5) */
-  --background: #f7f9fc;
+  --background: #f5f7fb;
   --foreground: #0f172a;
   --card: #ffffff;
   --card-foreground: #0f172a;
   --popover: #ffffff;
   --popover-foreground: #0f172a;
-  --primary: #1e40af;
+  --primary: #1d4ed8;
   --primary-foreground: #ffffff;
-  --secondary: #dbeafe;
+  --secondary: #e3ecfd;
   --secondary-foreground: #1e3a8a;
-  --muted: #eef2f7;
-  --muted-foreground: #64748b;
+  --muted: #eef1f7;
+  --muted-foreground: #5b667a;
   --accent: #e0f2fe;
-  --accent-foreground: #0c4a6e;
-  --destructive: #ef4444;
-  --success: #10b981;
-  --warning: #f59e0b;
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #0ea5e9;
-  --chart-1: #1e40af;
+  --accent-foreground: #075985;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --success: #059669;
+  --success-foreground: #ffffff;
+  --warning: #d97706;
+  --warning-foreground: #ffffff;
+  --info: #0284c7;
+  --info-foreground: #ffffff;
+  --border: #e3e8f0;
+  --input: #dfe5ee;
+  --ring: #3b82f6;
+  --chart-1: #1d4ed8;
   --chart-2: #0ea5e9;
   --chart-3: #14b8a6;
   --chart-4: #f59e0b;
   --chart-5: #10b981;
-  --radius: 0.625rem;
-  --sidebar: #1e3a8a;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #0ea5e9;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ffffff1a;
+  --radius: 0.65rem;
+  --sidebar: #12275c;
+  --sidebar-foreground: #dbe4f5;
+  --sidebar-primary: #60a5fa;
+  --sidebar-primary-foreground: #0b1530;
+  --sidebar-accent: #ffffff14;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #ffffff26;
-  --sidebar-ring: #0ea5e9;
+  --sidebar-border: #ffffff1f;
+  --sidebar-ring: #60a5fa;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.19 0.02 258);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.24 0.022 258);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.24 0.022 258);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --primary: oklch(0.68 0.16 256);
+  --primary-foreground: oklch(0.16 0.02 258);
+  --secondary: oklch(0.3 0.03 256);
+  --secondary-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.28 0.02 256);
+  --muted-foreground: oklch(0.74 0.02 252);
+  --accent: oklch(0.32 0.04 254);
+  --accent-foreground: oklch(0.95 0.01 250);
+  --destructive: oklch(0.66 0.19 25);
+  --destructive-foreground: oklch(0.98 0.01 250);
+  --success: oklch(0.72 0.15 160);
+  --success-foreground: oklch(0.16 0.02 258);
+  --warning: oklch(0.78 0.15 75);
+  --warning-foreground: oklch(0.16 0.02 258);
+  --info: oklch(0.72 0.13 235);
+  --info-foreground: oklch(0.16 0.02 258);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.68 0.16 256);
+  --chart-1: oklch(0.68 0.16 256);
+  --chart-2: oklch(0.72 0.13 235);
+  --chart-3: oklch(0.75 0.12 180);
+  --chart-4: oklch(0.78 0.15 75);
+  --chart-5: oklch(0.72 0.15 160);
+  --sidebar: oklch(0.21 0.03 258);
+  --sidebar-foreground: oklch(0.9 0.01 250);
+  --sidebar-primary: oklch(0.72 0.13 235);
+  --sidebar-primary-foreground: oklch(0.16 0.02 258);
+  --sidebar-accent: oklch(1 0 0 / 8%);
+  --sidebar-accent-foreground: oklch(0.97 0.005 250);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.72 0.13 235);
 }
 
 @layer base {
@@ -132,4 +149,44 @@
   html {
     @apply font-sans;
   }
+  ::selection {
+    background: color-mix(in oklab, var(--primary) 24%, transparent);
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    background-color: color-mix(in oklab, var(--muted-foreground) 35%, transparent);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklab, var(--muted-foreground) 55%, transparent);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@utility page {
+  /* Shared page frame: consistent gutters + max width for every route. */
+  @apply mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8;
+}
+
+@utility card-lift {
+  @apply transition-shadow duration-200 hover:shadow-md hover:shadow-foreground/5;
+}
+
+@utility text-gradient {
+  background: linear-gradient(
+    100deg,
+    color-mix(in oklab, var(--primary) 92%, black) 0%,
+    var(--primary) 45%,
+    var(--info) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }

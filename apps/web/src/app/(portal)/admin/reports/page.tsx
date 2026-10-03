@@ -1,8 +1,13 @@
+import { BarChart3, Briefcase, Download, FlaskConical, UserCheck } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { getSummary } from "@/server/services/reports";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { EmptyState } from "@/components/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -10,20 +15,24 @@ export const dynamic = "force-dynamic";
 function StatusBlock({ title, counts }: { title: string; counts: Record<string, number> }) {
   const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   return (
-    <Card>
-      <CardHeader className="py-4">
-        <CardTitle className="text-base">{title}</CardTitle>
+    <Card className="gap-0 overflow-hidden py-0">
+      <CardHeader className="border-b px-5 py-3.5">
+        <CardTitle className="text-sm font-semibold">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-1.5">
+      <CardContent className="p-0">
         {entries.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No data yet.</p>
+          <div className="px-5 py-5">
+            <EmptyState compact icon={BarChart3} title="No data yet" description="Counts appear as soon as records exist." />
+          </div>
         ) : (
-          entries.map(([k, v]) => (
-            <div key={k} className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{k.replaceAll("_", " ").toLowerCase()}</span>
-              <span className="font-medium tabular-nums">{v}</span>
-            </div>
-          ))
+          <ul className="divide-y">
+            {entries.map(([k, v]) => (
+              <li key={k} className="flex items-center justify-between gap-3 px-5 py-2.5 text-sm">
+                <span className="text-muted-foreground">{k.replaceAll("_", " ").toLowerCase()}</span>
+                <span className="font-medium tabular-nums">{v}</span>
+              </li>
+            ))}
+          </ul>
         )}
       </CardContent>
     </Card>
@@ -42,62 +51,65 @@ export default async function AdminReportsPage() {
 
   if (!summary) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Reports unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader
+          icon={BarChart3}
+          title="Reports"
+          description="Live operational counts — everything here is computed from the same database the app runs on."
+        />
+        <Alert variant="destructive">
+          <AlertTitle>Reports unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
   return (
-    <main className="space-y-4 p-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Reports</h1>
-          <p className="text-sm text-muted-foreground">
-            Live operational counts — everything here is computed from the same database the app runs on.
-          </p>
-        </div>
-        <Button asChild variant="secondary">
-          <a href="/api/reports/summary?format=csv" download>
-            Download CSV
-          </a>
-        </Button>
-      </div>
+    <>
+      <PageHeader
+        icon={BarChart3}
+        title="Reports"
+        description="Live operational counts — everything here is computed from the same database the app runs on."
+        actions={
+          <Button asChild variant="secondary">
+            <a href="/api/reports/summary?format=csv" download>
+              <Download className="h-4 w-4" />
+              Download CSV
+            </a>
+          </Button>
+        }
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section aria-label="Status breakdowns" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatusBlock title="Users by role" counts={summary.usersByRole} />
         <StatusBlock title="Forms by status" counts={summary.formsByStatus} />
         <StatusBlock title="Complaints by status" counts={summary.complaintsByStatus} />
         <StatusBlock title="FYP applications" counts={summary.fypByStatus} />
         <StatusBlock title="Resource requests" counts={summary.requestsByStatus} />
         <StatusBlock title="Allocations" counts={summary.allocationsByStatus} />
-      </div>
+      </section>
 
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Resource utilization</CardTitle>
+      <Card className="gap-0 overflow-hidden py-0">
+        <CardHeader className="border-b px-5 py-3.5">
+          <CardTitle className="text-sm font-semibold">Resource utilization</CardTitle>
           <CardDescription>In-use share of each inventory line, live.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead>Resource</TableHead>
+              <TableRow className="bg-muted/50 hover:bg-muted/50">
+                <TableHead className="pl-5">Resource</TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Free</TableHead>
                 <TableHead>In use</TableHead>
-                <TableHead className="w-64">Utilization</TableHead>
+                <TableHead className="w-64 pr-5">Utilization</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {summary.resources.map((r) => (
                 <TableRow key={r.name}>
-                  <TableCell className="font-medium">
+                  <TableCell className="pl-5 font-medium">
                     {r.name} <span className="text-xs text-muted-foreground">({r.model})</span>
                   </TableCell>
                   <TableCell>
@@ -107,7 +119,7 @@ export default async function AdminReportsPage() {
                     {r.available}/{r.quantity}
                   </TableCell>
                   <TableCell className="tabular-nums">{r.inUse}</TableCell>
-                  <TableCell>
+                  <TableCell className="pr-5">
                     <div className="flex items-center gap-2">
                       <div className="bg-muted h-2 w-40 overflow-hidden rounded-full">
                         <div
@@ -125,26 +137,11 @@ export default async function AdminReportsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="py-4 text-sm">
-            <p className="text-muted-foreground">Open internships</p>
-            <p className="text-2xl font-semibold tabular-nums">{summary.internshipsOpen}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-sm">
-            <p className="text-muted-foreground">Approved mentors</p>
-            <p className="text-2xl font-semibold tabular-nums">{summary.mentorsApproved}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-4 text-sm">
-            <p className="text-muted-foreground">Labs tracked</p>
-            <p className="text-2xl font-semibold tabular-nums">{summary.labs.length}</p>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
+      <section aria-label="Programme numbers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard label="Open internships" value={summary.internshipsOpen} icon={Briefcase} tone="info" />
+        <StatCard label="Approved mentors" value={summary.mentorsApproved} icon={UserCheck} tone="success" />
+        <StatCard label="Labs tracked" value={summary.labs.length} icon={FlaskConical} tone="primary" />
+      </section>
+    </>
   );
 }

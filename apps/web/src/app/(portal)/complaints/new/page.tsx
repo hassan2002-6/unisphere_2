@@ -1,5 +1,8 @@
+import { FileText, MessageSquarePlus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -18,23 +21,27 @@ export default async function NewComplaintPage({
   const { error } = await searchParams;
 
   return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">File a complaint</h1>
-        <p className="text-sm text-muted-foreground">
-          Complaints are routed by category — faculty complaints reach faculty and the coordination office.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        breadcrumbs={[{ label: "Complaint Box", href: "/complaints" }, { label: "File a complaint" }]}
+        icon={MessageSquarePlus}
+        title="File a complaint"
+        description="Complaints are routed by category — faculty complaints reach faculty and the coordination office."
+      />
 
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Complaint not filed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Complaint details</CardTitle>
+      <Card className="max-w-2xl">
+        <CardHeader className="py-3.5">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            Complaint details
+          </CardTitle>
           <CardDescription>Be specific — vague complaints take longer to resolve.</CardDescription>
         </CardHeader>
         <CardContent>
@@ -74,12 +81,12 @@ export default async function NewComplaintPage({
                 placeholder="What happened, where, when — and what outcome you need."
               />
             </div>
-            <Button type="submit" className="w-fit">
+            <SubmitButton pendingLabel="Submitting…" className="w-fit">
               Submit complaint
-            </Button>
+            </SubmitButton>
           </form>
         </CardContent>
       </Card>
-    </main>
+    </>
   );
 }

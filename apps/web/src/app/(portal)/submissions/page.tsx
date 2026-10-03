@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { CheckCircle2, ClipboardList, Clock, FilePlus2 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { listMySubmissions } from "@/server/services/forms";
 import { StatusBadge } from "@/components/status-badge";
+import { PageHeader } from "@/components/page-header";
+import { StatCard } from "@/components/stat-card";
+import { EmptyState } from "@/components/empty-state";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -11,76 +16,127 @@ export const dynamic = "force-dynamic";
 export default async function SubmissionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; withdrawn?: string }>;
 }) {
   const user = await requireUser();
-  const { submitted } = await searchParams;
+  const { submitted, withdrawn } = await searchParams;
 
   let data: Awaited<ReturnType<typeof listMySubmissions>> | null = null;
   try {
     data = await listMySubmissions(user);
-  } catch {
+  } catch (error) {
+    console.error("submissions load failed:", error);
     data = null;
   }
 
   if (!data) {
     return (
-      <main className="p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Submissions unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
-      </main>
+      <>
+        <PageHeader icon={ClipboardList} title="My Submissions" />
+        <Alert variant="destructive">
+          <AlertTitle>Submissions unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check the Neon project and DATABASE_URL.</AlertDescription>
+        </Alert>
+      </>
     );
   }
 
+  const inProgress = data.items.filter((s) => ["SUBMITTED", "UNDER_REVIEW"].includes(s.status)).length;
+  const decided = data.items.filter((s) => ["APPROVED", "REJECTED"].includes(s.status)).length;
+
   return (
-    <main className="space-y-4 p-6">
+    <>
+      <PageHeader
+        icon={ClipboardList}
+        title="My Submissions"
+        description="Track every request you've filed — statuses update the moment a reviewer acts."
+        actions={
+          <Button asChild>
+            <Link href="/forms">
+              <FilePlus2 className="h-4 w-4" />
+              New submission
+            </Link>
+          </Button>
+        }
+      />
+
       {submitted ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Submitted! You&apos;ll get a notification when the reviewer acts on it.
-        </div>
+        <Alert variant="success">
+          <AlertTitle>Submitted</AlertTitle>
+          <AlertDescription>
+            Your request is in the review queue. You&apos;ll get a notification as soon as the reviewer
+            decides — track it in the table below.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {withdrawn ? (
+        <Alert variant="muted">
+          <AlertTitle>Withdrawn</AlertTitle>
+          <AlertDescription>The submission was withdrawn and is no longer under review.</AlertDescription>
+        </Alert>
       ) : null}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">My Submissions</h1>
-          <p className="text-sm text-muted-foreground">Track every request you&apos;ve filed.</p>
-        </div>
-        <Button asChild variant="secondary">
-          <Link href="/forms">New submission</Link>
-        </Button>
-      </div>
+      {data.items.length > 0 ? (
+        <section className="grid gap-4 sm:grid-cols-3">
+          <StatCard label="Total submissions" value={data.items.length} icon={ClipboardList} tone="primary" />
+          <StatCard
+            label="In progress"
+            value={inProgress}
+            hint={inProgress ? "Awaiting review" : "Nothing pending"}
+            icon={Clock}
+            tone={inProgress ? "warning" : "default"}
+          />
+          <StatCard
+            label="Decided"
+            value={decided}
+            hint={decided ? "Approved or rejected" : "No decisions yet"}
+            icon={CheckCircle2}
+            tone={decided ? "success" : "default"}
+          />
+        </section>
+      ) : null}
 
-      <Card>
-        <CardContent className="pt-6">
-          {data.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              You haven&apos;t submitted anything yet — start from the Forms Center.
-            </p>
-          ) : (
+      {data.items.length === 0 ? (
+        <EmptyState
+          icon={ClipboardList}
+          title="No submissions yet"
+          description="Start from the Forms Center — leave applications, certificates, NOCs and more are all digital here."
+          action={
+            <Button asChild>
+              <Link href="/forms">Open Forms Center</Link>
+            </Button>
+          }
+        />
+      ) : (
+        <Card className="gap-0 overflow-hidden py-0">
+          <CardContent className="p-0">
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Form</TableHead>
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="pl-5">Form</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Submitted</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="pr-5 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.items.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell className="font-medium">{s.template.title}</TableCell>
+                    <TableCell className="pl-5 font-medium">{s.template.title}</TableCell>
                     <TableCell>
                       <StatusBadge status={s.status} />
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
-                      {s.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      {s.createdAt.toLocaleString("en-GB", {
+                        timeZone: "Asia/Karachi",
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="pr-5 text-right">
                       <Button asChild variant="ghost" size="sm">
                         <Link href={`/submissions/${s.id}`}>View</Link>
                       </Button>
@@ -89,9 +145,9 @@ export default async function SubmissionsPage({
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
-    </main>
+          </CardContent>
+        </Card>
+      )}
+    </>
   );
 }

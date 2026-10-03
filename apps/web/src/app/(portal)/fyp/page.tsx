@@ -1,7 +1,10 @@
+import { GraduationCap, Rocket } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { listMyFypApplications } from "@/server/services/fyp";
 import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,39 +33,38 @@ export default async function FypPage({
   const canApply = user.role === "STUDENT" && applications.length < 2;
 
   return (
-    <main className="space-y-4 p-6">
+    <>
+      <PageHeader
+        icon={GraduationCap}
+        title="FYP Application"
+        description="Submit your FYP-II proposal — approved applications unlock resource allocations."
+      />
+
       {created ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Application submitted — the FYP Head will review it.
-        </div>
+        <Alert variant="success">
+          <AlertTitle>Application submitted</AlertTitle>
+          <AlertDescription>The FYP Head will review it.</AlertDescription>
+        </Alert>
       ) : null}
       {error ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Application not submitted</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       ) : null}
 
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">FYP Application</h1>
-        <p className="text-sm text-muted-foreground">
-          Submit your FYP-II proposal — approved applications unlock resource allocations.
-        </p>
-      </div>
-
       {dbError ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">FYP data unavailable</CardTitle>
-            <CardDescription>The database did not answer — check DATABASE_URL and the Neon project.</CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTitle>FYP data unavailable</AlertTitle>
+          <AlertDescription>The database did not answer — check DATABASE_URL and the Neon project.</AlertDescription>
+        </Alert>
       ) : null}
 
       {applications.length > 0 ? (
-        <div className="space-y-2">
+        <section className="space-y-2">
           {applications.map((a) => (
-            <Card key={a.id}>
-              <CardContent className="flex flex-wrap items-start justify-between gap-4 py-4">
+            <Card key={a.id} className="gap-0 py-0">
+              <CardContent className="flex flex-wrap items-start justify-between gap-4 p-4">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">{a.title}</p>
                   <p className="text-sm text-muted-foreground">
@@ -82,13 +84,16 @@ export default async function FypPage({
               </CardContent>
             </Card>
           ))}
-        </div>
+        </section>
       ) : null}
 
       {user.role === "STUDENT" && canApply ? (
         <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-base">New application</CardTitle>
+          <CardHeader className="py-3.5">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <Rocket className="h-4 w-4 text-muted-foreground" />
+              New application
+            </CardTitle>
             <CardDescription>Both FYP-I and FYP-II details are welcome — the committee reads everything.</CardDescription>
           </CardHeader>
           <CardContent>
@@ -143,32 +148,28 @@ export default async function FypPage({
                   <Input id="semester" name="semester" defaultValue="Fall 2026" required />
                 </div>
               </div>
-              <Button type="submit" className="w-fit">
+              <SubmitButton pendingLabel="Submitting…" className="w-fit">
                 Submit application
-              </Button>
+              </SubmitButton>
             </form>
           </CardContent>
         </Card>
       ) : user.role === "STUDENT" ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Application limit reached</CardTitle>
-            <CardDescription>
-              You already have 2 applications (the cap for a semester). Withdraw one to submit another.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="muted">
+          <AlertTitle>Application limit reached</AlertTitle>
+          <AlertDescription>
+            You already have 2 applications (the cap for a semester). Withdraw one to submit another.
+          </AlertDescription>
+        </Alert>
       ) : (
-        <Card>
-          <CardHeader className="py-4">
-            <CardTitle className="text-base">Reviewer view</CardTitle>
-            <CardDescription>
-              You see your own applications here; use{" "}
-              <Badge variant="secondary">FYP Applications</Badge> in the sidebar to review student submissions.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="muted">
+          <AlertTitle>Reviewer view</AlertTitle>
+          <AlertDescription>
+            You see your own applications here; use <Badge variant="secondary">FYP Applications</Badge> in the sidebar to
+            review student submissions.
+          </AlertDescription>
+        </Alert>
       )}
-    </main>
+    </>
   );
 }

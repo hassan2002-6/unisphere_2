@@ -183,3 +183,39 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     },
   ],
 };
+
+/** Titles for routes that aren't primary nav items (detail pages, nested routes). */
+const EXTRA_TITLES: { prefix: string; label: string }[] = [
+  { prefix: "/submissions/", label: "Submission detail" },
+  { prefix: "/complaints/", label: "Complaint detail" },
+  { prefix: "/internships/", label: "Internship detail" },
+  { prefix: "/forms/new/", label: "New submission" },
+  { prefix: "/complaints/new", label: "File a complaint" },
+];
+
+/** Resolve the nav item (or detail-page title) matching a pathname. */
+export function navItemForPath(
+  pathname: string,
+  role: Role,
+): { item: NavItem; section: string } | null {
+  const sections = NAV_BY_ROLE[role];
+  let best: { item: NavItem; section: string } | null = null;
+  for (const section of sections) {
+    for (const item of section.items) {
+      if (pathname === item.href || pathname.startsWith(item.href + "/")) {
+        if (!best || item.href.length > best.item.href.length) {
+          best = { item, section: section.title };
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/** Header title for any portal route. */
+export function pageTitleFor(pathname: string, role: Role): string {
+  const nav = navItemForPath(pathname, role);
+  if (nav) return nav.item.label;
+  const extra = EXTRA_TITLES.find((t) => pathname.startsWith(t.prefix));
+  return extra?.label ?? "UniSphere";
+}
