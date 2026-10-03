@@ -168,7 +168,7 @@ export default async function AdminInternshipsPage({
                                   description={`${a.student.name} will be marked as accepted for ${i.title}.`}
                                   confirmLabel="Accept"
                                   trigger={
-                                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                                    <Button size="sm" className="bg-success text-white hover:bg-success/90">
                                       Accept
                                     </Button>
                                   }

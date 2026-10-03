@@ -1,7 +1,12 @@
+import { BellRing, Megaphone, Send } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/components/page-header";
+import { EmptyState } from "@/components/empty-state";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,81 +43,123 @@ export default async function BroadcastPage() {
       });
       r.recipients = rows;
     }
-  } catch {
+  } catch (error) {
+    console.error("broadcast load failed:", error);
     dbError = true;
   }
 
   return (
-    <main className="space-y-4 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Broadcast</h1>
-        <p className="text-sm text-muted-foreground">
-          Send an announcement to a whole audience. Recipients see it in their notifications.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        icon={Megaphone}
+        title="Broadcast"
+        description="Send an announcement to a whole audience — recipients see it in their notifications instantly."
+      />
 
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">New announcement</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form action={sendBroadcast} className="grid max-w-xl gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="audience">Audience</Label>
-              <Select name="audience" defaultValue="STUDENT">
-                <SelectTrigger id="audience" className="w-full">
-                  <SelectValue placeholder="Pick an audience" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="STUDENT">All students</SelectItem>
-                  <SelectItem value="FACULTY">All faculty</SelectItem>
-                  <SelectItem value="MENTOR">All mentors</SelectItem>
-                  <SelectItem value="COORDINATOR">Coordinators</SelectItem>
-                  <SelectItem value="FYP_HEAD">FYP Heads</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="title">Title</Label>
-              <Input id="title" name="title" placeholder="e.g. Exam schedule published" required minLength={3} maxLength={120} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="body">Message</Label>
-              <Textarea id="body" name="body" placeholder="What should everyone know?" required minLength={5} maxLength={1000} rows={4} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="link">Link (optional, internal path)</Label>
-              <Input id="link" name="link" placeholder="/exams" />
-            </div>
-            <Button type="submit" className="w-fit">
-              Send announcement
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="py-4">
-          <CardTitle className="text-base">Recent announcements</CardTitle>
-          {dbError ? <CardDescription>Database did not answer.</CardDescription> : null}
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {recent.length === 0 && !dbError ? (
-            <p className="text-sm text-muted-foreground">No announcements sent yet.</p>
-          ) : (
-            recent.map((a) => (
-              <div key={a.id} className="rounded-md border p-3">
-                <p className="text-sm font-medium">{a.title}</p>
-                <p className="text-sm text-muted-foreground">{a.body}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {a.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi" })} · {a.recipients} recipient
-                  {a.recipients === 1 ? "" : "s"}
-                </p>
+      <div className="grid items-start gap-4 lg:grid-cols-[1.1fr_1fr]">
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <BellRing className="h-4 w-4 text-muted-foreground" />
+              New announcement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form action={sendBroadcast} className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="audience">Audience</Label>
+                <Select name="audience" defaultValue="STUDENT">
+                  <SelectTrigger id="audience" className="w-full">
+                    <SelectValue placeholder="Pick an audience" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="STUDENT">All students</SelectItem>
+                    <SelectItem value="FACULTY">All faculty</SelectItem>
+                    <SelectItem value="MENTOR">All mentors</SelectItem>
+                    <SelectItem value="COORDINATOR">Coordinators</SelectItem>
+                    <SelectItem value="FYP_HEAD">FYP Heads</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
-    </main>
+              <div className="grid gap-2">
+                <Label htmlFor="title">
+                  Title <span className="text-destructive" aria-hidden>*</span>
+                </Label>
+                <Input
+                  id="title"
+                  name="title"
+                  placeholder="e.g. Exam schedule published"
+                  required
+                  minLength={3}
+                  maxLength={120}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="body">
+                  Message <span className="text-destructive" aria-hidden>*</span>
+                </Label>
+                <Textarea
+                  id="body"
+                  name="body"
+                  placeholder="What should everyone know?"
+                  required
+                  minLength={5}
+                  maxLength={1000}
+                  rows={4}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="link">
+                  Link <span className="text-xs font-normal text-muted-foreground">(optional, internal path)</span>
+                </Label>
+                <Input id="link" name="link" placeholder="/exams" />
+              </div>
+              <SubmitButton className="w-fit" pendingLabel="Sending…">
+                <Send className="h-4 w-4" />
+                Send announcement
+              </SubmitButton>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-sm font-semibold">Recent announcements</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {dbError ? (
+              <Alert variant="destructive">
+                <AlertTitle>History unavailable</AlertTitle>
+                <AlertDescription>Sent announcements couldn&apos;t be loaded from the database.</AlertDescription>
+              </Alert>
+            ) : recent.length === 0 ? (
+              <EmptyState
+                icon={Megaphone}
+                title="Nothing sent yet"
+                description="Your first announcement will show up here with its recipient count."
+                compact
+              />
+            ) : (
+              <ul className="divide-y">
+                {recent.map((a) => (
+                  <li key={a.id} className="space-y-1 py-3 first:pt-0 last:pb-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-medium">{a.title}</p>
+                      <Badge variant="secondary" className="shrink-0 text-[11px] font-normal">
+                        {a.recipients} recipient{a.recipients === 1 ? "" : "s"}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{a.body}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {a.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi" })}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }

@@ -123,7 +123,7 @@ export default async function AdminReportsPage() {
                     <div className="flex items-center gap-2">
                       <div className="bg-muted h-2 w-40 overflow-hidden rounded-full">
                         <div
-                          className={`h-full rounded-full ${r.utilizationPct >= 80 ? "bg-destructive" : r.utilizationPct >= 50 ? "bg-amber-500" : "bg-emerald-500"}`}
+                          className={`h-full rounded-full ${r.utilizationPct >= 80 ? "bg-destructive" : r.utilizationPct >= 50 ? "bg-warning" : "bg-success"}`}
                           style={{ width: `${r.utilizationPct}%` }}
                         />
                       </div>
