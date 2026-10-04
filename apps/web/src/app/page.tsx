@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Show, SignUpButton, UserButton } from "@clerk/nextjs";
+import { Show, UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
 import {
   ArrowRight,
@@ -149,15 +149,12 @@ export default async function Home() {
           </nav>
           <div className="flex items-center gap-2">
             <Show when="signed-out">
-              <Button variant="ghost" asChild>
-                <Link href="/sign-in">Sign in</Link>
-              </Button>
-              <SignUpButton mode="modal">
-                <Button>
-                  Get started
+              <Button asChild>
+                <Link href="/sign-in">
+                  Sign in
                   <ArrowRight className="h-4 w-4" />
-                </Button>
-              </SignUpButton>
+                </Link>
+              </Button>
             </Show>
             <Show when="signed-in">
               <Button variant="outline" asChild>
@@ -202,14 +199,14 @@ export default async function Home() {
                   </Button>
                 ) : (
                   <>
-                    <SignUpButton mode="modal">
-                      <Button size="lg">
-                        Get started
+                    <Button size="lg" asChild>
+                      <Link href="/sign-in">
+                        Sign in
                         <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </SignUpButton>
+                      </Link>
+                    </Button>
                     <Button size="lg" variant="outline" asChild>
-                      <Link href="/sign-in">Sign in</Link>
+                      <Link href="#features">See what&apos;s inside</Link>
                     </Button>
                   </>
                 )}
@@ -266,9 +263,10 @@ export default async function Home() {
             <div className="space-y-4">
               <h2 className="text-3xl font-semibold tracking-tight">One portal, five roles</h2>
               <p className="text-muted-foreground">
-                Each role sees exactly what it needs — nothing more. Navigation, permissions and
-                server-side checks are driven by a single RBAC matrix, so sensitive screens stay
-                out of reach by design.
+                Every role signs in through the same page and lands on its own dashboard — students,
+                faculty, coordinators, the FYP Head and mentors each see exactly what they need,
+                nothing more. Navigation, permissions and server-side checks are driven by a single
+                RBAC matrix, so sensitive screens stay out of reach by design.
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
                 {["Student", "Faculty", "Coordinator", "FYP Head", "Mentor"].map((r) => (
@@ -347,14 +345,12 @@ export default async function Home() {
                   </Link>
                 </Button>
               ) : (
-                <>
-                  <SignUpButton mode="modal">
-                    <Button size="lg">Create your account</Button>
-                  </SignUpButton>
-                  <Button size="lg" variant="outline" asChild>
-                    <Link href="/sign-in">Sign in</Link>
-                  </Button>
-                </>
+                <Button size="lg" asChild>
+                  <Link href="/sign-in">
+                    Sign in
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                </Button>
               )}
             </div>
           </div>

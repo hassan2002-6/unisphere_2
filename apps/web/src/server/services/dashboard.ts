@@ -271,9 +271,55 @@ async function studentDashboard(user: User, day: string): Promise<DashboardData>
   return { stats, panels };
 }
 
+type ScheduleClasses = Awaited<ReturnType<typeof getClassesFor>>;
+
+/** Slots for one day key, normalised for the dashboard panels. */
+function daySlots(classes: ScheduleClasses, key: string | null) {
+  if (!key) return [];
+  return classes
+    .flatMap((c) =>
+      c.slots
+        .filter((s) => s.day === key)
+        .map((s) => ({
+          id: s.id,
+          course: c.courseCode,
+          title: c.title,
+          section: c.section,
+          room: s.room ?? (s.labId ? "Lab" : "TBA"),
+          startMin: s.startMin,
+          endMin: s.endMin,
+        })),
+    )
+    .sort((a, b) => a.startMin - b.startMin);
+}
+
+/** Next day (starting `fromOffset` days ahead) that has at least one slot. */
+function nextTeachingDay(classes: ScheduleClasses, fromOffset = 1) {
+  const startIdx = new Date().getDay(); // 0 = Sunday
+  for (let step = fromOffset; step < fromOffset + 7; step++) {
+    const idx = (startIdx + step) % 7;
+    if (idx === 0) continue; // Sunday — no classes in the university week
+    const key = DAYS[idx - 1];
+    const slots = daySlots(classes, key);
+    if (slots.length) return { key, slots };
+  }
+  return null;
+}
+
 async function facultyDashboard(user: User, day: string): Promise<DashboardData> {
-  const [classes, queue, complaints, courseCount] = await Promise.all([
-    todayClasses(user),
+  const today = todayKey();
+
+  let schedule: ScheduleClasses = [];
+  try {
+    schedule = await getClassesFor(user);
+  } catch {
+    schedule = [];
+  }
+  const todays = daySlots(schedule, today);
+  const nextDay = todays.length === 0 ? nextTeachingDay(schedule, 1) : null;
+  const shown = todays.length > 0 ? todays : (nextDay?.slots ?? []);
+
+  const [queue, complaints] = await Promise.all([
     prisma.formSubmission.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, template: { reviewerRole: "FACULTY" } },
       include: { template: true, submittedBy: { select: { name: true } } },
@@ -286,14 +332,17 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
       take: 3,
       include: { submittedBy: { select: { name: true } } },
     }),
-    prisma.courseClass.count({ where: { facultyId: user.id } }),
   ]);
 
   const stats: DashboardStat[] = [
     {
       label: "Classes today",
-      value: classes.length,
-      hint: classes[0] ? `First at ${minToLabel(classes[0].startMin)}` : `Free on ${day}`,
+      value: todays.length,
+      hint: todays[0]
+        ? `First at ${minToLabel(todays[0].startMin)}`
+        : nextDay
+          ? `Next ${formatDay(nextDay.key)} ${minToLabel(nextDay.slots[0].startMin)}`
+          : `Free on ${day}`,
       icon: CalendarClock,
       tone: "primary",
       href: "/timetable",
@@ -308,7 +357,7 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
     },
     {
       label: "My courses",
-      value: courseCount,
+      value: schedule.length,
       hint: "Across the semester",
       icon: BookOpen,
       tone: "info",
@@ -324,20 +373,42 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
     },
   ];
 
+  const courseItems = schedule
+    .map((c) => {
+      const slots = [...c.slots].sort((a, b) => a.startMin - b.startMin);
+      const days = [...new Set(slots.map((s) => formatDay(s.day)))].join(", ");
+      return {
+        id: c.id,
+        title: `${c.courseCode} — ${c.title}`,
+        subtitle: days ? `${days} · ${slots.length} slot${slots.length === 1 ? "" : "s"}/week` : "No weekly slots scheduled",
+        meta: `Section ${c.section}`,
+        href: "/faculty/courses",
+      };
+    })
+    .sort((a, b) => a.title.localeCompare(b.title));
+
   const panels: DashboardPanel[] = [
     {
-      title: `Teaching today · ${day}`,
+      title: todays.length > 0 ? `Teaching today · ${day}` : nextDay ? `Next classes · ${formatDay(nextDay.key)}` : `Teaching · ${day}`,
       icon: CalendarClock,
       href: "/timetable",
       hrefLabel: "Full timetable",
-      emptyText: `No classes scheduled for ${day}.`,
-      items: classes.slice(0, 5).map((c) => ({
+      emptyText: `No classes scheduled for ${day} — and nothing later this week.`,
+      items: shown.slice(0, 5).map((c) => ({
         id: c.id,
         title: `${c.course} — ${c.title}`,
         subtitle: `${minToLabel(c.startMin)}–${minToLabel(c.endMin)} · ${c.room}`,
         meta: `Section ${c.section}`,
         href: "/timetable",
       })),
+    },
+    {
+      title: `My courses · ${schedule.length}`,
+      icon: BookOpen,
+      href: "/faculty/courses",
+      hrefLabel: "Course details",
+      emptyText: "No courses are assigned to you yet — the coordinator publishes allocations each semester.",
+      items: courseItems,
     },
     {
       title: "Review queue",
