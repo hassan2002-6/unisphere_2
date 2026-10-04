@@ -666,11 +666,18 @@ detail (vertical event timeline, withdraw confirmation), shared review queue/dec
 (sticky composer, suggestion chips, source cards, provider status), auth + not-provisioned/
 setup-needed states, loading/error/404 boundaries.
 
-**Verification.** `tsc --noEmit`, oxlint and the full vitest suite pass after the pass; landing +
-auth routes rendered against the local dev server (headless Chrome DOM check, no runtime errors).
-Authenticated walk-throughs in production could not be automated from this network
-(`vercel.com` + the production alias are unreachable from this ISP — see Appendix F note); the
-demo-script screenshots remain the manual capture step.
+**Verification.** `tsc --noEmit`, oxlint and the full vitest suite pass after the pass, and
+`next build` compiles every route. Additionally, all five demo personas were signed in against the
+running app and **34 authenticated page loads were checked** (dashboard, timetable, exams,
+planning, forms, submissions, complaints, notifications, FYP, resources, internships, mentorship,
+chat, clash monitor, approvals, review queues, admin FYP/requests/allocations/labs/inventory,
+broadcast, reports) — zero runtime errors, zero auth losses — with full-page screenshots captured
+to `docs/demo/screenshots/app/` (`capture_cdp.mjs` drives headless Chrome over CDP; sign-in uses
+single-use Clerk sign-in tokens minted for the demo personas, so no password is ever handled).
+Authenticated walk-throughs against the deployed alias are still blocked from this network
+(`vercel.com` + `*.vercel.app` unreachable from this ISP — see Appendix F note); rerun
+`capture_cdp.mjs` with `BASE` pointed at the production URL from a normal network to refresh the
+captures there.
 
 **No DB/API changes.** Every server action, query, RBAC guard and route is untouched — this was a
 markup/UX pass only.

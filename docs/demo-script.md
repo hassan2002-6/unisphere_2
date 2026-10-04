@@ -87,6 +87,7 @@ Five seeded demo accounts (passwords set in Clerk by `link-clerk-users.ts` — s
 - [ ] All five demo accounts can sign in (Clerk test-mode OTP or password set)
 - [ ] AI key present **or** the offline-fallback notice pre-explained
 - [ ] Offline kit ready (docs/offline-demo.md) — laptop hotspot + local Postgres
-- [ ] Screenshots fallback exported (docs/demo/screenshots/ — `01-landing.png`,
-      `01-landing-mobile.png`, `02-sign-in.png` recap the 2026-10 design refresh; capture the
-      signed-in walkthrough with a demo persona before the defence)
+- [ ] Screenshots fallback exported (`docs/demo/screenshots/` — `01-landing.png`,
+      `01-landing-mobile.png`, `02-sign-in.png` recap the 2026-10 design refresh, and
+      `docs/demo/screenshots/app/` holds 34 authenticated full-page captures across all five
+      personas: `student-*`, `coordinator-*`, `faculty-*`, `fyphead-*`, `mentor-*`)
