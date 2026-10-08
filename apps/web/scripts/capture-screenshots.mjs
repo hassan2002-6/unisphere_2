@@ -39,6 +39,10 @@ const PERSONAS = [
       "/timetable",
       "/exams",
       "/planning",
+      "/attendance",
+      "/marks",
+      "/clashes",
+      "/messages",
       "/forms",
       "/submissions",
       "/complaints",
@@ -59,14 +63,26 @@ const PERSONAS = [
       "/coordinator/clashes",
       "/coordinator/approvals",
       "/coordinator/faculty",
+      "/coordinator/students",
       "/coordinator/complaints",
+      "/messages",
       "/admin/broadcast",
     ],
   },
   {
     persona: "faculty",
     email: "faculty@shu.edu.pk",
-    pages: ["/dashboard", "/faculty/reviews", "/faculty/courses", "/faculty/complaints", "/reviews"],
+    pages: [
+      "/dashboard",
+      "/faculty/attendance",
+      "/faculty/marks",
+      "/faculty/students",
+      "/messages",
+      "/faculty/reviews",
+      "/faculty/courses",
+      "/faculty/complaints",
+      "/reviews",
+    ],
   },
   {
     persona: "fyphead",
@@ -79,12 +95,26 @@ const PERSONAS = [
       "/admin/labs",
       "/admin/inventory",
       "/admin/reports",
+      "/admin/audit",
+      "/messages",
     ],
   },
   {
     persona: "mentor",
     email: "mentor@shu.edu.pk",
-    pages: ["/dashboard", "/mentor", "/mentorship"],
+    pages: ["/dashboard", "/mentor", "/mentorship", "/messages"],
+  },
+  {
+    persona: "admin",
+    email: "admin@shu.edu.pk",
+    pages: [
+      "/dashboard",
+      "/admin/users",
+      "/admin/audit",
+      "/admin/reports",
+      "/coordinator/clashes",
+      "/messages",
+    ],
   },
 ];
 
@@ -134,7 +164,8 @@ function cdpClient(ws) {
     if (data.id && pending.has(data.id)) {
       const { resolve: res, reject: rej } = pending.get(data.id);
       pending.delete(data.id);
-      data.error ? rej(new Error(data.error.message)) : res(data.result);
+      if (data.error) rej(new Error(data.error.message));
+      else res(data.result);
     } else if (data.method && events.has(data.method)) {
       const list = events.get(data.method);
       events.set(data.method, []);

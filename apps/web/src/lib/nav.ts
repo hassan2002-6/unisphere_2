@@ -5,6 +5,7 @@ import {
   BookOpen,
   Boxes,
   Briefcase,
+  CalendarCheck,
   CalendarClock,
   CalendarDays,
   ClipboardCheck,
@@ -15,10 +16,14 @@ import {
   FlaskConical,
   GraduationCap,
   LayoutDashboard,
+  Mail,
   Megaphone,
   MessageSquareWarning,
+  ScrollText,
+  ShieldCheck,
   Sparkles,
   UserCheck,
+  UserSearch,
   Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -35,6 +40,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Messages", href: "/messages", icon: Mail },
       ],
     },
     {
@@ -42,6 +48,9 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
         { label: "Exams", href: "/exams", icon: CalendarClock },
+        { label: "Attendance", href: "/attendance", icon: CalendarCheck },
+        { label: "Marks & GPA", href: "/marks", icon: GraduationCap },
+        { label: "Clash Reports", href: "/clashes", icon: AlertTriangle },
         { label: "Academic Planning", href: "/planning", icon: GraduationCap },
       ],
     },
@@ -79,6 +88,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Messages", href: "/messages", icon: Mail },
       ],
     },
     {
@@ -87,6 +97,9 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
         { label: "Exams", href: "/exams", icon: CalendarClock },
         { label: "My Courses", href: "/faculty/courses", icon: BookOpen },
+        { label: "Attendance", href: "/faculty/attendance", icon: CalendarCheck },
+        { label: "Marks Entry", href: "/faculty/marks", icon: GraduationCap },
+        { label: "Students", href: "/faculty/students", icon: UserSearch },
       ],
     },
     {
@@ -104,6 +117,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Messages", href: "/messages", icon: Mail },
       ],
     },
     {
@@ -119,9 +133,11 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Approvals", href: "/coordinator/approvals", icon: ClipboardCheck },
         { label: "Complaints", href: "/coordinator/complaints", icon: MessageSquareWarning },
+        { label: "Students", href: "/coordinator/students", icon: UserSearch },
         { label: "Faculty", href: "/coordinator/faculty", icon: Users },
         { label: "Review Queue", href: "/reviews", icon: FileSearch },
         { label: "Forms Center", href: "/forms", icon: FileText },
+        { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
       ],
     },
     {
@@ -138,6 +154,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Messages", href: "/messages", icon: Mail },
       ],
     },
     {
@@ -145,6 +162,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "FYP Applications", href: "/admin/fyp", icon: BookOpen },
         { label: "Review Queue", href: "/reviews", icon: FileSearch },
+        { label: "Students", href: "/coordinator/students", icon: UserSearch },
       ],
     },
     {
@@ -166,7 +184,10 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     },
     {
       title: "Insights",
-      items: [{ label: "Reports", href: "/admin/reports", icon: BarChart3 }],
+      items: [
+        { label: "Reports", href: "/admin/reports", icon: BarChart3 },
+        { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
+      ],
     },
   ],
   MENTOR: [
@@ -175,11 +196,53 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Messages", href: "/messages", icon: Mail },
       ],
     },
     {
       title: "Mentorship",
       items: [{ label: "My Mentees", href: "/mentor", icon: Users }],
+    },
+  ],
+  ADMIN: [
+    {
+      title: "Overview",
+      items: [
+        { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+        { label: "Notifications", href: "/notifications", icon: Bell },
+        { label: "Messages", href: "/messages", icon: Mail },
+      ],
+    },
+    {
+      title: "Administration",
+      items: [
+        { label: "Users & Roles", href: "/admin/users", icon: ShieldCheck },
+        { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
+        { label: "Reports", href: "/admin/reports", icon: BarChart3 },
+      ],
+    },
+    {
+      title: "Academics",
+      items: [
+        { label: "Timetable", href: "/timetable", icon: CalendarDays },
+        { label: "Exams", href: "/exams", icon: CalendarClock },
+        { label: "Clash Monitor", href: "/coordinator/clashes", icon: AlertTriangle },
+        { label: "Students", href: "/coordinator/students", icon: UserSearch },
+        { label: "Faculty", href: "/coordinator/faculty", icon: Users },
+      ],
+    },
+    {
+      title: "Operations",
+      items: [
+        { label: "Requests", href: "/admin/requests", icon: Cpu },
+        { label: "Allocations", href: "/admin/allocations", icon: FlaskConical },
+        { label: "Labs", href: "/admin/labs", icon: Boxes },
+        { label: "Inventory", href: "/admin/inventory", icon: ClipboardList },
+        { label: "FYP Applications", href: "/admin/fyp", icon: BookOpen },
+        { label: "Internships", href: "/admin/internships", icon: Briefcase },
+        { label: "Mentors", href: "/admin/mentors", icon: UserCheck },
+        { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone },
+      ],
     },
   ],
 };

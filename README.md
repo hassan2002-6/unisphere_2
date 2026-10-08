@@ -1,8 +1,9 @@
 # UniSphere
 
 **A unified student portal for Salim Habib University** — FYP-II implementation of the FYP-I prototype.
-Timetables with live clash detection, forms centre, complaint box, notifications, FYP workflow,
-GPU/lab resource allocation, internships, alumni mentorship, and a grounded AI assistant.
+Timetables with live clash detection (plus student clash reporting), attendance, marks/GPA, forms centre,
+complaint box, notifications, campus messaging, FYP workflow, GPU/lab resource allocation, internships,
+alumni mentorship, audit logs, and a grounded AI assistant.
 
 > Team: Ishan Rajwani · Carol Swan · M. Hassan Siddiqui — BSCS, SHU · Supervisors: Ateeque Rahman, Saadia Karim
 
@@ -16,11 +17,11 @@ GPU/lab resource allocation, internships, alumni mentorship, and a grounded AI a
 | App        | Next.js 16.3 (App Router, TypeScript strict), React 19       |
 | UI         | Tailwind CSS 4.3 + shadcn/ui (radix), custom UniSphere theme |
 | Data       | PostgreSQL (Neon) via Prisma 7.10 (`prisma7.config.ts`)      |
-| Auth       | Clerk 7.9 — 5 roles: STUDENT, FACULTY, COORDINATOR, FYP_HEAD, MENTOR |
+| Auth       | Clerk 7.9 — 6 roles: STUDENT, FACULTY, COORDINATOR, FYP_HEAD, MENTOR, ADMIN |
 | AI         | Provider-agnostic adapter (Groq default) + Postgres-FTS retrieval |
 | Deploy     | Vercel (Hobby) — root directory `apps/web`                   |
 | Lint/format| oxlint + oxfmt (oxc toolchain)                               |
-| Tests      | Vitest — 235 tests (unit + security suite)                   |
+| Tests      | Vitest — 358 tests (unit + security suite)                   |
 
 ## Repository layout
 
@@ -78,7 +79,12 @@ bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATA
 | Module            | Routes                                                    | State |
 | ----------------- | --------------------------------------------------------- | ----- |
 | Dashboard         | `/dashboard` (role-aware live stats)                      | ✅ |
-| Timetable + clash | `/timetable`, `/exams`, `/coordinator/clashes`            | ✅ |
+| Attendance        | `/attendance`, `/faculty/attendance`, `/faculty/attendance/[classId]` | ✅ |
+| Marks & GPA       | `/marks`, `/faculty/marks(+[classId])`                    | ✅ |
+| Student search    | `/faculty/students(+[id])`, `/coordinator/students(+[id])` | ✅ |
+| Messaging         | `/messages` (inbox · sent · compose, every role)          | ✅ |
+| Audit log         | `/admin/audit`, `/admin/users`                            | ✅ |
+| Timetable + clash | `/timetable`, `/exams`, `/coordinator/clashes`, student clash reports `/clashes` | ✅ |
 | Academic planning | `/planning`, `/faculty/courses`                           | ✅ |
 | Forms centre      | `/forms`, `/forms/new/[key]`, `/submissions(+detail)`, `/reviews`, `/faculty/reviews` | ✅ |
 | Complaint box     | `/complaints(+new/detail)`, `/faculty/complaints`, `/coordinator/complaints` | ✅ |
@@ -91,7 +97,24 @@ bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATA
 | Mentorship        | `/mentorship`, `/mentor`, `/admin/mentors`                | ✅ |
 | AI assistant      | `/chat` (grounded, citation chips)                        | ✅ |
 
-Out of scope (per the deck): attendance, results, fees, events.
+All modules above are in scope and implemented (the FYP-I deck had parked attendance/results —
+the FYP-II spec brings them in, with GPA computed from published results).
+
+## Demo accounts
+
+18 seeded personas share **one password: `UniSphere#Demo2026`**
+
+| Role | Accounts | Notes |
+| ---- | -------- | ----- |
+| Students | `student@shu.edu.pk` … `student10@shu.edu.pk` (STU001–STU010) | attendance, marks, clash reports |
+| Faculty | `faculty@`, `faculty2@`, `faculty3@`, `saadia.karim@` | attendance marking, marks entry, student search |
+| Coordinator | `coordinator@shu.edu.pk` | clash queue, forms, broadcasts |
+| FYP Head | `fyphead@shu.edu.pk` | FYP approvals, resources |
+| Mentor | `mentor@shu.edu.pk` | alumni mentorship console |
+| Admin | `admin@shu.edu.pk` | users & roles, audit log, reports |
+
+Every account signs in through the single `/sign-in` page and lands on its role dashboard.
+`bun run scripts/link-clerk-users.ts` (from `apps/web`) creates/links the Clerk users.
 
 ## Security model
 
@@ -102,10 +125,18 @@ Out of scope (per the deck): attendance, results, fees, events.
 ## Deployment
 
 **Live:** https://unisphere-hazel.vercel.app (production alias; preview deploys are
-protected). Vercel project `unisphere` builds from the **repo root** (`vercel.json`
-runs `bun install` then `cd apps/web && bun run build`). Env lives in Vercel project
+protected). Vercel project `unisphere` builds from the **repo root** (`vercel.json` runs
+`bun install --frozen-lockfile && cd packages/db && bunx prisma generate` then
+`cd apps/web && bun run build` — the generated Prisma client is not committed, so the
+install step must generate it). Env lives in Vercel project
 settings — never in the repo. Migrations run with `bunx prisma migrate deploy`
 against `DIRECT_URL`; runtime uses pooled `DATABASE_URL`.
+
+Deploy from the repo root:
+
+```bash
+vercel deploy --prod --yes        # .vercel/project.json links the project
+```
 
 **Live environment (2026-09-25):** Neon Postgres `unisphere` (aws-ap-southeast-1) is
 provisioned and seeded — `GET /api/health` returns

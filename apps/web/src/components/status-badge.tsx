@@ -12,6 +12,7 @@ const STATUS_TONE: Record<string, Tone> = {
   ALLOCATED: "success",
   ACTIVE: "success",
   OPEN: "success",
+  PRESENT: "success",
   // negative / closed
   REJECTED: "danger",
   DECLINED: "danger",
@@ -19,6 +20,8 @@ const STATUS_TONE: Record<string, Tone> = {
   CLOSED: "neutral",
   WITHDRAWN: "neutral",
   CANCELLED: "neutral",
+  ABSENT: "danger",
+  DISMISSED: "neutral",
   // in flight
   SUBMITTED: "progress",
   UNDER_REVIEW: "progress",
@@ -27,8 +30,15 @@ const STATUS_TONE: Record<string, Tone> = {
   IN_REVIEW: "progress",
   PROPOSED: "progress",
   SHORTLISTED: "progress",
+  LATE: "progress",
+  EXCUSED: "info",
   APPLIED: "info",
   CONFIRMED: "info",
+  QUIZ: "info",
+  ASSIGNMENT: "info",
+  MIDTERM: "progress",
+  FINAL: "danger",
+  PROJECT: "info",
 };
 
 const TONE_CLASS: Record<Tone, string> = {
@@ -70,6 +80,18 @@ const FRIENDLY: Record<string, string> = {
   APPLIED: "Applied",
   SHORTLISTED: "Shortlisted",
   ACCEPTED: "Accepted",
+  PRESENT: "Present",
+  ABSENT: "Absent",
+  LATE: "Late",
+  EXCUSED: "Excused",
+  DISMISSED: "Dismissed",
+  TIMETABLE: "Timetable",
+  EXAM: "Exam",
+  QUIZ: "Quiz",
+  ASSIGNMENT: "Assignment",
+  MIDTERM: "Midterm",
+  FINAL: "Final",
+  PROJECT: "Project",
 };
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {

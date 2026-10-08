@@ -17,6 +17,7 @@ enum Role {
   COORDINATOR
   FYP_HEAD
   MENTOR
+  ADMIN
 }
 
 enum FormStatus {
@@ -92,6 +93,8 @@ enum NotificationType {
   INTERNSHIP
   ANNOUNCEMENT
   SYSTEM
+  MESSAGE
+  CLASH
 }
 
 enum DayOfWeek {
@@ -139,6 +142,19 @@ model User {
   notifications          Notification[]
   classes                CourseClass[]           @relation("ClassFaculty")
   clashResolutions       ClashResolution[]       @relation("ClashResolver")
+  attendanceMarked       AttendanceRecord[]      @relation("AttendanceMarker")
+  attendance             AttendanceRecord[]      @relation("AttendanceStudent")
+  assessmentsCreated     Assessment[]            @relation("AssessmentCreator")
+  assessmentScores       Score[]                 @relation("ScoreStudent")
+  scoresEntered          Score[]                 @relation("ScoreEnterer")
+  courseResults          CourseResult[]          @relation("ResultStudent")
+  resultsPublished       CourseResult[]          @relation("ResultPublisher")
+  messagesSent           Message[]               @relation("MessageSender")
+  messagesReceived       Message[]               @relation("MessageRecipient")
+  enrollments            Enrollment[]            @relation("EnrollmentStudent")
+  auditLogs              AuditLog[]              @relation("AuditActor")
+  clashReports           ClashReport[]           @relation("ClashReporter")
+  clashReportsHandled    ClashReport[]           @relation("ClashHandler")
 }
 
 model StudentProfile {
@@ -185,8 +201,26 @@ model CourseClass {
   faculty    User?           @relation("ClassFaculty", fields: [facultyId], references: [id])
   slots      TimetableSlot[]
   exams      ExamSchedule[]
+  enrollments Enrollment[]
+  attendance AttendanceRecord[]
+  assessments Assessment[]
+  results    CourseResult[]
 
   @@index([courseCode, section])
+}
+
+// Student ↔ course roster (the "Enrollments" table from the report).
+model Enrollment {
+  id         String      @id @default(cuid())
+  studentId  String
+  classId    String
+  status     String      @default("ACTIVE") // ACTIVE | COMPLETED | DROPPED
+  enrolledAt DateTime    @default(now())
+  student    User        @relation("EnrollmentStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  class      CourseClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, classId])
+  @@index([classId])
 }
 
 model TimetableSlot {
@@ -521,4 +555,155 @@ model ClashResolution {
   resolvedById String
   resolvedAt   DateTime @default(now())
   resolvedBy   User     @relation("ClashResolver", fields: [resolvedById], references: [id])
+}
+
+// ── Attendance ───────────────────────────────────────────────────────────
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+model AttendanceRecord {
+  id           String           @id @default(cuid())
+  studentId    String
+  classId      String
+  date         DateTime
+  status       AttendanceStatus
+  markedById   String?
+  markedAt     DateTime         @default(now())
+  note         String?
+  student      User             @relation("AttendanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  class        CourseClass      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  markedBy     User?            @relation("AttendanceMarker", fields: [markedById], references: [id])
+
+  @@unique([studentId, classId, date])
+  @@index([classId, date])
+  @@index([studentId])
+}
+
+// ── Marks / Results ──────────────────────────────────────────────────────
+enum AssessmentKind {
+  QUIZ
+  ASSIGNMENT
+  MIDTERM
+  FINAL
+  PROJECT
+}
+
+model Assessment {
+  id          String         @id @default(cuid())
+  classId     String
+  kind        AssessmentKind
+  title       String
+  maxMarks    Int
+  date        DateTime?
+  createdById String?
+  createdAt   DateTime       @default(now())
+  class       CourseClass    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdBy   User?          @relation("AssessmentCreator", fields: [createdById], references: [id])
+  scores      Score[]
+
+  @@index([classId])
+}
+
+model Score {
+  id           String     @id @default(cuid())
+  assessmentId String
+  studentId    String
+  marks        Int?
+  remarks      String?
+  enteredById  String?
+  updatedAt    DateTime   @updatedAt
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  student      User       @relation("ScoreStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  enteredBy    User?      @relation("ScoreEnterer", fields: [enteredById], references: [id])
+
+  @@unique([assessmentId, studentId])
+  @@index([studentId])
+}
+
+model CourseResult {
+  id              String      @id @default(cuid())
+  studentId       String
+  classId         String
+  totalMarks      Int?
+  grade           String?
+  gradePoints     Float?
+  published       Boolean     @default(false)
+  publishedAt     DateTime?
+  publishedById   String?
+  updatedAt       DateTime    @updatedAt
+  student         User        @relation("ResultStudent", fields: [studentId], references: [id], onDelete: Cascade)
+  class           CourseClass @relation(fields: [classId], references: [id], onDelete: Cascade)
+  publishedBy     User?       @relation("ResultPublisher", fields: [publishedById], references: [id])
+
+  @@unique([studentId, classId])
+  @@index([studentId])
+}
+
+// ── Internal messaging ───────────────────────────────────────────────────
+model Message {
+  id          String   @id @default(cuid())
+  senderId    String
+  recipientId String
+  subject     String?
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+  sender      User     @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User     @relation("MessageRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt])
+  @@index([senderId])
+}
+
+// ── Audit trail ──────────────────────────────────────────────────────────
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  entity    String
+  entityId  String?
+  summary   String?
+  meta      Json?
+  createdAt DateTime @default(now())
+  actor     User?    @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+// ── Student-reported clashes (timetable / exam) ──────────────────────────
+enum ClashReportKind {
+  TIMETABLE
+  EXAM
+}
+
+enum ClashReportStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
+}
+
+model ClashReport {
+  id             String            @id @default(cuid())
+  reportedById   String
+  kind           ClashReportKind
+  description    String
+  classId        String?
+  otherClassId   String?
+  examId         String?
+  status         ClashReportStatus @default(OPEN)
+  resolutionNote String?
+  handledById    String?
+  handledAt      DateTime?
+  createdAt      DateTime          @default(now())
+  reportedBy     User              @relation("ClashReporter", fields: [reportedById], references: [id], onDelete: Cascade)
+  handledBy      User?             @relation("ClashHandler", fields: [handledById], references: [id])
+
+  @@index([status])
+  @@index([reportedById])
 }

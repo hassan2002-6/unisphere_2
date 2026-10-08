@@ -2,7 +2,7 @@
  * Link Clerk users to seeded DB rows (demo prep).
  *
  * For each demo email: ensure a Clerk user exists (create with unverified
- * email + a demo password when missing), then set the DB row's clerkId to the
+ * email + the demo password when missing), then set the DB row's clerkId to the
  * Clerk user id so sign-in lands on the seeded persona (role + data).
  *
  * Requires: CLERK_SECRET_KEY, DATABASE_URL.
@@ -11,12 +11,32 @@
 
 import { prisma } from "@unisphere/db";
 
-const DEMO_USERS = [
-  { email: "student@shu.edu.pk", password: "UniSphere#Demo1" },
-  { email: "faculty@shu.edu.pk", password: "UniSphere#Demo2" },
-  { email: "coordinator@shu.edu.pk", password: "UniSphere#Demo3" },
-  { email: "fyphead@shu.edu.pk", password: "UniSphere#Demo4" },
-  { email: "mentor@shu.edu.pk", password: "UniSphere#Demo5" },
+/** Every demo account shares one documented password (README, demo script). */
+export const DEMO_PASSWORD = "UniSphere#Demo2026";
+
+export const DEMO_USERS = [
+  // Students — STU001–STU010
+  { email: "student@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student2@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student3@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student4@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student5@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student6@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student7@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student8@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student9@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "student10@shu.edu.pk", password: DEMO_PASSWORD },
+  // Faculty
+  { email: "faculty@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "faculty2@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "faculty3@shu.edu.pk", password: DEMO_PASSWORD },
+  // Coordination
+  { email: "coordinator@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "fyphead@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "saadia.karim@shu.edu.pk", password: DEMO_PASSWORD },
+  // Outreach + administration
+  { email: "mentor@shu.edu.pk", password: DEMO_PASSWORD },
+  { email: "admin@shu.edu.pk", password: DEMO_PASSWORD },
 ];
 
 const SECRET = process.env.CLERK_SECRET_KEY;
@@ -36,14 +56,24 @@ async function clerk(path: string, init?: RequestInit) {
 
 type ClerkUser = { id: string; email_addresses?: { email_address: string }[] };
 
+/** Clerk's `?email_address[]=` filter is unreliable (and paged) — scan all pages. */
+async function findClerkUser(email: string): Promise<ClerkUser | undefined> {
+  const target = email.toLowerCase();
+  let offset = 0;
+  for (;;) {
+    const page = (await clerk(`/users?limit=100&offset=${offset}`)) as ClerkUser[];
+    if (!Array.isArray(page) || page.length === 0) return undefined;
+    const match = page.find((u) =>
+      u.email_addresses?.some((e) => e.email_address?.toLowerCase() === target),
+    );
+    if (match) return match;
+    if (page.length < 100) return undefined;
+    offset += 100;
+  }
+}
+
 async function ensureClerkUser(email: string, password: string): Promise<string> {
-  // The list endpoint's email filter is best-effort — verify the match client-side.
-  const found = (await clerk(
-    `/users?email_address[]=${encodeURIComponent(email)}`,
-  )) as ClerkUser[];
-  const match = Array.isArray(found)
-    ? found.find((u) => u.email_addresses?.some((e) => e.email_address === email))
-    : undefined;
+  const match = await findClerkUser(email);
 
   if (match) {
     // Keep the demo password deterministic even for pre-existing users.
@@ -54,16 +84,30 @@ async function ensureClerkUser(email: string, password: string): Promise<string>
     return match.id;
   }
 
-  const created = (await clerk(`/users`, {
-    method: "POST",
-    body: JSON.stringify({
-      email_address: [email],
-      password,
-      skip_password_checks: true,
-      skip_password_requirement: false,
-    }),
-  })) as ClerkUser;
-  return created.id;
+  try {
+    const created = (await clerk(`/users`, {
+      method: "POST",
+      body: JSON.stringify({
+        email_address: [email],
+        password,
+        skip_password_checks: true,
+        skip_password_requirement: false,
+      }),
+    })) as ClerkUser;
+    return created.id;
+  } catch (e) {
+    // "That email address is taken" — the user appeared between the scan and
+    // the create (or a filter miss); look it up once more before giving up.
+    const retry = await findClerkUser(email);
+    if (retry) {
+      await clerk(`/users/${retry.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ password, skip_password_checks: true }),
+      });
+      return retry.id;
+    }
+    throw e;
+  }
 }
 
 async function main() {
@@ -98,7 +142,7 @@ async function main() {
     console.log(`  link ${u.email}: clerkId updated → stays ${existing.role} with its seeded data`);
   }
 
-  console.log("\nDemo accounts ready. Password for all: see DEMO_USERS in this script.");
+  console.log("\nDemo accounts ready — password documented in README (one password for every account).");
   process.exit(0);
 }
 

@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays } from "lucide-react";
+import { AlertTriangle, CalendarDays, Flag } from "lucide-react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getScheduleData, formatDay, minToLabel } from "@/server/services/schedule";
@@ -56,16 +56,26 @@ export default async function TimetablePage() {
         title="Timetable"
         description={weekScope}
         actions={
-          clashes.length > 0 ? (
-            <span className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive">
-              <AlertTriangle className="h-4 w-4" />
-              {clashes.length} clash{clashes.length === 1 ? "" : "es"} flagged
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-1.5 text-sm font-medium text-success">
-              No clashes detected
-            </span>
-          )
+          <>
+            {clashes.length > 0 ? (
+              <span className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive">
+                <AlertTriangle className="h-4 w-4" />
+                {clashes.length} clash{clashes.length === 1 ? "" : "es"} flagged
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-2 rounded-lg border border-success/25 bg-success/10 px-3 py-1.5 text-sm font-medium text-success">
+                No clashes detected
+              </span>
+            )}
+            {user.role === "STUDENT" ? (
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/clashes">
+                  <Flag className="h-4 w-4" />
+                  Report a clash
+                </Link>
+              </Button>
+            ) : null}
+          </>
         }
       />
 

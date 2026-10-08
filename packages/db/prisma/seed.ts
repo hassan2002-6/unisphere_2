@@ -13,7 +13,7 @@ const SEED_PREFIX = "seed:";
 async function upsertUser(data: {
   email: string;
   name: string;
-  role: "STUDENT" | "FACULTY" | "COORDINATOR" | "FYP_HEAD" | "MENTOR";
+  role: "STUDENT" | "FACULTY" | "COORDINATOR" | "FYP_HEAD" | "MENTOR" | "ADMIN";
   department?: string;
   registrationNo?: string;
   employeeId?: string;
@@ -748,11 +748,248 @@ async function main() {
     });
   }
 
+  // ── FYP-II demo fleet ──────────────────────────────────────────────────
+  // 10 students (STU001–STU010), 3 faculty, coordinator, FYP Head, Saadia
+  // Karim (co-supervisor, FYP-related), and a system administrator — plus
+  // enrollments, attendance, assessments/scores, archived results (CGPA),
+  // messages and audit entries.
+  const studentFleet: [string, string, string][] = [
+    ["student@shu.edu.pk", "Ali Raza", "STU001"],
+    ["student2@shu.edu.pk", "Sara Khan", "STU002"],
+    ["student3@shu.edu.pk", "Ahmed Malik", "STU003"],
+    ["student4@shu.edu.pk", "Fatima Noor", "STU004"],
+    ["student5@shu.edu.pk", "Bilal Ahmed", "STU005"],
+    ["student6@shu.edu.pk", "Ayesha Siddiqui", "STU006"],
+    ["student7@shu.edu.pk", "Hamza Iqbal", "STU007"],
+    ["student8@shu.edu.pk", "Zainab Ali", "STU008"],
+    ["student9@shu.edu.pk", "Usman Tariq", "STU009"],
+    ["student10@shu.edu.pk", "Maryam Sheikh", "STU010"],
+  ];
+  const students: Awaited<ReturnType<typeof upsertUser>>[] = [];
+  for (const [email, name, reg] of studentFleet) {
+    const u = await upsertUser({ email, name, role: "STUDENT", department: "Computer Science", registrationNo: reg });
+    await prisma.studentProfile.upsert({
+      where: { userId: u.id },
+      update: { section: "A" },
+      create: { userId: u.id, semester: 7, batch: "BSCS-2023", section: "A", program: "BSCS" },
+    });
+    students.push(u);
+  }
+  const faculty3 = await upsertUser({
+    email: "faculty3@shu.edu.pk",
+    name: "Dr. Kamran Shah",
+    role: "FACULTY",
+    department: "Computer Science",
+    employeeId: "EMP-103",
+  });
+  await prisma.facultyProfile.upsert({
+    where: { userId: faculty3.id },
+    update: {},
+    create: { userId: faculty3.id, designation: "Assistant Professor", office: "F-216" },
+  });
+  // Ms. Saadia Karim is the project co-supervisor (report front matter) — she
+  // gets a faculty profile flagged for FYP supervision, not admin rights.
+  await upsertUser({
+    email: "saadia.karim@shu.edu.pk",
+    name: "Ms. Saadia Karim",
+    role: "FACULTY",
+    department: "Computer Science",
+    employeeId: "EMP-104",
+  });
+  const saadia = await prisma.user.findUnique({ where: { email: "saadia.karim@shu.edu.pk" } });
+  if (saadia) {
+    await prisma.facultyProfile.upsert({
+      where: { userId: saadia.id },
+      update: { designation: "Lecturer / FYP Co-Supervisor", office: "F-210" },
+      create: { userId: saadia.id, designation: "Lecturer / FYP Co-Supervisor", office: "F-210" },
+    });
+  }
+  const admin = await upsertUser({
+    email: "admin@shu.edu.pk",
+    name: "UniSphere Administrator",
+    role: "ADMIN",
+    department: "IT Services",
+    employeeId: "EMP-001",
+  });
+  console.log(`✓ demo fleet: ${students.length} students · 3 faculty · coordinator · FYP Head · co-supervisor · admin`);
+
+  // Enrollments: everyone in the six active Fall 2026 classes …
+  const activeClasses = await prisma.courseClass.findMany({ where: { semester: "Fall 2026" } });
+  const activeByCode = new Map(activeClasses.map((c) => [c.courseCode, c]));
+  for (const s of students) {
+    for (const code of ["CS-301", "CS-302", "CS-305", "CS-401", "CS-402", "SE-310"]) {
+      const cls = activeByCode.get(code);
+      if (!cls) continue;
+      await prisma.enrollment.upsert({
+        where: { studentId_classId: { studentId: s.id, classId: cls.id } },
+        update: { status: "ACTIVE" },
+        create: { studentId: s.id, classId: cls.id, status: "ACTIVE" },
+      });
+    }
+  }
+
+  // … and archived Spring 2026 classes with published results (for the CGPA).
+  const archivedDefs: [string, string, number][] = [
+    ["CS-501", "Artificial Intelligence", 4],
+    ["CS-502", "Web Technologies", 3],
+    ["CS-503", "Design & Analysis of Algorithms", 3],
+    ["CS-504", "HCI", 3],
+    ["CS-505", "Mobile App Development", 3],
+  ];
+  const archived: { id: string; credits: number }[] = [];
+  for (const [code, title, credits] of archivedDefs) {
+    let cls = await prisma.courseClass.findFirst({ where: { courseCode: code, section: "A", semester: "Spring 2026" } });
+    if (!cls) {
+      cls = await prisma.courseClass.create({
+        data: {
+          courseCode: code, title, section: "A", department: "CS", semester: "Spring 2026", credits,
+          facultyId: faculty.id,
+        },
+      });
+    }
+    archived.push({ id: cls.id, credits });
+  }
+  const seededScores = (i: number, salt: number) => {
+    const h = Math.abs(Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453) % 1;
+    return 66 + Math.round(h * 28); // 66–94 %
+  };
+  const seedRand = (i: number, salt: number) => Math.abs(Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453) % 1;
+  const gradeFor = (pct: number): [string, number] =>
+    pct >= 90 ? ["A+", 4.0] : pct >= 85 ? ["A", 3.75] : pct >= 80 ? ["B+", 3.5] : pct >= 75 ? ["B", 3.0] : pct >= 70 ? ["C+", 2.5] : pct >= 65 ? ["C", 2.0] : pct >= 50 ? ["D", 1.0] : ["F", 0.0];
+
+  for (let i = 0; i < students.length; i++) {
+    const s = students[i];
+    for (let j = 0; j < archived.length; j++) {
+      const cls = archived[j];
+      await prisma.enrollment.upsert({
+        where: { studentId_classId: { studentId: s.id, classId: cls.id } },
+        update: { status: "COMPLETED" },
+        create: { studentId: s.id, classId: cls.id, status: "COMPLETED" },
+      });
+      const pct = seededScores(i, j + 7);
+      const [grade, points] = gradeFor(pct);
+      await prisma.courseResult.upsert({
+        where: { studentId_classId: { studentId: s.id, classId: cls.id } },
+        update: { totalMarks: pct, grade, gradePoints: points },
+        create: {
+          studentId: s.id, classId: cls.id, totalMarks: pct, grade, gradePoints: points,
+          published: true, publishedAt: new Date("2026-07-15T00:00:00Z"), publishedById: fypHead.id,
+        },
+      });
+    }
+  }
+
+  // Attendance: the past six weeks on each class's slots (deterministic mix).
+  const dayOffset: Record<string, number> = { MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 };
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const dateFor = (day: string, weeksAgo: number) => {
+    const d = new Date(startOfToday);
+    const delta = (d.getDay() - dayOffset[day] + 7) % 7;
+    d.setDate(d.getDate() - delta - weeksAgo * 7);
+    return d;
+  };
+  let attendanceRows = 0;
+  for (let i = 0; i < students.length; i++) {
+    const s = students[i];
+    for (let j = 0; j < activeClasses.length; j++) {
+      const cls = activeClasses[j];
+      const slots = await prisma.timetableSlot.findMany({ where: { classId: cls.id } });
+      const rows: { studentId: string; classId: string; date: Date; status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED"; markedById: string | null }[] = [];
+      for (let w = 0; w < 6; w++) {
+        for (const slot of slots) {
+          const r = seedRand(i * 7 + w, j * 13 + slot.startMin);
+          const status = r > 0.93 ? "ABSENT" : r > 0.89 ? "LATE" : r > 0.87 ? "EXCUSED" : "PRESENT";
+          rows.push({ studentId: s.id, classId: cls.id, date: dateFor(slot.day, w), status, markedById: cls.facultyId });
+        }
+      }
+      if (rows.length) {
+        await prisma.attendanceRecord.createMany({ data: rows, skipDuplicates: true });
+        attendanceRows += rows.length;
+      }
+    }
+  }
+  console.log(`✓ attendance: ${attendanceRows} records across ${students.length} students`);
+
+  // Assessments + midterm scores for the active classes.
+  const assessmentPlan: { kind: "QUIZ" | "ASSIGNMENT" | "MIDTERM"; title: string; maxMarks: number }[] = [
+    { kind: "QUIZ", title: "Quiz 1", maxMarks: 10 },
+    { kind: "ASSIGNMENT", title: "Assignment 1", maxMarks: 20 },
+    { kind: "MIDTERM", title: "Midterm", maxMarks: 30 },
+  ];
+  let scoreRows = 0;
+  for (let j = 0; j < activeClasses.length; j++) {
+    const cls = activeClasses[j];
+    for (let k = 0; k < assessmentPlan.length; k++) {
+      const plan = assessmentPlan[k];
+      let assessment = await prisma.assessment.findFirst({ where: { classId: cls.id, title: plan.title } });
+      if (!assessment) {
+        assessment = await prisma.assessment.create({
+          data: {
+            classId: cls.id, kind: plan.kind, title: plan.title, maxMarks: plan.maxMarks,
+            date: new Date(startOfToday.getTime() - (k + 1) * 7 * 86400000),
+            createdById: cls.facultyId,
+          },
+        });
+      }
+      for (let i = 0; i < students.length; i++) {
+        const s = students[i];
+        const pct = seededScores(i, j + k * 5 + 21) / 100;
+        const marks = Math.max(0, Math.min(plan.maxMarks, Math.round(plan.maxMarks * pct)));
+        await prisma.score.upsert({
+          where: { assessmentId_studentId: { assessmentId: assessment.id, studentId: s.id } },
+          update: { marks, enteredById: cls.facultyId },
+          create: { assessmentId: assessment.id, studentId: s.id, marks, enteredById: cls.facultyId },
+        });
+        scoreRows++;
+      }
+    }
+  }
+  console.log(`✓ marks: ${scoreRows} scores across ${assessmentPlan.length} assessments/class`);
+
+  // Messages (inbox/sent demo) + audit trail.
+  const messageCount = await prisma.message.count();
+  if (messageCount === 0) {
+    await prisma.message.createMany({
+      data: [
+        { senderId: fypHead.id, recipientId: students[0].id, subject: "FYP-II checkpoint", body: "Your FYP-II application is under review — please upload the progress log before Friday.", readAt: null },
+        { senderId: students[0].id, recipientId: fypHead.id, subject: "Re: FYP-II checkpoint", body: "Noted sir — uploading the progress log today.", readAt: new Date() },
+        { senderId: faculty.id, recipientId: students[1].id, subject: "Midterm performance", body: "Good showing in the DSA midterm. Keep attending the lab sessions.", readAt: null },
+        { senderId: students[2].id, recipientId: coordinator?.id ?? admin.id, subject: "Elective registration", body: "Requesting permission to switch my elective to Cloud Computing.", readAt: null },
+      ],
+    });
+  }
+  const auditCount = await prisma.auditLog.count();
+  if (auditCount === 0) {
+    await prisma.auditLog.createMany({
+      data: [
+        { actorId: fypHead.id, action: "resource.allocate", entity: "ResourceRequest", summary: "RTX 3090 allocated for FYP-II training window", meta: { resource: "RTX 3090" } },
+        { actorId: faculty.id, action: "marks.enter", entity: "Assessment", summary: "Midterm marks entered for CS-301", meta: { class: "CS-301" } },
+        { actorId: admin.id, action: "user.provision", entity: "User", summary: "Demo fleet provisioned (10 students, 3 faculty)", meta: { students: 10 } },
+      ],
+    });
+  }
+
+  // A welcome notification for every student in the fleet.
+  for (const s of students) {
+    const n = await prisma.notification.count({ where: { userId: s.id } });
+    if (n === 0) {
+      await prisma.notification.create({
+        data: {
+          userId: s.id, type: "ANNOUNCEMENT", title: "Welcome to UniSphere",
+          body: "Your timetable, attendance, marks and requests are all in one place. Explore your dashboard to get started.",
+          link: "/dashboard",
+        },
+      });
+    }
+  }
+
   console.log("✓ sample complaints / FYP / resource / mentorship flows");
   console.log("── seed complete ──────────────────────────────");
   console.log("Demo logins (one per role):");
-  console.log("  student@shu.edu.pk · faculty@shu.edu.pk · coordinator@shu.edu.pk");
-  console.log("  fyphead@shu.edu.pk · mentor@shu.edu.pk");
+  console.log("  student@shu.edu.pk (STU001) · faculty@shu.edu.pk · coordinator@shu.edu.pk");
+  console.log("  fyphead@shu.edu.pk · mentor@shu.edu.pk · admin@shu.edu.pk");
+  console.log("  + students student2..10@shu.edu.pk · faculty2/3@shu.edu.pk · saadia.karim@shu.edu.pk");
 }
 
 main()

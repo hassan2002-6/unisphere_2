@@ -681,3 +681,54 @@ captures there.
 
 **No DB/API changes.** Every server action, query, RBAC guard and route is untouched — this was a
 markup/UX pass only.
+
+---
+
+## Appendix H — FYP-II feature build (2026-10-08)
+
+The FYP-II requirements document (spec §5–§19) added a second feature wave on top of M1–M6.
+Everything below is implemented against the live database and covered by tests.
+
+**Theme.** `setup2.html` is the authoritative design: the shipped theme now uses the crimson
+`#c8102e` primary in `globals.css` (light + dark token sets), with the sidebar app shell, stat-card
+grid and clash-highlighted tables from that prototype. No stray blue/violet utilities remain
+(grepped).
+
+**Schema (migration `20261008120000_fyp2_attendance_marks_messages_audit_clashreports`).**
+`Role` + `ADMIN`; `NotificationType` + `MESSAGE`, `CLASH`; new models `AttendanceRecord`,
+`Assessment` (quiz/assignment/midterm/final/project with `maxMarks`), `Score` (per-student marks),
+`Message`, `AuditLog`, `ClashReport`; `CourseClass` gains `enrollments`; `User` gains the message /
+clash / result relations. Applied with `prisma migrate diff` + hand-authored SQL +
+`migrate resolve --applied` (the non-interactive shell cannot use `migrate dev`); helper:
+`packages/db/scripts/new-migration.sh`.
+
+**Services.** `server/services/attendance.ts` (student summary, class session, roster marking with
+per-day upsert), `marks.ts` (assessment CRUD, score entry, publish → `CourseResult` + GPA/CGPA
+helpers), `students.ts` (registration/name/course search + permitted academic profile, view
+audited), `messages.ts` (recipient scoping per role, inbox/sent, read state, notification),
+`audit.ts` (best-effort writer + reader), `clash-reports.ts` (student report → coordinator/admin
+`CLASH` notification → resolution with the reporter notified).
+
+**Routes.** Student: `/attendance`, `/marks`, `/clashes`. Faculty: `/faculty/attendance(+[classId])`,
+`/faculty/marks(+[classId])`, `/faculty/students(+[id])`. Coordinator: `/coordinator/students(+[id])`
+and the student-reported-clash queue on `/coordinator/clashes`. All roles: `/messages`.
+Admin: `/admin/users` (role changes, audited + notified), `/admin/audit`.
+
+**Authorisation.** The RBAC matrix (`lib/rbac.ts`) gained `attendance.manage`, `marks.manage`,
+`students.search`, `messages.send`, `audit.view`, `users.manage`, `clashes.manage`; the matrix is
+asserted role-by-role in `tests/rbac.test.ts` + `tests/security.test.ts` (now 358 tests). Services
+re-check permission themselves (`can(user.role, …)`, class ownership) so a bypassed action cannot
+escalate.
+
+**Demo fleet.** Seed now creates 10 students (STU001–STU010), 3 faculty + co-supervisor
+(saadia.karim@), coordinator, FYP head, mentor, **admin**, with enrolments, 540 attendance
+records, 180 assessment scores, messages and audit entries. `link-clerk-users.ts` links all 18
+Clerk users to one documented password (`UniSphere#Demo2026`, see README).
+
+**Verification.** `bun run scripts/test-workflows.ts` (from `apps/web`) drives the spec's
+end-to-end workflows against the live DB — clash report → queue → resolution notifications,
+attendance marking → student view, assessment → scores → publish → student GPA + notification,
+messaging round-trip, role change + audit, student search/profile, audit completeness, and
+permission denials at the service boundary — **38/38 checks pass**, cleaning up everything it
+creates. Two real bugs were found and fixed by that run: CGPA now counts current-semester results
+once published, and the audit action name for publishing is asserted as `results.publish`.

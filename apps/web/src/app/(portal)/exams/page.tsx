@@ -1,10 +1,12 @@
-import { AlertTriangle, CalendarClock } from "lucide-react";
+import { AlertTriangle, CalendarClock, Flag } from "lucide-react";
+import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getScheduleData, minToLabel } from "@/server/services/schedule";
 import { ClashBadge } from "@/components/clash-badge";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -70,6 +72,16 @@ export default async function ExamsPage() {
         icon={CalendarClock}
         title="Exam Schedule"
         description={`Final examination dates for ${scope}, ordered by date. Clash flags resolve from the live timetable.`}
+        actions={
+          user.role === "STUDENT" ? (
+            <Button asChild variant="ghost" size="sm">
+              <Link href="/clashes">
+                <Flag className="h-4 w-4" />
+                Report a clash
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
 
       {examRows.length > 0 ? (

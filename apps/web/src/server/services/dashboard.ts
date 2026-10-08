@@ -11,6 +11,7 @@ import {
   GraduationCap,
   LayoutDashboard,
   MessageSquareWarning,
+  ScrollText,
   Sparkles,
   Users,
 } from "lucide-react";
@@ -111,7 +112,173 @@ export async function getDashboard(user: User): Promise<DashboardData> {
       return fypHeadDashboard();
     case "MENTOR":
       return mentorDashboard(user);
+    case "ADMIN":
+      return adminDashboard();
   }
+}
+
+/**
+ * System administrator view — the whole portal at a glance plus the queues
+ * every office works from, and the most recent audit activity.
+ */
+async function adminDashboard(): Promise<DashboardData> {
+  const [
+    userCount,
+    studentCount,
+    facultyCount,
+    openComplaints,
+    pendingSubmissions,
+    pendingFyp,
+    pendingResources,
+    activeAllocations,
+    recentAudit,
+  ] = await Promise.all([
+    prisma.user.count(),
+    prisma.user.count({ where: { role: "STUDENT" } }),
+    prisma.user.count({ where: { role: "FACULTY" } }),
+    prisma.complaint.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }),
+    prisma.formSubmission.findMany({
+      where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
+      include: { template: { select: { title: true } }, submittedBy: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 4,
+    }),
+    prisma.fypApplication.findMany({
+      where: { status: "PENDING" },
+      include: { applicant: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+    }),
+    prisma.resourceRequest.findMany({
+      where: { status: { in: ["PENDING", "RECOMMENDED"] } },
+      include: { applicant: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 3,
+    }),
+    prisma.allocation.count({ where: { status: "ACTIVE" } }),
+    prisma.auditLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { actor: { select: { name: true } } },
+    }),
+  ]);
+
+  const stats: DashboardStat[] = [
+    {
+      label: "Portal users",
+      value: userCount,
+      hint: `${studentCount} students · ${facultyCount} faculty`,
+      icon: Users,
+      tone: "primary",
+      href: "/admin/users",
+    },
+    {
+      label: "Queues to clear",
+      value: pendingSubmissions.length + pendingFyp.length + pendingResources.length,
+      hint: "Forms, FYP and resource requests",
+      icon: ClipboardCheck,
+      tone: "warning",
+      href: "/admin/requests",
+    },
+    {
+      label: "Open complaints",
+      value: openComplaints,
+      hint: openComplaints ? "Awaiting first response" : "All clear",
+      icon: MessageSquareWarning,
+      tone: openComplaints ? "danger" : "default",
+      href: "/coordinator/complaints",
+    },
+    {
+      label: "Active allocations",
+      value: activeAllocations,
+      hint: "GPU / lab resources in use",
+      icon: Cpu,
+      tone: "info",
+      href: "/admin/allocations",
+    },
+  ];
+
+  const panels: DashboardPanel[] = [
+    {
+      title: "Pending approvals",
+      icon: ClipboardCheck,
+      href: "/reviews",
+      hrefLabel: "Review queue",
+      emptyText: "No form submissions are waiting for a decision.",
+      items: pendingSubmissions.map((s) => ({
+        id: s.id,
+        title: s.template.title,
+        subtitle: `${s.submittedBy.name} · ${fmtDate(s.createdAt)}`,
+        status: s.status,
+        href: `/submissions/${s.id}`,
+      })),
+    },
+    {
+      title: "FYP applications",
+      icon: BookOpen,
+      href: "/admin/fyp",
+      hrefLabel: "All applications",
+      emptyText: "No FYP applications are pending review.",
+      items: pendingFyp.map((f) => ({
+        id: f.id,
+        title: f.title,
+        subtitle: `${f.applicant.name} · ${fmtDate(f.createdAt)}`,
+        status: f.status,
+        href: "/admin/fyp",
+      })),
+    },
+    {
+      title: "Resource requests",
+      icon: Cpu,
+      href: "/admin/requests",
+      hrefLabel: "All requests",
+      emptyText: "No GPU / lab requests are pending.",
+      items: pendingResources.map((r) => ({
+        id: r.id,
+        title: `${r.resourceType} — ${r.projectName}`,
+        subtitle: `${r.applicant.name} · ${fmtDate(r.createdAt)}`,
+        status: r.status,
+        href: "/admin/requests",
+      })),
+    },
+    {
+      title: "Open complaints",
+      icon: MessageSquareWarning,
+      href: "/coordinator/complaints",
+      hrefLabel: "Complaint desk",
+      emptyText: "No complaints need attention.",
+      items: (
+        await prisma.complaint.findMany({
+          where: { status: { in: ["OPEN", "IN_REVIEW"] } },
+          orderBy: { createdAt: "desc" },
+          take: 3,
+          include: { submittedBy: { select: { name: true } } },
+        })
+      ).map((c) => ({
+        id: c.id,
+        title: c.subject,
+        subtitle: `${c.submittedBy.name} · ${c.category}`,
+        status: c.status,
+        href: `/complaints/${c.id}`,
+      })),
+    },
+    {
+      title: "Recent activity",
+      icon: ScrollText,
+      href: "/admin/audit",
+      hrefLabel: "Audit log",
+      emptyText: "No audited actions yet.",
+      items: recentAudit.map((a) => ({
+        id: a.id,
+        title: a.summary ?? a.action,
+        subtitle: `${a.actor?.name ?? "System"} · ${fmtDateTime(a.createdAt)}`,
+        meta: a.entity,
+        href: "/admin/audit",
+      })),
+    },
+  ];
+
+  return { stats, panels };
 }
 
 async function studentDashboard(user: User, day: string): Promise<DashboardData> {

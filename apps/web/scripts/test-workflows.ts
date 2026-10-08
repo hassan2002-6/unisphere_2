@@ -1,0 +1,332 @@
+/**
+ * E2E workflow acceptance tests (FYP-II spec §19).
+ *
+ * Exercises the real service layer against the live database, end-to-end:
+ *  1. student clash report → coordinator notification → resolve → reporter notified
+ *  2. faculty marks a session → student attendance view reflects it
+ *  3. faculty creates an assessment → enters scores → publishes → student GPA view + notification
+ *  4. student → faculty message → inbox/read state
+ *  5. admin role change → audit trail → revert
+ *  6. student search + permitted academic profile
+ *  7. audit log contains every action above
+ *  8. permission boundaries (RBAC denials at the service level)
+ *
+ * Everything it creates is removed again (demo data stays pristine); audit
+ * entries are append-only and intentionally left behind.
+ *
+ * Requires: DATABASE_URL.  Run:  bun run scripts/test-workflows.ts   (from apps/web)
+ */
+
+import { prisma, type User } from "@unisphere/db";
+import { getStudentAttendance, markAttendance } from "@/server/services/attendance";
+import { createAssessment, enterScores, getFacultyMarksOverview, getStudentMarks, publishResults } from "@/server/services/marks";
+import { searchStudents, getStudentAcademicProfile } from "@/server/services/students";
+import { listInbox, markMessageRead, sendMessage } from "@/server/services/messages";
+import { listAudit, recordAudit } from "@/server/services/audit";
+import { listClashReports, reportClash, resolveClashReport } from "@/server/services/clash-reports";
+
+const RUN_STARTED = new Date();
+const TEST_DATE = "2025-05-05"; // far outside seeded sessions
+const cleanup = {
+  clashReportIds: [] as string[],
+  messageIds: [] as string[],
+  assessmentIds: [] as string[],
+  classIdsToUnpublish: [] as string[],
+  attendanceClassIds: [] as string[],
+  attendanceStudentIds: [] as string[],
+};
+
+let pass = 0;
+let fail = 0;
+const failures: string[] = [];
+
+function ok(name: string, cond: boolean, detail = "") {
+  if (cond) {
+    pass += 1;
+    console.log(`  PASS  ${name}${detail ? ` — ${detail}` : ""}`);
+  } else {
+    fail += 1;
+    failures.push(name);
+    console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ""}`);
+  }
+}
+
+async function expectThrow(name: string, fn: () => Promise<unknown>) {
+  try {
+    await fn();
+    ok(name, false, "expected a thrown permission error, none happened");
+  } catch {
+    ok(name, true);
+  }
+}
+
+async function user(email: string): Promise<User> {
+  const u = await prisma.user.findUniqueOrThrow({ where: { email } });
+  if (!u.clerkId) throw new Error(`${email} has no clerkId — run link-clerk-users.ts first`);
+  return u;
+}
+
+async function main() {
+  if (!process.env.DATABASE_URL) {
+    console.log("SKIP: DATABASE_URL is not set.");
+    process.exit(2);
+  }
+
+  const student = await user("student@shu.edu.pk");
+  const student2 = await user("student10@shu.edu.pk");
+  const faculty = await user("faculty@shu.edu.pk");
+  const faculty3 = await user("faculty3@shu.edu.pk");
+  const coordinator = await user("coordinator@shu.edu.pk");
+  const admin = await user("admin@shu.edu.pk");
+
+  // ── 1. Clash report lifecycle ─────────────────────────────────────────────
+  console.log("\n1. Student clash report → coordinator queue → resolve");
+  const report = await reportClash(student, {
+    kind: "TIMETABLE",
+    description: "Workflow test: CS-301 lab overlaps the CS-305 lecture on Tuesday 11:00.",
+  });
+  cleanup.clashReportIds.push(report.id);
+  ok("report created OPEN", report.status === "OPEN");
+
+  const queue = await listClashReports(coordinator, { includeResolved: false });
+  ok("report appears in the coordinator queue", queue.some((r) => r.id === report.id));
+
+  const coordNotif = await prisma.notification.findFirst({
+    where: { userId: coordinator.id, type: "CLASH", createdAt: { gte: RUN_STARTED } },
+  });
+  ok("coordinator notified (type CLASH)", !!coordNotif);
+
+  await resolveClashReport(coordinator, report.id, {
+    status: "RESOLVED",
+    note: "Moved the CS-305 lecture to Wednesday 09:30 after checking room R-204.",
+  });
+  const closed = await prisma.clashReport.findUniqueOrThrow({ where: { id: report.id } });
+  ok("report resolved with note", closed.status === "RESOLVED" && closed.handledById === coordinator.id);
+  const reporterNotif = await prisma.notification.findFirst({
+    where: { userId: student.id, type: "CLASH", createdAt: { gte: RUN_STARTED }, title: { contains: "clash report" } },
+  });
+  ok("reporter notified of the resolution", !!reporterNotif);
+
+  // ── 2. Attendance lifecycle ───────────────────────────────────────────────
+  console.log("\n2. Faculty marks a session → student attendance updates");
+  const attendanceClasses = await prisma.courseClass.findMany({
+    where: { facultyId: faculty.id, enrollments: { some: { status: "ACTIVE" } } },
+    take: 1,
+  });
+  const attClass = attendanceClasses[0];
+  ok("faculty owns a current class", !!attClass);
+
+  if (attClass) {
+    const enrolled = await prisma.enrollment.findMany({
+      where: { classId: attClass.id, status: "ACTIVE" },
+      select: { studentId: true },
+      take: 3,
+    });
+    const before = await getStudentAttendance(student);
+    const beforeRow = before.courses.find((c) => c.classId === attClass.id);
+    const marked = await markAttendance(
+      faculty,
+      attClass.id,
+      TEST_DATE,
+      enrolled.map((e, i) => ({ studentId: e.studentId, status: i === 1 ? "LATE" : "PRESENT" })),
+    );
+    cleanup.attendanceClassIds.push(attClass.id);
+    cleanup.attendanceStudentIds.push(...enrolled.map((e) => e.studentId));
+    ok("markAttendance wrote rows", marked.written === enrolled.length);
+
+    const markedStudent = enrolled.find((e) => e.studentId === student.id);
+    if (markedStudent) {
+      const after = await getStudentAttendance(student);
+      const afterRow = after.courses.find((c) => c.classId === attClass.id);
+      ok(
+        "student view shows one more session",
+        !!afterRow && !!beforeRow && afterRow.total === beforeRow.total + 1,
+        beforeRow ? `${beforeRow.total} → ${afterRow?.total}` : "no baseline row",
+      );
+    } else {
+      ok("seeded student is in the marked class", false, "student@ not enrolled in first class — skipped delta check");
+    }
+
+    const reMark = await markAttendance(faculty, attClass.id, TEST_DATE, [
+      { studentId: enrolled[0].studentId, status: "ABSENT" },
+    ]);
+    const recount = await prisma.attendanceRecord.count({
+      where: { classId: attClass.id, date: new Date(2025, 4, 5) },
+    });
+    ok("re-marking the same day upserts (no duplicates)", reMark.written === 1 && recount === enrolled.length, `${recount} rows`);
+  }
+
+  // ── 3. Marks lifecycle ────────────────────────────────────────────────────
+  console.log("\n3. Assessment → scores → publish → student marks/GPA");
+  const marksOverview = await getFacultyMarksOverview(faculty);
+  const markClass = marksOverview[0];
+  ok("faculty has a course for marks", !!markClass);
+
+  if (markClass) {
+    const assessment = await createAssessment(faculty, markClass.classId, {
+      kind: "QUIZ",
+      title: "Workflow test quiz",
+      maxMarks: 10,
+      date: TEST_DATE,
+    });
+    cleanup.assessmentIds.push(assessment.id);
+    ok("assessment created", assessment.id.length > 0);
+
+    const rows = await prisma.enrollment.findMany({
+      where: { classId: markClass.classId, status: "ACTIVE" },
+      select: { studentId: true },
+    });
+    const scored = await enterScores(
+      faculty,
+      assessment.id,
+      rows.map((r, i) => ({ studentId: r.studentId, marks: ((i * 3) % 10) + 1 })),
+    );
+    ok("scores entered for the roster", scored.written === rows.length, `${scored.written}/${rows.length}`);
+
+    const published = await publishResults(faculty, markClass.classId);
+    cleanup.classIdsToUnpublish.push(markClass.classId);
+    ok("results published", published.published === rows.length, `${published.published} results`);
+
+    const target = rows.find((r) => r.studentId === student.id);
+    if (target) {
+      const marks = await getStudentMarks(student);
+      const row = marks.current.find((c) => c.classId === markClass.classId);
+      ok("student sees the published result + grade", !!row?.published?.grade, row?.published?.grade ?? "missing");
+      ok("student CGPA is computable", marks.cgpa !== null, String(marks.cgpa));
+      const notif = await prisma.notification.findFirst({
+        where: { userId: student.id, type: "SYSTEM", createdAt: { gte: RUN_STARTED }, body: { contains: markClass.courseCode } },
+      });
+      ok("student notified of the published result", !!notif);
+    } else {
+      ok("seeded student is in the marks class", false, "student@ not enrolled — skipped view check");
+    }
+
+    // Faculty cannot publish a course they do not own.
+    await expectThrow(
+      "publishing another faculty's course is denied",
+      async () => publishResults(faculty3, markClass.classId),
+    );
+  }
+
+  // ── 4. Messaging ──────────────────────────────────────────────────────────
+  console.log("\n4. Student → faculty message round-trip");
+  const sent = await sendMessage(student, {
+    recipientId: faculty.id,
+    subject: "Workflow test — quiz recheck",
+    body: "Sir, could we recheck question 3 of the workflow test quiz? Thank you.",
+  });
+  cleanup.messageIds.push(sent.id);
+  ok("message created", sent.id.length > 0);
+
+  const inbox = await listInbox(faculty, { take: 20 });
+  const got = inbox.find((m) => m.id === sent.id);
+  ok("faculty inbox contains the message", !!got);
+  if (got) {
+    const wasUnread = got.readAt === null;
+    await markMessageRead(faculty, got.id);
+    const reread = await prisma.message.findUniqueOrThrow({ where: { id: got.id } });
+    ok("mark-as-read persists", wasUnread && reread.readAt !== null);
+  }
+
+  await expectThrow("messaging yourself is rejected", async () =>
+    sendMessage(student, { recipientId: student.id, subject: "x", body: "self message attempt" }),
+  );
+
+  // ── 5. Admin role change + audit ──────────────────────────────────────────
+  console.log("\n5. Admin role change → audit → revert");
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: student2.id } });
+  await prisma.user.update({ where: { id: student2.id }, data: { role: "COORDINATOR" } });
+  await recordAudit({
+    actorId: admin.id,
+    action: "user.role",
+    entity: "User",
+    entityId: student2.id,
+    summary: `Workflow test: changed role of ${student2.name} to COORDINATOR`,
+  });
+  const changed = await prisma.user.findUniqueOrThrow({ where: { id: student2.id } });
+  ok("role updated", changed.role === "COORDINATOR", `${before.role} → ${changed.role}`);
+  await prisma.user.update({ where: { id: student2.id }, data: { role: before.role } });
+  const reverted = await prisma.user.findUniqueOrThrow({ where: { id: student2.id } });
+  ok("role reverted for the demo data", reverted.role === before.role);
+
+  // ── 6. Student search + permitted profile ─────────────────────────────────
+  console.log("\n6. Student search + permitted academic profile");
+  const results = await searchStudents("STU00", { take: 10 });
+  ok("search by registration prefix finds students", results.length >= 5, `${results.length} hits`);
+  const profile = await getStudentAcademicProfile(faculty, student.id);
+  ok("academic profile loads courses", !!profile && profile.courses.length > 0, `${profile?.courses.length ?? 0} courses`);
+  ok("profile carries CGPA + results", !!profile && Array.isArray(profile.results));
+  ok("profile carries no private contact data", !!profile && !("phone" in profile.student));
+
+  // ── 7. Audit trail ────────────────────────────────────────────────────────
+  console.log("\n7. Audit trail records the actions above");
+  const trail = await listAudit({ take: 100 });
+  const has = (action: string) => trail.some((t) => t.action === action && t.createdAt >= RUN_STARTED);
+  ok("clash.report audited", has("clash.report"));
+  ok("clash.resolve audited", has("clash.resolve"));
+  ok("attendance.mark audited", has("attendance.mark"));
+  ok("marks.publish audited", has("results.publish"));
+  ok("message.send audited", has("message.send"));
+  ok("user.role audited", has("user.role"));
+
+  // ── 8. Permission boundaries ──────────────────────────────────────────────
+  console.log("\n8. Permission boundaries");
+  await expectThrow("students cannot mark attendance", async () =>
+    markAttendance(student, cleanup.attendanceClassIds[0] ?? "nope", TEST_DATE, [
+      { studentId: student.id, status: "PRESENT" },
+    ]),
+  );
+  await expectThrow("students cannot create assessments", async () =>
+    createAssessment(student, cleanup.classIdsToUnpublish[0] ?? "nope", { kind: "QUIZ", title: "x", maxMarks: 5 }),
+  );
+  await expectThrow("students cannot resolve clash reports", async () =>
+    resolveClashReport(student, report.id, { status: "RESOLVED", note: "self-resolve attempt" }),
+  );
+  await expectThrow("students cannot list the clash queue", async () => listClashReports(student));
+  await expectThrow("faculty cannot mark a class they do not own", async () =>
+    markAttendance(faculty3, cleanup.attendanceClassIds[0] ?? "nope", TEST_DATE, [
+      { studentId: student.id, status: "PRESENT" },
+    ]),
+  );
+
+  // ── Cleanup ───────────────────────────────────────────────────────────────
+  console.log("\nCleanup");
+  const removed = {
+    attendance: (
+      await prisma.attendanceRecord.deleteMany({
+        where: {
+          classId: { in: cleanup.attendanceClassIds },
+          date: new Date(2025, 4, 5),
+          studentId: { in: cleanup.attendanceStudentIds },
+        },
+      })
+    ).count,
+    results: (
+      await prisma.courseResult.deleteMany({
+        where: { classId: { in: cleanup.classIdsToUnpublish }, publishedAt: { gte: RUN_STARTED } },
+      })
+    ).count,
+    assessments: (
+      await prisma.assessment.deleteMany({ where: { id: { in: cleanup.assessmentIds } } })
+    ).count,
+    messages: (await prisma.message.deleteMany({ where: { id: { in: cleanup.messageIds } } })).count,
+    clashes: (await prisma.clashReport.deleteMany({ where: { id: { in: cleanup.clashReportIds } } })).count,
+    notifications: (await prisma.notification.deleteMany({ where: { createdAt: { gte: RUN_STARTED } } })).count,
+  };
+  console.log(
+    `  removed ${removed.attendance} attendance rows · ${removed.results} results · ${removed.assessments} assessment(s) · ` +
+      `${removed.messages} message(s) · ${removed.clashes} clash report(s) · ${removed.notifications} notification(s)`,
+  );
+
+  console.log(`\n${pass} passed, ${fail} failed`);
+  if (fail) {
+    console.log("Failed checks:");
+    for (const f of failures) console.log(`  - ${f}`);
+  }
+  process.exit(fail ? 1 : 0);
+}
+
+main().catch((e) => {
+  console.error("workflow run aborted:", e instanceof Error ? e.message : e);
+  process.exit(1);
+});

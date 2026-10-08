@@ -8,7 +8,7 @@ import { NAV_BY_ROLE } from "@/lib/nav";
  * server-side matrix so a regression fails CI.
  */
 
-const ALL_ROLES: Role[] = ["STUDENT", "FACULTY", "COORDINATOR", "FYP_HEAD", "MENTOR"];
+const ALL_ROLES: Role[] = ["STUDENT", "FACULTY", "COORDINATOR", "FYP_HEAD", "MENTOR", "ADMIN"];
 
 const EXPECTED: Record<Role, Capability[]> = {
   STUDENT: [
@@ -19,9 +19,31 @@ const EXPECTED: Record<Role, Capability[]> = {
     "internships.apply",
     "mentorship.request",
     "chat.use",
+    "messages.send",
   ],
-  FACULTY: ["forms.submit", "forms.review", "complaints.manage"],
-  COORDINATOR: ["forms.submit", "forms.review", "complaints.manage", "internships.post", "broadcast", "clashes.view"],
+  FACULTY: [
+    "forms.submit",
+    "forms.review",
+    "complaints.manage",
+    "attendance.manage",
+    "marks.manage",
+    "students.search",
+    "messages.send",
+    "reports.view",
+  ],
+  COORDINATOR: [
+    "forms.submit",
+    "forms.review",
+    "complaints.manage",
+    "internships.post",
+    "broadcast",
+    "clashes.view",
+    "clashes.manage",
+    "students.search",
+    "messages.send",
+    "reports.view",
+    "audit.view",
+  ],
   FYP_HEAD: [
     "forms.review",
     "fyp.decide",
@@ -31,8 +53,31 @@ const EXPECTED: Record<Role, Capability[]> = {
     "mentors.approve",
     "broadcast",
     "reports.view",
+    "students.search",
+    "messages.send",
+    "audit.view",
   ],
-  MENTOR: ["mentor.serve"],
+  MENTOR: ["mentor.serve", "messages.send"],
+  ADMIN: [
+    "forms.submit",
+    "forms.review",
+    "complaints.manage",
+    "fyp.decide",
+    "resources.manage",
+    "inventory.manage",
+    "internships.post",
+    "mentors.approve",
+    "broadcast",
+    "reports.view",
+    "clashes.view",
+    "clashes.manage",
+    "attendance.manage",
+    "marks.manage",
+    "students.search",
+    "messages.send",
+    "audit.view",
+    "users.manage",
+  ],
 };
 
 const ALL_CAPS: Capability[] = [
@@ -54,6 +99,13 @@ const ALL_CAPS: Capability[] = [
   "reports.view",
   "mentor.serve",
   "clashes.view",
+  "clashes.manage",
+  "attendance.manage",
+  "marks.manage",
+  "students.search",
+  "messages.send",
+  "audit.view",
+  "users.manage",
 ];
 
 describe("RBAC matrix (§8.1)", () => {

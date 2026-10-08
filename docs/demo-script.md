@@ -1,16 +1,19 @@
 # UniSphere — defence demo script (~12 minutes)
 
-Five seeded demo accounts (passwords set in Clerk by `link-clerk-users.ts` — see DEMO_USERS there):
+18 seeded demo personas — one password for all: **`UniSphere#Demo2026`** (set in Clerk by
+`link-clerk-users.ts`; students are STU001–STU010 in `student@` … `student10@shu.edu.pk`):
 
-| Role       | Email (demo)              | Lands on                |
-| ---------- | ------------------------- | ----------------------- |
-| Student    | student@shu.edu.pk        | Dashboard (student)     |
-| Faculty    | faculty@shu.edu.pk        | Dashboard (faculty)     |
-| Coordinator| coordinator@shu.edu.pk    | Dashboard (coordinator) |
-| FYP Head   | fyphead@shu.edu.pk        | Dashboard (FYP head)    |
-| Mentor     | mentor@shu.edu.pk         | Mentor console          |
+| Role        | Email (demo)                                     | Lands on                |
+| ----------- | ------------------------------------------------ | ----------------------- |
+| Student     | student@shu.edu.pk (+ student2…student10@)        | Dashboard (student)     |
+| Faculty     | faculty@shu.edu.pk (+ faculty2@, faculty3@, saadia.karim@) | Dashboard (faculty) |
+| Coordinator | coordinator@shu.edu.pk                            | Dashboard (coordinator) |
+| FYP Head    | fyphead@shu.edu.pk                                | Dashboard (FYP head)    |
+| Mentor      | mentor@shu.edu.pk                                 | Mentor console          |
+| Admin       | admin@shu.edu.pk                                  | Dashboard (admin)       |
 
-> Always start signed in as **student@shu.edu.pk**. Switch roles from the Clerk user menu.
+> Every role signs in through the same **/sign-in** page. Start as **student@shu.edu.pk**.
+> Switch roles from the Clerk user menu (or a private window for a second persona at once).
 
 ## 1. Landing & auth (0:00–0:45)
 
@@ -28,6 +31,26 @@ Five seeded demo accounts (passwords set in Clerk by `link-clerk-users.ts` — s
   they burn a semester."*
 - Sign in as coordinator → `/coordinator/clashes`: acknowledge/resolve a clash; the student
   side updates because it's one source of truth.
+- As a student, `/clashes` → *Report a clash* (timetable or exam) → coordinators get a CLASH
+  notification instantly; the report appears in their queue with a resolution note.
+
+## 2b. Attendance, marks & GPA (2:45–3:30) — new in FYP-II
+
+- Student `/attendance`: per-course sessions with present/late/absent/excused, 75% warnings, and
+  the recent-session log. Say: *"Attendance is captured by faculty, not by a separate register."*
+- Student `/marks`: midterm marks per assessment with class averages, projected grade, published
+  results, semester GPA and CGPA.
+- Faculty `/faculty/attendance` → pick a class/date → mark the roster in one screen.
+- Faculty `/faculty/marks` → enter scores, add an assessment, then **Publish results** → students
+  get a notification, results feed GPA.
+
+## 2c. Messaging, search, admin (3:30–4:00)
+
+- `/messages` (any role): compose to the people you are allowed to reach; unread badge in the
+  sidebar bell/menu.
+- Faculty `/faculty/students`: search by name/reg-no/course → permitted academic profile
+  (attendance, midterm, results, CGPA) — the view is audited.
+- Admin `/admin/users` + `/admin/audit`: roles and the action trail (everything above is logged).
 
 ## 3. Forms centre (2:45–4:30)
 
@@ -77,14 +100,17 @@ Five seeded demo accounts (passwords set in Clerk by `link-clerk-users.ts` — s
 
 - `/admin/broadcast`: send an announcement → bell badge increments for the recipient role.
 - `/admin/reports`: operational counts + CSV export (`/api/reports/summary?format=csv`).
-- Wrap: *"38 routes, 26 models, 235 automated tests including an RBAC/guard suite that fails the
-  build if a page skips authorization."*
+- `/admin/audit`: every important action (role change, marks published, clash resolved…) is in the
+  audit trail; `/admin/users` shows the 18 personas and lets an admin adjust a role.
+- Wrap: *"45 portal routes, 35 models, 358 automated tests including an RBAC/guard suite that fails
+  the build if a page skips authorization."*
 
 ## Rehearsal checklist
 
 - [ ] `bun run test` green; `bun run build` green; production deploy current
 - [ ] Demo data pristine (`bun run seed` is idempotent — safe to re-run)
-- [ ] All five demo accounts can sign in (Clerk test-mode OTP or password set)
+- [ ] Demo accounts can sign in — 18 personas, one password `UniSphere#Demo2026`
+      (re-link with `bun run scripts/link-clerk-users.ts` if Clerk was reset)
 - [ ] AI key present **or** the offline-fallback notice pre-explained
 - [ ] Offline kit ready (docs/offline-demo.md) — laptop hotspot + local Postgres
 - [ ] Screenshots fallback exported (`docs/demo/screenshots/` — `01-landing.png`,
