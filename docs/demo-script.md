@@ -115,5 +115,5 @@
 - [ ] Offline kit ready (docs/offline-demo.md) — laptop hotspot + local Postgres
 - [ ] Screenshots fallback exported (`docs/demo/screenshots/` — `01-landing.png`,
       `01-landing-mobile.png`, `02-sign-in.png` recap the 2026-10 design refresh, and
-      `docs/demo/screenshots/app/` holds 34 authenticated full-page captures across all five
-      personas: `student-*`, `coordinator-*`, `faculty-*`, `fyphead-*`, `mentor-*`)
+      `docs/demo/screenshots/app/` holds 54 authenticated full-page captures across all six
+      personas: `student-*`, `coordinator-*`, `faculty-*`, `fyphead-*`, `mentor-*`, `admin-*`)
