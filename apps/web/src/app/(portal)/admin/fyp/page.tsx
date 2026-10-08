@@ -144,6 +144,12 @@ export default async function AdminFypPage() {
                       <span className="text-muted-foreground">· {a.applicant.name} · {a.groupName}</span>
                     </p>
                     {a.remarks ? <p className="text-xs text-muted-foreground">Remarks: {a.remarks}</p> : null}
+                    {a.supervisor ? (
+                      <p className="text-xs text-muted-foreground">
+                        Supervisor: <span className="font-medium text-foreground">{a.supervisor.name}</span>
+                        {a.supervisor.employeeId ? ` · ${a.supervisor.employeeId}` : ""}
+                      </p>
+                    ) : null}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {a.decidedBy ? <Badge variant="outline">by {a.decidedBy.name}</Badge> : null}

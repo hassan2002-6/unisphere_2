@@ -732,3 +732,48 @@ messaging round-trip, role change + audit, student search/profile, audit complet
 permission denials at the service boundary — **38/38 checks pass**, cleaning up everything it
 creates. Two real bugs were found and fixed by that run: CGPA now counts current-semester results
 once published, and the audit action name for publishing is asserted as `results.publish`.
+
+---
+
+## Appendix I — Realism wave: identities, coordinator changes, FYP Head desk (2026-10-09)
+
+**Trigger.** *"make this platform more realistic … student have their proper student id and
+course coordinate also have their id and portal where he can change the changes and fyp head get
+their id and portal too where he/she receive request."*
+
+**Identity.** Every account now carries its university ID end-to-end: students use registration
+numbers (`23-0001`…`23-0010`), staff use employee IDs (`EMP-101/102/103/104` faculty, `EMP-201`
+coordinator, `EMP-301` FYP Head, `EMP-001` admin), alumni mentors use `ALU-501`… IDs are seeded
+(and re-seeding now repairs stale ones — `upsertUser` updates `registrationNo`/`employeeId`),
+displayed in the topbar, the dashboard description, the FYP/supervision views and on the new
+**`/profile`** page (visible to all six roles): identity card, role record (programme/batch/
+semester/section for students; designation/office/courses/supervised groups for faculty; mentor
+profile for alumni) and the role's full capability list (`capabilitiesFor()` +
+`CAPABILITY_LABELS` from `lib/rbac.ts`).
+
+**Coordinator owns the timetable.** New service `server/services/timetable-manage.ts` +
+`/coordinator/timetable` (+`actions.ts`) let the coordinator **add, move, re-room and cancel**
+sessions of any class. Saves are conflict-checked against the live grid through the same
+`detectSlotClashes` engine the clash monitor uses — room / faculty / cohort double-bookings throw
+a 409 `ServiceError` before anything is written; softer overlaps are returned as warnings. Every
+write notifies the class faculty and enrolled students (`ANNOUNCEMENT`) and is audited
+(`timetable.slot_create` / `timetable.slot_update` / `timetable.slot_delete`). New capability
+`timetable.manage` (COORDINATOR + ADMIN), re-checked inside the service.
+
+**FYP Head request desk.** `FypApplication` gained `supervisorId` (migration
+`20261008233831_fyp_supervisor_assignment`). `decideFyp(user, id, decision, remarks,
+supervisorId?)` validates that the supervisor is faculty, stores them on approval, notifies both
+the group and the supervisor, and now guards itself with `can(role, "fyp.decide")`. The new
+**`/fyphead`** console is the request inbox: pending applications in full (group, members,
+registration numbers, domain, tech, preference, submitter + ID), approve-with-supervisor or
+reject-with-reason dialogs, decision tiles, and a decided table carrying supervisor + employee ID.
+The student's `/fyp` page shows *Supervisor: …* once assigned; the admin archive shows it too.
+`/profile` links every role to the records they own.
+
+**Verification.** `tests/rbac.test.ts` + `tests/security.test.ts` now assert `timetable.manage`
+across all six roles (**370 unit tests**). `scripts/test-workflows.ts` gained sections 9–10
+(coordinator add → clash-blocked duplicate → move → remove → audit; FYP approve + supervisor
+notification + non-faculty rejection + student denial) for **52/52 checks**, cleaning up the
+sessions/applications/notifications it creates. All 62 authenticated captures (six personas,
+including `/profile` for every role, `/coordinator/timetable`, `/fyphead`) refresh from
+production with 0 problems.

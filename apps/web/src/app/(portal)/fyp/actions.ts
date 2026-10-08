@@ -35,13 +35,16 @@ export async function decideFypAction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const decision = String(formData.get("decision") ?? "") as "APPROVED" | "REJECTED";
   const remarks = String(formData.get("remarks") ?? "");
+  const supervisorId = String(formData.get("supervisorId") ?? "") || undefined;
   if (!id || !["APPROVED", "REJECTED"].includes(decision)) return;
   try {
-    await decideFyp(user, id, decision, remarks);
+    await decideFyp(user, id, decision, remarks, supervisorId);
   } catch {
     // ignore
   }
+  revalidatePath("/fyphead");
   revalidatePath("/admin/fyp");
   revalidatePath("/fyp");
   revalidatePath("/admin/reports");
+  revalidatePath("/notifications");
 }

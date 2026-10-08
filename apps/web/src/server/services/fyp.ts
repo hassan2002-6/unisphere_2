@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import type { User } from "@unisphere/db";
+import { can } from "@/lib/rbac";
 import { assertTransition } from "@/server/status";
 import { notifyRole, notifyUser } from "./notifications";
 import { ServiceError } from "./forms";
@@ -69,7 +70,10 @@ export async function listMyFypApplications(user: User) {
   return prisma.fypApplication.findMany({
     where: { applicantId: user.id },
     orderBy: { createdAt: "desc" },
-    include: { decidedBy: { select: { name: true } } },
+    include: {
+      decidedBy: { select: { name: true } },
+      supervisor: { select: { name: true, employeeId: true, email: true } },
+    },
   });
 }
 
@@ -79,7 +83,17 @@ export async function listFypQueue() {
     include: {
       applicant: { select: { name: true, email: true, registrationNo: true } },
       decidedBy: { select: { name: true } },
+      supervisor: { select: { name: true, employeeId: true } },
     },
+  });
+}
+
+/** Faculty who can take an FYP group — the supervisor select on the FYP Head inbox. */
+export async function listSupervisors() {
+  return prisma.user.findMany({
+    where: { role: "FACULTY" },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, employeeId: true },
   });
 }
 
@@ -88,7 +102,11 @@ export async function decideFyp(
   id: string,
   decision: "APPROVED" | "REJECTED",
   remarks?: string,
+  supervisorId?: string,
 ) {
+  if (!can(user.role, "fyp.decide")) {
+    throw new ServiceError("forbidden", "Not permitted to decide FYP applications", 403);
+  }
   return prisma.$transaction(async (tx) => {
     const app = await tx.fypApplication.findUnique({
       where: { id },
@@ -97,9 +115,28 @@ export async function decideFyp(
     if (!app) throw new ServiceError("not_found", "Application not found", 404);
     assertTransition("fyp", app.status, decision);
 
+    // A supervisor can only be attached at approval time, and must be faculty.
+    let supervisor: { id: string; name: string } | null = null;
+    if (decision === "APPROVED" && supervisorId) {
+      const candidate = await tx.user.findUnique({
+        where: { id: supervisorId },
+        select: { id: true, name: true, role: true },
+      });
+      if (!candidate || candidate.role !== "FACULTY") {
+        throw new ServiceError("validation_error", "Pick a faculty member as supervisor", 422);
+      }
+      supervisor = { id: candidate.id, name: candidate.name };
+    }
+
     const updated = await tx.fypApplication.update({
       where: { id },
-      data: { status: decision, remarks: remarks?.slice(0, 1000) || null, decidedById: user.id, decidedAt: new Date() },
+      data: {
+        status: decision,
+        remarks: remarks?.slice(0, 1000) || null,
+        decidedById: user.id,
+        decidedAt: new Date(),
+        ...(supervisor ? { supervisorId: supervisor.id } : {}),
+      },
     });
     await notifyUser(
       app.applicant.id,
@@ -108,12 +145,24 @@ export async function decideFyp(
         title: `FYP application ${decision.toLowerCase()}`,
         body:
           decision === "APPROVED"
-            ? `"${app.title}" was approved.${remarks ? ` Note: ${remarks}` : ""}`
+            ? `"${app.title}" was approved.${supervisor ? ` Supervisor: ${supervisor.name}.` : ""}${remarks ? ` Note: ${remarks}` : ""}`
             : `"${app.title}" was rejected.${remarks ? ` Reason: ${remarks}` : ""}`,
         link: "/fyp",
       },
       tx,
     );
+    if (supervisor) {
+      await notifyUser(
+        supervisor.id,
+        {
+          type: "FYP",
+          title: "New FYP supervision assigned",
+          body: `You are supervising "${app.title}" — group ${app.groupName} (${app.members}).`,
+          link: "/dashboard",
+        },
+        tx,
+      );
+    }
     return updated;
   });
 }

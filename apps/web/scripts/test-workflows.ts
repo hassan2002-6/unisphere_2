@@ -24,6 +24,9 @@ import { searchStudents, getStudentAcademicProfile } from "@/server/services/stu
 import { listInbox, markMessageRead, sendMessage } from "@/server/services/messages";
 import { listAudit, recordAudit } from "@/server/services/audit";
 import { listClashReports, reportClash, resolveClashReport } from "@/server/services/clash-reports";
+import { deleteSlot, saveSlot } from "@/server/services/timetable-manage";
+import { decideFyp } from "@/server/services/fyp";
+import { ServiceError } from "@/server/services/forms";
 
 const RUN_STARTED = new Date();
 const TEST_DATE = "2025-05-05"; // far outside seeded sessions
@@ -34,6 +37,8 @@ const cleanup = {
   classIdsToUnpublish: [] as string[],
   attendanceClassIds: [] as string[],
   attendanceStudentIds: [] as string[],
+  slotIds: [] as string[],
+  fypIds: [] as string[],
 };
 
 let pass = 0;
@@ -251,7 +256,7 @@ async function main() {
 
   // ── 6. Student search + permitted profile ─────────────────────────────────
   console.log("\n6. Student search + permitted academic profile");
-  const results = await searchStudents("STU00", { take: 10 });
+  const results = await searchStudents("23-00", { take: 10 });
   ok("search by registration prefix finds students", results.length >= 5, `${results.length} hits`);
   const profile = await getStudentAcademicProfile(faculty, student.id);
   ok("academic profile loads courses", !!profile && profile.courses.length > 0, `${profile?.courses.length ?? 0} courses`);
@@ -289,6 +294,117 @@ async function main() {
     ]),
   );
 
+  // ── 9. Coordinator timetable management ───────────────────────────────────
+  console.log("\n9. Coordinator timetable management");
+  const managedClass = await prisma.courseClass.findFirst({
+    where: { semester: "Fall 2026" },
+    orderBy: { courseCode: "asc" },
+  });
+  ok("a class exists to schedule", !!managedClass);
+  if (managedClass) {
+    const created = await saveSlot(coordinator, {
+      classId: managedClass.id,
+      day: "SAT",
+      startMin: 18 * 60,
+      endMin: 19 * 60,
+      room: "E2E-100",
+    });
+    cleanup.slotIds.push(created.saved.id);
+    ok("coordinator added a session", created.saved.id.length > 0, "SAT 18:00–19:00 in E2E-100");
+    const persisted = await prisma.timetableSlot.findUnique({ where: { id: created.saved.id } });
+    ok("session persisted with day + room", persisted?.day === "SAT" && persisted?.room === "E2E-100");
+    const facultyNotified = managedClass.facultyId
+      ? await prisma.notification.count({
+          where: { userId: managedClass.facultyId, title: "New session scheduled", createdAt: { gte: RUN_STARTED } },
+        })
+      : 0;
+    ok("class faculty were notified", facultyNotified > 0);
+
+    const otherClass = await prisma.courseClass.findFirst({
+      where: { semester: "Fall 2026", id: { not: managedClass.id } },
+    });
+    if (otherClass) {
+      try {
+        await saveSlot(coordinator, {
+          classId: otherClass.id,
+          day: "SAT",
+          startMin: 18 * 60 + 15,
+          endMin: 18 * 60 + 45,
+          room: "E2E-100",
+        });
+        ok("room double-booking is blocked", false, "the conflicting save was allowed");
+      } catch (e) {
+        ok("room double-booking is blocked", e instanceof ServiceError && e.message.includes("E2E-100"));
+      }
+    }
+
+    const moved = await saveSlot(coordinator, {
+      id: created.saved.id,
+      classId: managedClass.id,
+      day: "SAT",
+      startMin: 19 * 60,
+      endMin: 20 * 60,
+      room: "E2E-101",
+    });
+    ok("session can be moved + re-roomed", moved.saved.startMin === 19 * 60 && moved.saved.room === "E2E-101");
+
+    await deleteSlot(coordinator, created.saved.id);
+    cleanup.slotIds = cleanup.slotIds.filter((id) => id !== created.saved.id);
+    const gone = await prisma.timetableSlot.findUnique({ where: { id: created.saved.id } });
+    ok("session removed again", gone === null);
+
+    await expectThrow("students cannot edit the timetable", async () =>
+      saveSlot(student, { classId: managedClass.id, day: "SAT", startMin: 8 * 60, endMin: 9 * 60, room: null }),
+    );
+    ok(
+      "timetable edits audited",
+      (await listAudit({ take: 100 })).some(
+        (t) => t.action === "timetable.slot_update" && t.createdAt >= RUN_STARTED,
+      ),
+    );
+  }
+
+  // ── 10. FYP Head assigns a supervisor ─────────────────────────────────────
+  console.log("\n10. FYP Head request desk");
+  const fypHead = await user("fyphead@shu.edu.pk");
+  const saadia = await user("saadia.karim@shu.edu.pk");
+  const student3 = await user("student3@shu.edu.pk");
+  const mkApplication = (title: string) =>
+    prisma.fypApplication.create({
+      data: {
+        applicantId: student3.id,
+        title,
+        domain: "E2E",
+        description: "Temporary application created by the workflow acceptance run — removed automatically.",
+        technologies: "Vitest",
+        groupName: "E2E Group",
+        members: "E2E Member",
+        registrationNos: "23-0099",
+        department: "Computer Science",
+        semester: "Fall 2026",
+      },
+    });
+  const app1 = await mkApplication("E2E — supervisor assignment");
+  const app2 = await mkApplication("E2E — invalid supervisor");
+  cleanup.fypIds.push(app1.id, app2.id);
+
+  const decided = await decideFyp(fypHead, app1.id, "APPROVED", "Assigned by the E2E run.", saadia.id);
+  ok("approval stores the supervisor", decided.status === "APPROVED" && decided.supervisorId === saadia.id, saadia.name);
+  const supNotified = await prisma.notification.count({
+    where: { userId: saadia.id, title: "New FYP supervision assigned", createdAt: { gte: RUN_STARTED } },
+  });
+  ok("the supervisor is notified", supNotified > 0);
+  const studentNotified = await prisma.notification.count({
+    where: { userId: student3.id, title: "FYP application approved", createdAt: { gte: RUN_STARTED } },
+  });
+  ok("the group is notified with the supervisor name", studentNotified > 0);
+  await expectThrow("a non-faculty supervisor is rejected", async () =>
+    decideFyp(fypHead, app2.id, "APPROVED", "should fail", student3.id),
+  );
+  await expectThrow("students cannot decide FYP applications", async () =>
+    decideFyp(student, app2.id, "APPROVED", "self-approve attempt"),
+  );
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
   console.log("\nCleanup");
   const removed = {
@@ -311,11 +427,14 @@ async function main() {
     ).count,
     messages: (await prisma.message.deleteMany({ where: { id: { in: cleanup.messageIds } } })).count,
     clashes: (await prisma.clashReport.deleteMany({ where: { id: { in: cleanup.clashReportIds } } })).count,
+    slots: (await prisma.timetableSlot.deleteMany({ where: { id: { in: cleanup.slotIds } } })).count,
+    fyp: (await prisma.fypApplication.deleteMany({ where: { id: { in: cleanup.fypIds } } })).count,
     notifications: (await prisma.notification.deleteMany({ where: { createdAt: { gte: RUN_STARTED } } })).count,
   };
   console.log(
     `  removed ${removed.attendance} attendance rows · ${removed.results} results · ${removed.assessments} assessment(s) · ` +
-      `${removed.messages} message(s) · ${removed.clashes} clash report(s) · ${removed.notifications} notification(s)`,
+      `${removed.messages} message(s) · ${removed.clashes} clash report(s) · ${removed.slots} session(s) · ` +
+      `${removed.fyp} FYP application(s) · ${removed.notifications} notification(s)`,
   );
 
   console.log(`\n${pass} passed, ${fail} failed`);

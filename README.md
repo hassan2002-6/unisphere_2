@@ -21,7 +21,7 @@ alumni mentorship, audit logs, and a grounded AI assistant.
 | AI         | Provider-agnostic adapter (Groq default) + Postgres-FTS retrieval |
 | Deploy     | Vercel (Hobby) — root directory `apps/web`                   |
 | Lint/format| oxlint + oxfmt (oxc toolchain)                               |
-| Tests      | Vitest — 358 tests (unit + security suite)                   |
+| Tests      | Vitest — 370 tests (unit + security suite) + 52-check E2E script |
 
 ## Repository layout
 
@@ -62,7 +62,7 @@ cd ../.. && bun run dev          # turbo — http://localhost:3000
 ```bash
 bun run lint        # oxlint
 bun run typecheck   # tsc --noEmit across the workspace
-bun run test        # vitest — 235 tests incl. RBAC matrix + guard scan
+bun run test        # vitest — 370 tests incl. RBAC matrix + guard scan
 bun run build       # Next production build (typechecked)
 ```
 
@@ -70,6 +70,7 @@ Domain extras:
 
 ```bash
 cd apps/web
+bun run scripts/test-workflows.ts    # 52-check end-to-end acceptance across every workflow
 bun run scripts/eval-ai.ts           # 33-question AI retrieval eval (needs DATABASE_URL)
 bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATABASE_URL)
 ```

@@ -14,7 +14,13 @@ export default async function PortalLayout({ children }: { children: React.React
   }
   return (
     <PortalShell
-      user={{ name: user.name, email: user.email, role: user.role }}
+      user={{
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        registrationNo: user.registrationNo,
+        employeeId: user.employeeId,
+      }}
       unreadCount={unreadCount}
     >
       {children}

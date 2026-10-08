@@ -20,7 +20,8 @@ async function upsertUser(data: {
 }) {
   return prisma.user.upsert({
     where: { email: data.email },
-    update: { name: data.name, role: data.role },
+    // IDs are part of the identity — re-seeding must correct stale ones too.
+    update: { name: data.name, role: data.role, registrationNo: data.registrationNo, employeeId: data.employeeId },
     create: { ...data, clerkId: `${SEED_PREFIX}${data.email}` },
   });
 }
@@ -73,11 +74,11 @@ async function main() {
   });
   const mentorUsers = await Promise.all(
     [
-      ["mentor@shu.edu.pk", "Engr. Danish Iqbal"],
-      ["mentor2@shu.edu.pk", "Ms. Ayesha Noor"],
-      ["mentor3@shu.edu.pk", "Mr. Bilal Ahmed"],
-    ].map(([email, name]) =>
-      upsertUser({ email, name, role: "MENTOR", department: "Alumni — Software Engineering" }),
+      ["mentor@shu.edu.pk", "Engr. Danish Iqbal", "ALU-501"],
+      ["mentor2@shu.edu.pk", "Ms. Ayesha Noor", "ALU-502"],
+      ["mentor3@shu.edu.pk", "Mr. Bilal Ahmed", "ALU-503"],
+    ].map(([email, name, employeeId]) =>
+      upsertUser({ email, name, role: "MENTOR", department: "Alumni — Software Engineering", employeeId }),
     ),
   );
 
@@ -749,21 +750,21 @@ async function main() {
   }
 
   // ── FYP-II demo fleet ──────────────────────────────────────────────────
-  // 10 students (STU001–STU010), 3 faculty, coordinator, FYP Head, Saadia
+  // 10 students (23-0001–23-0010), 3 faculty, coordinator, FYP Head, Saadia
   // Karim (co-supervisor, FYP-related), and a system administrator — plus
   // enrollments, attendance, assessments/scores, archived results (CGPA),
   // messages and audit entries.
   const studentFleet: [string, string, string][] = [
-    ["student@shu.edu.pk", "Ali Raza", "STU001"],
-    ["student2@shu.edu.pk", "Sara Khan", "STU002"],
-    ["student3@shu.edu.pk", "Ahmed Malik", "STU003"],
-    ["student4@shu.edu.pk", "Fatima Noor", "STU004"],
-    ["student5@shu.edu.pk", "Bilal Ahmed", "STU005"],
-    ["student6@shu.edu.pk", "Ayesha Siddiqui", "STU006"],
-    ["student7@shu.edu.pk", "Hamza Iqbal", "STU007"],
-    ["student8@shu.edu.pk", "Zainab Ali", "STU008"],
-    ["student9@shu.edu.pk", "Usman Tariq", "STU009"],
-    ["student10@shu.edu.pk", "Maryam Sheikh", "STU010"],
+    ["student@shu.edu.pk", "Ali Raza", "23-0001"],
+    ["student2@shu.edu.pk", "Sara Khan", "23-0002"],
+    ["student3@shu.edu.pk", "Ahmed Malik", "23-0003"],
+    ["student4@shu.edu.pk", "Fatima Noor", "23-0004"],
+    ["student5@shu.edu.pk", "Bilal Ahmed", "23-0005"],
+    ["student6@shu.edu.pk", "Ayesha Siddiqui", "23-0006"],
+    ["student7@shu.edu.pk", "Hamza Iqbal", "23-0007"],
+    ["student8@shu.edu.pk", "Zainab Ali", "23-0008"],
+    ["student9@shu.edu.pk", "Usman Tariq", "23-0009"],
+    ["student10@shu.edu.pk", "Maryam Sheikh", "23-0010"],
   ];
   const students: Awaited<ReturnType<typeof upsertUser>>[] = [];
   for (const [email, name, reg] of studentFleet) {
@@ -802,6 +803,13 @@ async function main() {
       where: { userId: saadia.id },
       update: { designation: "Lecturer / FYP Co-Supervisor", office: "F-210" },
       create: { userId: saadia.id, designation: "Lecturer / FYP Co-Supervisor", office: "F-210" },
+    });
+    // Saadia supervises the already-approved demo FYP group (she is the
+    // documented co-supervisor) — the assignment shows on the group's /fyp
+    // page, the FYP Head console and her own record.
+    await prisma.fypApplication.updateMany({
+      where: { title: "Smart Attendance via Face Recognition", supervisorId: null },
+      data: { supervisorId: saadia.id },
     });
   }
   const admin = await upsertUser({
@@ -987,7 +995,7 @@ async function main() {
   console.log("✓ sample complaints / FYP / resource / mentorship flows");
   console.log("── seed complete ──────────────────────────────");
   console.log("Demo logins (one per role):");
-  console.log("  student@shu.edu.pk (STU001) · faculty@shu.edu.pk · coordinator@shu.edu.pk");
+  console.log("  student@shu.edu.pk (23-0001) · faculty@shu.edu.pk (EMP-101) · coordinator@shu.edu.pk (EMP-201)");
   console.log("  fyphead@shu.edu.pk · mentor@shu.edu.pk · admin@shu.edu.pk");
   console.log("  + students student2..10@shu.edu.pk · faculty2/3@shu.edu.pk · saadia.karim@shu.edu.pk");
 }

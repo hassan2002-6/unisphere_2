@@ -130,6 +130,7 @@ model User {
   complaintEvents        ComplaintEvent[]        @relation("ComplaintEventActor")
   fypApplications        FypApplication[]        @relation("FypApplicant")
   fypDecisions           FypApplication[]        @relation("FypDecider")
+  fypSupervised          FypApplication[]        @relation("FypSupervisor")
   resourceRequests       ResourceRequest[]       @relation("RequestApplicant")
   resourceDecisions      ResourceRequest[]       @relation("RequestDecider")
   allocations            Allocation[]            @relation("AllocationActor")
@@ -413,12 +414,15 @@ model FypApplication {
   remarks         String?
   decidedById     String?
   decidedAt       DateTime?
+  supervisorId    String?
   createdAt       DateTime  @default(now())
   applicant       User      @relation("FypApplicant", fields: [applicantId], references: [id])
   decidedBy       User?     @relation("FypDecider", fields: [decidedById], references: [id])
+  supervisor      User?     @relation("FypSupervisor", fields: [supervisorId], references: [id])
 
   @@index([status])
   @@index([applicantId])
+  @@index([supervisorId])
 }
 
 // ── Resources / GPU workflow ─────────────────────────────────────────────

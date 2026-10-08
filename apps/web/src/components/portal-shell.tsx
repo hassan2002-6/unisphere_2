@@ -12,7 +12,7 @@ import { ROLE_LABELS, type Role } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "cn";
 
-type ShellUser = { name: string; email: string; role: Role };
+type ShellUser = { name: string; email: string; role: Role; registrationNo: string | null; employeeId: string | null };
 
 /** "Student Portal", "Faculty Portal", …… — the prototype's sidebar subtitle. */
 const PORTAL_NAMES: Record<Role, string> = {
@@ -186,7 +186,12 @@ export function PortalShell({
             </span>
             <div className="hidden leading-tight sm:block">
               <span className="block text-[13px] font-semibold">{user.name}</span>
-              <small className="block text-[11px] text-muted-foreground">{ROLE_LABELS[user.role]}</small>
+              <small className="block text-[11px] text-muted-foreground">
+                {ROLE_LABELS[user.role]}
+                {user.registrationNo ?? user.employeeId ? (
+                  <span className="font-mono text-primary"> · {user.registrationNo ?? user.employeeId}</span>
+                ) : null}
+              </small>
             </div>
             <SignOutButton redirectUrl="/">
               <button

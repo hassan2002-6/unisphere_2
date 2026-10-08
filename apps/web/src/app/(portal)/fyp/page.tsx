@@ -74,6 +74,13 @@ export default async function FypPage({
                     {a.domain} · {a.technologies}
                     {a.supervisorPref ? ` · supervisor pref: ${a.supervisorPref}` : ""}
                   </p>
+                  {a.supervisor ? (
+                    <p className="mt-1 inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                      Supervisor: {a.supervisor.name}
+                      {a.supervisor.employeeId ? ` (${a.supervisor.employeeId})` : ""}
+                    </p>
+                  ) : null}
                   {a.remarks ? (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Remarks from {a.decidedBy?.name ?? "reviewer"}: {a.remarks}

@@ -7,6 +7,7 @@ import {
   Briefcase,
   CalendarCheck,
   CalendarClock,
+  CalendarCog,
   CalendarDays,
   ClipboardCheck,
   ClipboardList,
@@ -15,6 +16,7 @@ import {
   FileText,
   FlaskConical,
   GraduationCap,
+  Inbox,
   LayoutDashboard,
   Mail,
   Megaphone,
@@ -23,6 +25,7 @@ import {
   ShieldCheck,
   Sparkles,
   UserCheck,
+  UserCircle,
   UserSearch,
   Users,
 } from "lucide-react";
@@ -41,6 +44,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
         { label: "Messages", href: "/messages", icon: Mail },
+        { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
     {
@@ -89,6 +93,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
         { label: "Messages", href: "/messages", icon: Mail },
+        { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
     {
@@ -118,12 +123,14 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
         { label: "Messages", href: "/messages", icon: Mail },
+        { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
     {
       title: "Academics",
       items: [
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
+        { label: "Timetable Manager", href: "/coordinator/timetable", icon: CalendarCog },
         { label: "Exams", href: "/exams", icon: CalendarClock },
         { label: "Clash Monitor", href: "/coordinator/clashes", icon: AlertTriangle },
       ],
@@ -155,11 +162,13 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
         { label: "Messages", href: "/messages", icon: Mail },
+        { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
     {
       title: "FYP",
       items: [
+        { label: "Requests Inbox", href: "/fyphead", icon: Inbox },
         { label: "FYP Applications", href: "/admin/fyp", icon: BookOpen },
         { label: "Review Queue", href: "/reviews", icon: FileSearch },
         { label: "Students", href: "/coordinator/students", icon: UserSearch },
@@ -197,6 +206,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
         { label: "Messages", href: "/messages", icon: Mail },
+        { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
     {
@@ -211,6 +221,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
         { label: "Notifications", href: "/notifications", icon: Bell },
         { label: "Messages", href: "/messages", icon: Mail },
+        { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
     {
@@ -225,6 +236,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       title: "Academics",
       items: [
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
+        { label: "Timetable Manager", href: "/coordinator/timetable", icon: CalendarCog },
         { label: "Exams", href: "/exams", icon: CalendarClock },
         { label: "Clash Monitor", href: "/coordinator/clashes", icon: AlertTriangle },
         { label: "Students", href: "/coordinator/students", icon: UserSearch },
@@ -254,6 +266,9 @@ const EXTRA_TITLES: { prefix: string; label: string }[] = [
   { prefix: "/internships/", label: "Internship detail" },
   { prefix: "/forms/new/", label: "New submission" },
   { prefix: "/complaints/new", label: "File a complaint" },
+  { prefix: "/fyphead", label: "FYP Head Console" },
+  { prefix: "/coordinator/timetable", label: "Timetable Manager" },
+  { prefix: "/profile", label: "My Profile" },
 ];
 
 /** Resolve the nav item (or detail-page title) matching a pathname. */

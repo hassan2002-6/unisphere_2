@@ -145,8 +145,14 @@ export default async function DashboardPage({
         title={`${greeting()}, ${firstName}`}
         description={
           <>
-            {ROLE_LABELS[user.role]} portal ·{" "}
-            {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+            {ROLE_LABELS[user.role]} portal
+            {user.registrationNo ?? user.employeeId ? (
+              <>
+                {" "}
+                · ID <span className="font-mono font-medium text-foreground">{user.registrationNo ?? user.employeeId}</span>
+              </>
+            ) : null}{" "}
+            · {new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
           </>
         }
         actions={

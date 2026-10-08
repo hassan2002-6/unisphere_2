@@ -52,6 +52,21 @@
   (attendance, midterm, results, CGPA) — the view is audited.
 - Admin `/admin/users` + `/admin/audit`: roles and the action trail (everything above is logged).
 
+## 2d. University IDs, coordinator changes & the FYP request desk (4:00–5:00)
+
+- **Every account carries its university ID.** Students use registration numbers (`23-0001`…),
+  staff use employee IDs (`EMP-101` faculty, `EMP-201` coordinator, `EMP-301` FYP Head) — the ID
+  shows in the top bar, on the dashboard and on **My Profile** (sidebar → My Profile), together
+  with the record attached to it and the role's full capability list.
+- Sign in as **coordinator** → `/coordinator/timetable`: the weekly grid is editable — move a
+  session, change the room, add or cancel one. Room/faculty/cohort double-bookings are rejected
+  before they save (*try booking E2E-100 twice*), and every change notifies the class faculty +
+  enrolled students and lands in the audit log.
+- Sign in as **FYP Head** → `/fyphead`: the request desk. Every application submitted by a group
+  lands here; approving one assigns the faculty supervisor (both sides get a notification),
+  rejecting one records the reason. The decided table carries the supervisor and employee ID.
+- Student `/fyp` then shows *Supervisor: Ms. Saadia Karim (EMP-104)* on their approved project.
+
 ## 3. Forms centre (2:45–4:30)
 
 - Student: `/forms` → pick *Bonafide certificate* → dynamic form renders from the template's JSON

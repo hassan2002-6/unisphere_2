@@ -53,6 +53,7 @@ const PERSONAS = [
       "/internships",
       "/mentorship",
       "/chat",
+      "/profile",
     ],
   },
   {
@@ -61,12 +62,14 @@ const PERSONAS = [
     pages: [
       "/dashboard",
       "/coordinator/clashes",
+      "/coordinator/timetable",
       "/coordinator/approvals",
       "/coordinator/faculty",
       "/coordinator/students",
       "/coordinator/complaints",
       "/messages",
       "/admin/broadcast",
+      "/profile",
     ],
   },
   {
@@ -89,6 +92,7 @@ const PERSONAS = [
     email: "fyphead@shu.edu.pk",
     pages: [
       "/dashboard",
+      "/fyphead",
       "/admin/fyp",
       "/admin/requests",
       "/admin/allocations",
@@ -97,12 +101,13 @@ const PERSONAS = [
       "/admin/reports",
       "/admin/audit",
       "/messages",
+      "/profile",
     ],
   },
   {
     persona: "mentor",
     email: "mentor@shu.edu.pk",
-    pages: ["/dashboard", "/mentor", "/mentorship", "/messages"],
+    pages: ["/dashboard", "/mentor", "/mentorship", "/messages", "/profile"],
   },
   {
     persona: "admin",
@@ -113,7 +118,9 @@ const PERSONAS = [
       "/admin/audit",
       "/admin/reports",
       "/coordinator/clashes",
+      "/coordinator/timetable",
       "/messages",
+      "/profile",
     ],
   },
 ];
