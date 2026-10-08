@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-geist-sans);
+  --font-sans: "Segoe UI", Tahoma, "Noto Sans", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-heading: "Segoe UI", Tahoma, system-ui, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -56,8 +56,8 @@
 }
 
 :root {
-  /* UniSphere RED theme — from the setup2.html prototype (crimson #c8102e) */
-  --background: #f7f7f8;
+  /* UniSphere RED theme — light values match the setup2.html prototype exactly */
+  --background: #f9f9f9;
   --foreground: #222222;
   --card: #ffffff;
   --card-foreground: #222222;
@@ -65,36 +65,37 @@
   --popover-foreground: #222222;
   --primary: #c8102e;
   --primary-foreground: #ffffff;
+  --primary-dark: #9b0c23;
   --secondary: #fde8eb;
   --secondary-foreground: #9b0c23;
-  --muted: #f2f2f3;
-  --muted-foreground: #71717a;
+  --muted: #f5f5f5;
+  --muted-foreground: #777777;
   --accent: #fde8eb;
   --accent-foreground: #9b0c23;
-  --destructive: #dc2626;
+  --destructive: #dc3545;
   --destructive-foreground: #ffffff;
   --success: #22a06b;
   --success-foreground: #ffffff;
   --warning: #e0a800;
   --warning-foreground: #ffffff;
-  --info: #0e7490;
+  --info: #0c5460;
   --info-foreground: #ffffff;
   --border: #e5e5e5;
-  --input: #e2e2e2;
+  --input: #e5e5e5;
   --ring: #c8102e;
   --chart-1: #c8102e;
   --chart-2: #e0a800;
   --chart-3: #0f766e;
   --chart-4: #4338ca;
   --chart-5: #be185d;
-  --radius: 0.65rem;
+  --radius: 0.5rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #3f3f46;
+  --sidebar-foreground: #444444;
   --sidebar-primary: #c8102e;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #fde8eb;
   --sidebar-accent-foreground: #a10d25;
-  --sidebar-border: #ececec;
+  --sidebar-border: #e5e5e5;
   --sidebar-ring: #c8102e;
 }
 
@@ -171,12 +172,74 @@
 }
 
 @utility page {
-  /* Shared page frame: consistent gutters + max width for every route. */
-  @apply mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 p-4 sm:p-6 lg:p-8;
+  /* Shared page frame — prototype gutters (25px 30px) with a wide fluid canvas. */
+  @apply mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-5 px-4 py-5 sm:px-6 lg:px-[30px] lg:py-[25px];
 }
 
 @utility card-lift {
-  @apply transition-shadow duration-200 hover:shadow-md hover:shadow-foreground/5;
+  /* Prototype stat/panel hover: lift + deeper shadow */
+  @apply transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_8px_20px_rgba(0,0,0,0.08)];
+}
+
+@layer components {
+  /* Timetable / exam clash highlighting — straight from setup2.html */
+  .clash {
+    background: #ffe5e9 !important;
+    color: var(--primary);
+    font-weight: 600;
+  }
+  .dark .clash {
+    background: color-mix(in oklab, var(--primary) 24%, transparent) !important;
+    color: color-mix(in oklab, var(--primary) 55%, white);
+  }
+  .clash-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--primary);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    vertical-align: middle;
+  }
+  /* Notification / activity list item — red left rail on a soft red wash */
+  .notif-item {
+    border-left: 3px solid var(--primary);
+    border-radius: 6px;
+    background: var(--secondary);
+    padding: 14px;
+  }
+  .notif-item h4 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .notif-item p {
+    font-size: 13px;
+    color: color-mix(in oklab, var(--foreground) 70%, transparent);
+  }
+  .notif-item small {
+    color: var(--muted-foreground);
+    font-size: 11px;
+  }
+  .dark .notif-item {
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
+  }
+  /* Prototype panel header: title row with a hairline under it */
+  .panel-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 12px;
+    font-size: 16px;
+    font-weight: 600;
+  }
 }
 
 @utility text-gradient {

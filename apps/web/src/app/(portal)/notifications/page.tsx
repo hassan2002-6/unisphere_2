@@ -8,7 +8,6 @@ import { SubmitButton } from "@/components/submit-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 import { markAllNotificationsRead, markNotificationRead } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -75,18 +74,18 @@ export default async function NotificationsPage() {
         <ul className="space-y-2">
           {data.items.map((n) => (
             <li key={n.id}>
-              <Card className={n.readAt ? "gap-0 py-0 opacity-70" : "gap-0 border-l-4 border-l-primary py-0"}>
-                <CardContent className="flex items-start justify-between gap-4 p-4">
+              <div className={n.readAt ? "notif-item opacity-75" : "notif-item"}>
+                <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <Badge variant="secondary">{TYPE_LABELS[n.type] ?? n.type}</Badge>
-                      <span className="text-sm font-medium">{n.title}</span>
+                      <span className="text-sm font-semibold">{n.title}</span>
                       {!n.readAt ? <span className="h-2 w-2 rounded-full bg-primary" aria-label="unread" /> : null}
                     </div>
-                    <p className="mt-1 text-sm text-muted-foreground">{n.body}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-[13px]">{n.body}</p>
+                    <small className="mt-1 block text-[11px] text-muted-foreground">
                       {n.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
-                    </p>
+                    </small>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {n.link ? (
@@ -103,8 +102,8 @@ export default async function NotificationsPage() {
                       </form>
                     ) : null}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             </li>
           ))}
         </ul>

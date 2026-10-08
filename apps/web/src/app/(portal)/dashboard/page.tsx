@@ -76,16 +76,16 @@ function Panel({ panel }: { panel: DashboardPanel }) {
           </Link>
         ) : null}
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="p-3">
         {panel.items.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-muted-foreground">{panel.emptyText || "Nothing here yet."}</p>
+          <p className="px-2 py-6 text-sm text-muted-foreground">{panel.emptyText || "Nothing here yet."}</p>
         ) : (
-          <ul className="divide-y">
+          <ul className="flex flex-col gap-2.5">
             {panel.items.map((item) => {
               const inner = (
-                <div className="flex items-start justify-between gap-3 px-5 py-3.5">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 space-y-0.5">
-                    <p className="truncate text-sm font-medium">{item.title}</p>
+                    <p className="truncate text-sm font-semibold">{item.title}</p>
                     {item.subtitle ? (
                       <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{item.subtitle}</p>
                     ) : null}
@@ -99,13 +99,13 @@ function Panel({ panel }: { panel: DashboardPanel }) {
                 </div>
               );
               return (
-                <li key={item.id} className="transition-colors hover:bg-muted/40">
+                <li key={item.id} className="transition-[filter] hover:brightness-[0.985]">
                   {item.href ? (
-                    <Link href={item.href} className="block">
+                    <Link href={item.href} className="notif-item block">
                       {inner}
                     </Link>
                   ) : (
-                    inner
+                    <div className="notif-item">{inner}</div>
                   )}
                 </li>
               );

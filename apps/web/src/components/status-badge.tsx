@@ -42,11 +42,12 @@ const STATUS_TONE: Record<string, Tone> = {
 };
 
 const TONE_CLASS: Record<Tone, string> = {
-  success: "border-success/25 bg-success/10 text-success dark:text-[color-mix(in_oklab,var(--success),white_20%)]",
-  danger: "border-destructive/25 bg-destructive/10 text-destructive",
-  progress: "border-warning/30 bg-warning/10 text-warning dark:text-[color-mix(in_oklab,var(--warning),white_15%)]",
-  info: "border-info/25 bg-info/10 text-info dark:text-[color-mix(in_oklab,var(--info),white_15%)]",
-  neutral: "border-border bg-muted text-muted-foreground",
+  /* Pastel badge palette straight from setup2.html (light) + dark equivalents */
+  success: "border-transparent bg-[#d4edda] text-[#155724] dark:bg-[#155724]/30 dark:text-[#93d9ab]",
+  danger: "border-transparent bg-[#f8d7da] text-[#721c24] dark:bg-[#721c24]/35 dark:text-[#f4aeb6]",
+  progress: "border-transparent bg-[#fff3cd] text-[#856404] dark:bg-[#856404]/30 dark:text-[#f2d78d]",
+  info: "border-transparent bg-[#d1ecf1] text-[#0c5460] dark:bg-[#0c5460]/35 dark:text-[#93d5e2]",
+  neutral: "border-transparent bg-[#f5f5f5] text-[#555555] dark:bg-muted dark:text-muted-foreground",
 };
 
 const DOT_CLASS: Record<Tone, string> = {

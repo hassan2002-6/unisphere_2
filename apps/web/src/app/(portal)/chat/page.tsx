@@ -83,22 +83,22 @@ export default async function ChatPage({
 
       {/* Thread */}
       <section className="flex min-w-0 flex-col gap-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl bg-primary px-5 py-4 text-primary-foreground">
           <div className="flex items-start gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/15">
               <Sparkles className="h-5 w-5" />
             </span>
             <div>
               <h1 className="text-xl font-semibold tracking-tight">Campus Assistant</h1>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-primary-foreground/85">
                 Grounded in the university knowledge base and your own UniSphere data — every answer cites its sources.
               </p>
             </div>
           </div>
-          <Badge variant={status.configured ? "secondary" : "outline"} className="gap-1.5 font-normal">
+          <Badge variant="outline" className="gap-1.5 border-transparent bg-white/15 font-normal text-primary-foreground">
             <span
               aria-hidden
-              className={cn("h-1.5 w-1.5 rounded-full", status.configured ? "bg-success" : "bg-muted-foreground")}
+              className={cn("h-1.5 w-1.5 rounded-full", status.configured ? "bg-[#7ee2a8]" : "bg-white/60")}
             />
             {status.configured ? `${status.provider} · ${status.model}` : "offline fallback"}
           </Badge>

@@ -4,18 +4,21 @@ import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { cn } from "cn";
 
-const TONES = {
-  default: "bg-muted text-muted-foreground",
-  primary: "bg-primary/10 text-primary",
-  success: "bg-success/10 text-success",
-  warning: "bg-warning/12 text-warning",
-  danger: "bg-destructive/10 text-destructive",
-  info: "bg-info/10 text-info",
+const VALUE_TONES = {
+  default: "text-primary",
+  primary: "text-primary",
+  success: "text-success",
+  warning: "text-warning",
+  danger: "text-destructive",
+  info: "text-info",
 } as const;
 
-export type StatTone = keyof typeof TONES;
+export type StatTone = keyof typeof VALUE_TONES;
 
-/** Dashboard stat tile: icon bubble, big value, label, optional hint + link. */
+/**
+ * Dashboard stat tile — the setup2.html prototype card:
+ * uppercase muted label, big red value, small sub line.
+ */
 export function StatCard({
   label,
   value,
@@ -34,20 +37,18 @@ export function StatCard({
   className?: string;
 }) {
   const body = (
-    <Card className={cn("@container/card relative gap-3 overflow-hidden p-5", href && "card-lift", className)}>
-      <div className="flex items-start justify-between gap-3">
-        <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", TONES[tone])}>
-          <Icon className="h-5 w-5" />
-        </span>
-        {href ? (
-          <ArrowUpRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover/stat:opacity-100" />
-        ) : null}
+    <Card className={cn("relative gap-0 overflow-hidden p-5", href && "card-lift", className)}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-medium tracking-[0.5px] text-muted-foreground uppercase">{label}</p>
+        <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />
       </div>
-      <div className="space-y-0.5">
-        <p className="text-3xl font-semibold tracking-tight tabular-nums">{value}</p>
-        <p className="text-sm font-medium text-foreground/90">{label}</p>
-        {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
-      </div>
+      <p className={cn("mt-1.5 text-[28px] leading-tight font-bold tabular-nums", VALUE_TONES[tone])}>
+        {value}
+      </p>
+      {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
+      {href ? (
+        <ArrowUpRight className="absolute right-4 bottom-4 h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover/stat:opacity-100" />
+      ) : null}
     </Card>
   );
 

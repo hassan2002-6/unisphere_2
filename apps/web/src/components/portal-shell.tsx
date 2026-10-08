@@ -3,11 +3,10 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
-import { Bell, GraduationCap, Menu } from "lucide-react";
+import { SignOutButton } from "@clerk/nextjs";
+import { Bell, GraduationCap, LogOut, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { NAV_BY_ROLE, navItemForPath, pageTitleFor } from "@/lib/nav";
 import { ROLE_LABELS, type Role } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -15,18 +14,41 @@ import { cn } from "cn";
 
 type ShellUser = { name: string; email: string; role: Role };
 
-function Brand({ compact }: { compact?: boolean }) {
+/** "Student Portal", "Faculty Portal", …… — the prototype's sidebar subtitle. */
+const PORTAL_NAMES: Record<Role, string> = {
+  STUDENT: "Student Portal",
+  FACULTY: "Faculty Portal",
+  COORDINATOR: "Program Manager Portal",
+  FYP_HEAD: "FYP Head Portal",
+  MENTOR: "Mentor Portal",
+  ADMIN: "Administrator Portal",
+};
+
+function initials(name: string) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 rounded-md px-1 py-1">
-      <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-        <GraduationCap className="h-4.5 w-4.5" />
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join("")
+      .slice(0, 2)
+      .toUpperCase() || "U"
+  );
+}
+
+/** Red header block — logo + portal name, exactly like the prototype's sidebar header. */
+function Brand({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
+  return (
+    <Link
+      href="/dashboard"
+      onClick={onNavigate}
+      className="flex flex-col gap-0.5 bg-primary px-5 py-5 text-primary-foreground"
+    >
+      <span className="flex items-center gap-2">
+        <GraduationCap className="h-6 w-6" />
+        <span className="text-[22px] leading-none font-bold tracking-tight">UniSphere</span>
       </span>
-      <span className="flex flex-col leading-none">
-        <span className="text-[15px] font-semibold tracking-tight text-sidebar-accent-foreground">UniSphere</span>
-        {!compact ? (
-          <span className="text-[11px] text-sidebar-foreground/60">Salim Habib University</span>
-        ) : null}
-      </span>
+      <span className="pl-8 text-[11px] opacity-85">{PORTAL_NAMES[role]}</span>
     </Link>
   );
 }
@@ -42,13 +64,13 @@ function NavLinks({
 }) {
   const sections = NAV_BY_ROLE[role];
   return (
-    <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+    <nav className="flex-1 overflow-y-auto py-3">
       {sections.map((section) => (
         <div key={section.title}>
-          <p className="px-2.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/50">
+          <p className="px-5 pt-3 pb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             {section.title}
           </p>
-          <ul className="space-y-0.5">
+          <ul>
             {section.items.map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
@@ -58,19 +80,12 @@ function NavLinks({
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={cn(
-                      "group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors",
+                      "flex items-center gap-2.5 border-l-[3px] border-transparent px-5 py-[11px] text-sm transition-[background-color,color] duration-150",
                       active
-                        ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                        : "text-sidebar-foreground/85 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground",
+                        ? "border-l-primary bg-secondary font-semibold text-primary"
+                        : "text-sidebar-foreground hover:bg-secondary hover:text-primary",
                     )}
                   >
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-sidebar-primary transition-opacity",
-                        active ? "opacity-100" : "opacity-0",
-                      )}
-                    />
                     <item.icon className="h-4 w-4 shrink-0" />
                     <span className="truncate">{item.label}</span>
                   </Link>
@@ -81,18 +96,6 @@ function NavLinks({
         </div>
       ))}
     </nav>
-  );
-}
-
-function UserCard({ user }: { user: ShellUser }) {
-  return (
-    <div className="border-t border-sidebar-border px-4 py-3.5">
-      <p className="truncate text-sm font-medium text-sidebar-accent-foreground">{user.name}</p>
-      <p className="mt-0.5 truncate text-xs text-sidebar-foreground/60">{user.email}</p>
-      <Badge variant="outline" className="mt-2 border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
-        {ROLE_LABELS[user.role]}
-      </Badge>
-    </div>
   );
 }
 
@@ -115,7 +118,7 @@ export function PortalShell({
       <Link href="/notifications" className="relative">
         <Bell className="h-4 w-4" />
         {unreadCount > 0 ? (
-          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-card">
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-card">
             {unreadCount > 99 ? "99+" : unreadCount}
           </span>
         ) : null}
@@ -127,24 +130,23 @@ export function PortalShell({
     <div className="flex min-h-dvh flex-1">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
       >
         Skip to content
       </a>
 
-      {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col bg-sidebar text-sidebar-foreground md:flex">
-        <div className="flex h-16 items-center px-4">
-          <Brand />
-        </div>
-        <div className="mx-3 h-px bg-sidebar-border" />
+      {/* Sidebar (desktop) — 240px, red header, prototype menu states */}
+      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar md:flex">
+        <Brand role={user.role} />
         <NavLinks role={user.role} pathname={pathname} />
-        <UserCard user={user} />
+        <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-muted-foreground">
+          Salim Habib University
+        </div>
       </aside>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b bg-card/85 px-4 backdrop-blur-sm md:px-6">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-border bg-card px-4 md:px-[30px]">
           <div className="flex min-w-0 items-center gap-2">
             {/* Mobile menu */}
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
@@ -153,35 +155,48 @@ export function PortalShell({
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="p-0">
-                <div className="flex h-16 items-center px-4">
-                  <SheetTitle className="sr-only">Navigation</SheetTitle>
-                  <Brand compact />
-                </div>
-                <div className="mx-3 h-px bg-sidebar-border" />
+              <SheetContent side="left" className="w-60 gap-0 border-sidebar-border bg-sidebar p-0">
+                <SheetTitle className="sr-only">Navigation</SheetTitle>
+                <Brand role={user.role} onNavigate={() => setMenuOpen(false)} />
                 <NavLinks role={user.role} pathname={pathname} onNavigate={() => setMenuOpen(false)} />
-                <UserCard user={user} />
+                <div className="border-t border-sidebar-border px-5 py-3 text-[11px] text-muted-foreground">
+                  Salim Habib University
+                </div>
               </SheetContent>
             </Sheet>
 
             <div className="min-w-0">
+              <p className="truncate text-lg leading-tight font-semibold tracking-tight">{title}</p>
               {nav && nav.section !== "Overview" ? (
-                <p className="hidden text-[11px] font-medium uppercase tracking-wider text-muted-foreground sm:block">
-                  {nav.section}
-                </p>
+                <p className="hidden text-[11px] text-muted-foreground sm:block">{nav.section}</p>
               ) : null}
-              <p className="truncate text-sm font-semibold tracking-tight sm:text-base">{title}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             <ThemeToggle />
             {bell}
-            <div className="ml-1">
-              <UserButton
-                appearance={{ elements: { avatarBox: "h-8 w-8 ring-1 ring-border" } }}
-              />
+            <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
+            {/* User block — red initials avatar + name/role (prototype topbar) */}
+            <span
+              aria-hidden
+              className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-primary text-sm font-semibold text-white"
+            >
+              {initials(user.name)}
+            </span>
+            <div className="hidden leading-tight sm:block">
+              <span className="block text-[13px] font-semibold">{user.name}</span>
+              <small className="block text-[11px] text-muted-foreground">{ROLE_LABELS[user.role]}</small>
             </div>
+            <SignOutButton redirectUrl="/">
+              <button
+                type="button"
+                className="ml-1 inline-flex items-center gap-1.5 rounded-md border border-primary px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </SignOutButton>
           </div>
         </header>
 

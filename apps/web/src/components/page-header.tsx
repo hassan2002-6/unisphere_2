@@ -46,19 +46,19 @@ export function PageHeader({
           </ol>
         </nav>
       ) : null}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex min-w-0 items-start gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        {/* The visible page title lives in the topbar (prototype); keep an
+            accessible heading here so the document outline stays correct. */}
+        <h1 className="sr-only">{title}</h1>
+        <div className="flex min-w-0 items-center gap-3">
           {Icon ? (
-            <span className="mt-0.5 hidden h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:flex">
-              <Icon className="h-5 w-5" />
+            <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary text-primary sm:flex">
+              <Icon className="h-4.5 w-4.5" />
             </span>
           ) : null}
-          <div className="min-w-0 space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-balance">{title}</h1>
-            {description ? (
-              <div className="max-w-2xl text-sm leading-6 text-muted-foreground">{description}</div>
-            ) : null}
-          </div>
+          {description ? (
+            <div className="max-w-3xl text-[13px] leading-6 text-muted-foreground">{description}</div>
+          ) : null}
         </div>
         {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
       </div>

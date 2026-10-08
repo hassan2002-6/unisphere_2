@@ -110,21 +110,12 @@ export function TimetableGrid({
                       key={b.slotId}
                       className={cn(
                         "rounded-md border border-l-4 bg-card px-2.5 py-2 text-xs shadow-sm transition-shadow hover:shadow",
-                        b.clash
-                          ? "border-destructive/40 border-l-destructive bg-destructive/5"
-                          : "border-l-primary",
+                        b.clash ? "clash border-[#f3bcc5]" : "border-l-primary",
                       )}
                     >
                       <div className="flex items-center justify-between gap-1">
                         <span className="font-semibold">{b.courseCode}</span>
-                        {b.clash ? (
-                          <Badge
-                            variant="outline"
-                            className="border-destructive/30 bg-destructive/10 px-1 py-0 text-[10px] text-destructive"
-                          >
-                            clash
-                          </Badge>
-                        ) : null}
+                        {b.clash ? <span className="clash-tag">CLASH</span> : null}
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-muted-foreground">{b.title}</p>
                       <p className="mt-1 font-mono text-[11px] tabular-nums">

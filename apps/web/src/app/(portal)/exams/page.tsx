@@ -148,7 +148,7 @@ export default async function ExamsPage() {
                   const flags = examClashes.get(exam.id) ?? [];
                   const d = daysUntil(exam.date);
                   return (
-                    <TableRow key={exam.id}>
+                    <TableRow key={exam.id} className={flags.length ? "clash" : undefined}>
                       <TableCell className="pl-5">
                         <div className="flex flex-col gap-1">
                           <span className="font-medium">
