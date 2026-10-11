@@ -11,6 +11,7 @@ import {
   getClerkAuthSummary,
   inviteClerkUser,
   setClerkBanned,
+  setClerkBypassClientTrust,
 } from "@/server/clerk-admin";
 
 /**
@@ -215,6 +216,15 @@ export async function createAccount(actor: User, input: CreateAccountInput): Pro
       const base = process.env.NEXT_PUBLIC_APP_URL ?? "";
       await inviteClerkUser(email, `${base}/sign-in`);
       invitation = "sent";
+      // The invitation may already have materialised the Clerk user — make it
+      // bypass Device Trust so the first sign-in doesn't dead-end on an
+      // undeliverable email code (the webhook covers later-acceptance paths).
+      try {
+        const invited = await findClerkUserByEmail(email);
+        if (invited) await setClerkBypassClientTrust(invited.id);
+      } catch {
+        // best-effort; user.created webhook retries this
+      }
     } catch (e) {
       invitation = "failed";
       invitationNote = e instanceof ClerkAdminError ? e.message : "Clerk request failed";

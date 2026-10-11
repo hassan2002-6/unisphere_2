@@ -79,7 +79,7 @@ async function ensureClerkUser(email: string, password: string): Promise<string>
     // Keep the demo password deterministic even for pre-existing users.
     await clerk(`/users/${match.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ password, skip_password_checks: true }),
+      body: JSON.stringify({ password, skip_password_checks: true, bypass_client_trust: true }),
     });
     return match.id;
   }
@@ -92,6 +92,9 @@ async function ensureClerkUser(email: string, password: string): Promise<string>
         password,
         skip_password_checks: true,
         skip_password_requirement: false,
+        // Device Trust email codes can't reach demo mailboxes — bypass it so
+        // password sign-in completes (the shared demo password still applies).
+        bypass_client_trust: true,
       }),
     })) as ClerkUser;
     return created.id;
@@ -102,7 +105,7 @@ async function ensureClerkUser(email: string, password: string): Promise<string>
     if (retry) {
       await clerk(`/users/${retry.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ password, skip_password_checks: true }),
+        body: JSON.stringify({ password, skip_password_checks: true, bypass_client_trust: true }),
       });
       return retry.id;
     }

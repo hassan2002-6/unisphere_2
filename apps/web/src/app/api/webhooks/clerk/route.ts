@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
+import { setClerkBypassClientTrust } from "@/server/clerk-admin";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,15 @@ export async function POST(req: Request) {
         const { id: clerkId, email_addresses, first_name, last_name } = evt.data;
         const email = email_addresses?.[0]?.email_address;
         if (!email) break;
+        // Provisioned accounts must be able to sign in without a Device Trust
+        // email code — the code can't reach demo university mailboxes.
+        if (evt.type === "user.created" && !(evt.data as { bypass_client_trust?: boolean }).bypass_client_trust) {
+          try {
+            await setClerkBypassClientTrust(clerkId);
+          } catch (e) {
+            console.warn(`[webhook] bypass_client_trust ${clerkId}: ${(e as Error).message}`);
+          }
+        }
         const name = [first_name, last_name].filter(Boolean).join(" ") || email.split("@")[0];
 
         const existing = await prisma.user.findUnique({ where: { clerkId } });

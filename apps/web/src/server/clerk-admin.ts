@@ -96,6 +96,21 @@ export async function setClerkBanned(clerkId: string, banned: boolean): Promise<
 }
 
 /**
+ * Device Trust (formerly "Client trust") forces an email code on the first
+ * password sign-in from a new device. University mailboxes in the demo
+ * (@shu.edu.pk) can't receive that code, so provisioning dead-ends sign-in —
+ * every provisioned account bypasses the check (the password is still
+ * required). Kept per-account rather than instance-wide so the instance
+ * setting stays at its default posture.
+ */
+export async function setClerkBypassClientTrust(clerkId: string): Promise<void> {
+  await clerk(`/users/${clerkId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ bypass_client_trust: true }),
+  });
+}
+
+/**
  * Single-use sign-in ticket for admin-assisted account recovery (§5 "reset or
  * initiate password recovery"). Minted server-side, handed to the admin once,
  * consumable only by the target account, expires quickly.

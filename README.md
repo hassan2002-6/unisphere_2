@@ -115,6 +115,13 @@ invitation and sets their own password. Sign-in accepts the University ID (`S22C
 
 18 seeded personas share **one password: `UniSphere#Demo2026`**
 
+> **Device Trust:** Clerk auto-enables Device Trust on new apps — the first password
+> sign-in from a new device then demands an email verification code, which the demo
+> `@shu.edu.pk` mailboxes can't receive. Provisioned accounts therefore carry
+> `bypass_client_trust` (set by `link-clerk-users.ts`, the admin create-account flow
+> and the `user.created` webhook), so password sign-in completes without the code.
+> No dashboard change needed.
+
 | Role | Accounts | Notes |
 | ---- | -------- | ----- |
 | Students | `student@shu.edu.pk` … `student10@shu.edu.pk` (registration nos `S22CSC001`…) | attendance, marks, clash reports |
