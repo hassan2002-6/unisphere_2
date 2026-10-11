@@ -73,13 +73,15 @@ export async function getTimetableManagerData(): Promise<{
   classes: ManagerClass[];
   clashes: Clash[];
   rooms: string[];
+  faculty: Awaited<ReturnType<typeof listFacultyOptions>>;
 }> {
   const classes = await listManagerClasses();
+  const faculty = await listFacultyOptions();
 
   const report = await getClashReport();
   const rooms = [...new Set(classes.flatMap((c) => c.slots.map((s) => s.room)).filter((r): r is string => Boolean(r)))].sort();
 
-  return { classes, clashes: report.active, rooms };
+  return { classes, clashes: report.active, rooms, faculty };
 }
 
 export type SaveSlotInput = {
@@ -210,4 +212,114 @@ export async function deleteSlot(user: User, id: string) {
     entityId: id,
     summary: `${slot.class.courseCode} ${slot.class.section}: ${slot.day} session removed`,
   });
+}
+
+/**
+ * Course & section management (spec §8): the coordinator creates course
+ * sections and assigns faculty to them. Assigning a faculty member whose
+ * existing sessions collide with this class's sessions is blocked.
+ */
+
+export async function listFacultyOptions() {
+  return prisma.user.findMany({
+    where: { role: "FACULTY", isActive: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, employeeId: true },
+  });
+}
+
+export type SaveClassInput = {
+  id?: string;
+  courseCode: string;
+  title: string;
+  section: string;
+  department: string;
+  semester: string;
+  credits?: number | null;
+  facultyId?: string | null;
+};
+
+export async function saveClass(user: User, input: SaveClassInput) {
+  if (!can(user.role, "timetable.manage")) {
+    throw new ServiceError("forbidden", "Not permitted to manage courses", 403);
+  }
+  const courseCode = input.courseCode.trim().toUpperCase();
+  const title = input.title.trim();
+  const section = input.section.trim().toUpperCase();
+  const department = input.department.trim() || "Computer Science";
+  const semester = input.semester.trim();
+  if (courseCode.length < 4) throw new ServiceError("validation_error", "Course code looks too short (e.g. CS-301)", 422);
+  if (title.length < 3) throw new ServiceError("validation_error", "Enter the course title", 422);
+  if (!section) throw new ServiceError("validation_error", "Enter the section (e.g. A)", 422);
+  if (!semester) throw new ServiceError("validation_error", "Enter the semester (e.g. Spring 2026)", 422);
+
+  if (input.facultyId) {
+    const faculty = await prisma.user.findUnique({ where: { id: input.facultyId } });
+    if (!faculty || faculty.role !== "FACULTY") {
+      throw new ServiceError("validation_error", "Pick a faculty member for this course", 422);
+    }
+  }
+
+  const data = {
+    courseCode,
+    title,
+    section,
+    department,
+    semester,
+    credits: input.credits ?? null,
+    facultyId: input.facultyId ?? null,
+  };
+
+  const saved = input.id
+    ? await prisma.courseClass.update({ where: { id: input.id }, data })
+    : await prisma.courseClass.create({ data });
+
+  // Faculty double-booking guard: pretend this class now has the candidate
+  // faculty and look for faculty-kind clashes against every other class.
+  if (saved.facultyId) {
+    const all = await prisma.courseClass.findMany({
+      include: { slots: { select: { id: true, day: true, startMin: true, endMin: true, room: true, labId: true } } },
+    });
+    const slots: SlotLike[] = all.flatMap((c) =>
+      c.slots.map((s) => ({
+        id: s.id,
+        classId: c.id,
+        day: s.day as SlotLike["day"],
+        startMin: s.startMin,
+        endMin: s.endMin,
+        room: s.room,
+        labId: s.labId,
+        facultyId: c.id === saved.id ? saved.facultyId : c.facultyId,
+        courseCode: c.courseCode,
+        section: c.section,
+        semester: c.semester,
+      })),
+    );
+    const mine = new Set(all.find((c) => c.id === saved.id)?.slots.map((s) => s.id) ?? []);
+    const facultyClash = detectSlotClashes(slots).find(
+      (c) => c.kind === "faculty" && (mine.has(c.a.id) || mine.has(c.b.id)),
+    );
+    if (facultyClash) {
+      // Roll the assignment back — the schedule must never double-book a teacher.
+      await prisma.courseClass.update({ where: { id: saved.id }, data: { facultyId: null } });
+      throw new ServiceError("conflict", `Faculty unavailable: ${facultyClash.detail}`, 409);
+    }
+
+    await notifyUser(saved.facultyId, {
+      type: "ANNOUNCEMENT",
+      title: input.id ? "Course assignment updated" : "New course assigned",
+      body: `You are assigned to ${saved.courseCode} ${saved.title} (Section ${saved.section}, ${saved.semester}).`,
+      link: "/faculty/courses",
+    });
+  }
+
+  await recordAudit({
+    actorId: user.id,
+    action: input.id ? "course.update" : "course.create",
+    entity: "CourseClass",
+    entityId: saved.id,
+    summary: `${saved.courseCode} ${saved.title} · Section ${saved.section} · ${saved.semester}${saved.facultyId ? " (faculty assigned)" : ""}`,
+  });
+
+  return saved;
 }

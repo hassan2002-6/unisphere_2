@@ -24,8 +24,15 @@ import { searchStudents, getStudentAcademicProfile } from "@/server/services/stu
 import { listInbox, markMessageRead, sendMessage } from "@/server/services/messages";
 import { listAudit, recordAudit } from "@/server/services/audit";
 import { listClashReports, reportClash, resolveClashReport } from "@/server/services/clash-reports";
-import { deleteSlot, saveSlot } from "@/server/services/timetable-manage";
-import { decideFyp } from "@/server/services/fyp";
+import { deleteSlot, saveClass, saveSlot } from "@/server/services/timetable-manage";
+import { deleteExam, saveExam } from "@/server/services/exam-manage";
+import { decideFyp, addFypProgressUpdate, requestFypChanges, resubmitFypApplication } from "@/server/services/fyp";
+import {
+  createAccount,
+  initiateAccountRecovery,
+  resolveLoginIdentifier,
+  setAccountActive,
+} from "@/server/services/accounts";
 import { ServiceError } from "@/server/services/forms";
 
 const RUN_STARTED = new Date();
@@ -39,6 +46,9 @@ const cleanup = {
   attendanceStudentIds: [] as string[],
   slotIds: [] as string[],
   fypIds: [] as string[],
+  accountIds: [] as string[],
+  createdClassIds: [] as string[],
+  examIds: [] as string[],
 };
 
 let pass = 0;
@@ -114,6 +124,8 @@ async function main() {
 
   // ── 2. Attendance lifecycle ───────────────────────────────────────────────
   console.log("\n2. Faculty marks a session → student attendance updates");
+  // Sweep rows left by an interrupted earlier run so the delta check is stable.
+  await prisma.attendanceRecord.deleteMany({ where: { date: new Date(2025, 4, 5) } });
   const attendanceClasses = await prisma.courseClass.findMany({
     where: { facultyId: faculty.id, enrollments: { some: { status: "ACTIVE" } } },
     take: 1,
@@ -256,7 +268,7 @@ async function main() {
 
   // ── 6. Student search + permitted profile ─────────────────────────────────
   console.log("\n6. Student search + permitted academic profile");
-  const results = await searchStudents("23-00", { take: 10 });
+  const results = await searchStudents("S22CSC0", { take: 10 });
   ok("search by registration prefix finds students", results.length >= 5, `${results.length} hits`);
   const profile = await getStudentAcademicProfile(faculty, student.id);
   ok("academic profile loads courses", !!profile && profile.courses.length > 0, `${profile?.courses.length ?? 0} courses`);
@@ -379,7 +391,7 @@ async function main() {
         technologies: "Vitest",
         groupName: "E2E Group",
         members: "E2E Member",
-        registrationNos: "23-0099",
+        registrationNos: "S22CSC099",
         department: "Computer Science",
         semester: "Fall 2026",
       },
@@ -403,6 +415,251 @@ async function main() {
   );
   await expectThrow("students cannot decide FYP applications", async () =>
     decideFyp(student, app2.id, "APPROVED", "self-approve attempt"),
+  );
+
+  // ── 11. Account provisioning & lifecycle (spec §4/§5) ────────────────────
+  console.log("\n11. Account provisioning, activation and recovery");
+  // Sweep leftovers from an interrupted previous run.
+  await prisma.user.deleteMany({ where: { email: { startsWith: "e2e.probe." } } });
+  await prisma.examSchedule.deleteMany({ where: { class: { courseCode: { in: ["E2E-999", "E2E-996"] } } } });
+  await prisma.courseClass.deleteMany({ where: { courseCode: { in: ["E2E-999", "E2E-996"] } } });
+  const probeEmail = `e2e.probe.${Date.now()}@shu.edu.pk`;
+  const created = await createAccount(admin, {
+    name: "E2E Probe Student",
+    email: probeEmail,
+    role: "STUDENT",
+    department: "Computer Science",
+    program: "BSCS",
+    batch: "2022",
+    skipInvitation: true,
+  });
+  cleanup.accountIds.push(created.userId);
+  ok("admin created the account with an institutional ID", created.institutionalId.length > 0, created.institutionalId);
+  ok("no Clerk invitation is sent for the test account", created.invitation === "skipped");
+
+  const resolved = await resolveLoginIdentifier(created.institutionalId);
+  ok(
+    "the University ID resolves to the account email",
+    resolved?.email === probeEmail,
+    resolved ? "resolved" : "no match",
+  );
+  ok("an unknown University ID resolves to nothing", (await resolveLoginIdentifier("S99ZZZ999")) === null);
+
+  await expectThrow("students cannot create accounts", async () =>
+    createAccount(student, { name: "Rogue Account", email: "rogue@shu.edu.pk", role: "STUDENT", skipInvitation: true }),
+  );
+  await expectThrow("creating a duplicate email is rejected", async () =>
+    createAccount(admin, { name: "Duplicate", email: probeEmail, role: "STUDENT", skipInvitation: true }),
+  );
+  await expectThrow("recovery for a never-activated account is refused", async () =>
+    initiateAccountRecovery(admin, created.userId),
+  );
+
+  await setAccountActive(admin, created.userId, false);
+  const deactivated = await prisma.user.findUniqueOrThrow({ where: { id: created.userId } });
+  ok("deactivation flips isActive and hides the ID from login resolution", deactivated.isActive === false && (await resolveLoginIdentifier(created.institutionalId)) === null);
+
+  await setAccountActive(admin, created.userId, true);
+  const reactivated = await prisma.user.findUniqueOrThrow({ where: { id: created.userId } });
+  ok("reactivation restores sign-in", reactivated.isActive === true && (await resolveLoginIdentifier(created.institutionalId)) !== null);
+
+  const recovery = await initiateAccountRecovery(admin, student.id);
+  ok("recovery mints a single-use sign-in ticket", recovery.url.includes("ticket="), "link withheld from logs");
+  const accountAudit = await listAudit({ take: 200 });
+  ok(
+    "account lifecycle is audited",
+    ["account.create", "account.deactivate", "account.activate", "account.recovery_ticket"].every((a) =>
+      accountAudit.some((t) => t.action === a && t.createdAt >= RUN_STARTED),
+    ),
+  );
+
+  // ── 12. Coordinator: classes, faculty assignment, exams (spec §7) ────────
+  console.log("\n12. Coordinator class / faculty / exam management");
+  const newClass = await saveClass(coordinator, {
+    courseCode: "E2E-999",
+    title: "Workflow test course",
+    section: "E2E",
+    department: "Computer Science",
+    semester: "Fall 2026",
+    credits: 3,
+  });
+  cleanup.createdClassIds.push(newClass.id);
+  ok("coordinator created a course section", newClass.courseCode === "E2E-999" && newClass.section === "E2E");
+
+  await expectThrow("a malformed course title is rejected", async () =>
+    saveClass(coordinator, {
+      courseCode: "E2E-998",
+      title: "x",
+      section: "",
+      department: "Computer Science",
+      semester: "Fall 2026",
+    }),
+  );
+  await expectThrow("faculty cannot create course sections", async () =>
+    saveClass(faculty, {
+      courseCode: "E2E-997",
+      title: "Not allowed",
+      section: "A",
+      department: "Computer Science",
+      semester: "Fall 2026",
+    }),
+  );
+
+  // Double-booking: give the new class the same slot the lead faculty teaches.
+  const facultyOwnSlot = await prisma.timetableSlot.findFirst({
+    where: { class: { facultyId: faculty.id } },
+    select: { day: true, startMin: true, endMin: true },
+  });
+  ok("the seed gives the lead faculty a teaching slot", !!facultyOwnSlot);
+  if (facultyOwnSlot) {
+    await saveSlot(coordinator, {
+      classId: newClass.id,
+      day: facultyOwnSlot.day,
+      startMin: facultyOwnSlot.startMin,
+      endMin: facultyOwnSlot.endMin,
+      room: "E2E-R1",
+    });
+    await expectThrow("assigning an already-busy faculty member is blocked", async () =>
+      saveClass(coordinator, {
+        id: newClass.id,
+        courseCode: "E2E-999",
+        title: "Workflow test course",
+        section: "A",
+        department: "Computer Science",
+        semester: "Fall 2026",
+        credits: 3,
+        facultyId: faculty.id,
+      }),
+    );
+    const assigned = await saveClass(coordinator, {
+      id: newClass.id,
+      courseCode: "E2E-999",
+      title: "Workflow test course",
+      section: "A",
+      department: "Computer Science",
+      semester: "Fall 2026",
+      credits: 3,
+      facultyId: faculty3.id,
+    });
+    ok("a free faculty member can be assigned", assigned.facultyId === faculty3.id);
+    const facultyNotified = await prisma.notification.count({
+      where: { userId: faculty3.id, title: { contains: "assign" }, createdAt: { gte: RUN_STARTED } },
+    });
+    ok("the assigned faculty member is notified", facultyNotified > 0);
+  }
+
+  // Exams: schedule, block the clash, remove.
+  const examDate = "2027-01-11";
+  const firstExam = await saveExam(coordinator, {
+    classId: newClass.id,
+    date: examDate,
+    startMin: 9 * 60,
+    endMin: 11 * 60,
+    hall: "E2E Hall",
+  });
+  cleanup.examIds.push(firstExam.saved.id);
+  ok("coordinator scheduled an exam", firstExam.saved.id.length > 0);
+  ok(
+    "an exam coinciding with a regular class is advisory, not a block",
+    firstExam.warnings.every((w) => w.kind !== "exam-hall" && w.kind !== "exam-cohort"),
+  );
+
+  const clashClass = await saveClass(coordinator, {
+    courseCode: "E2E-996",
+    title: "Workflow clash course",
+    section: "A",
+    department: "Computer Science",
+    semester: "Fall 2026",
+    credits: 3,
+  });
+  cleanup.createdClassIds.push(clashClass.id);
+  // Same student enrolled in both → the second exam must be refused.
+  await prisma.enrollment.create({
+    data: { classId: newClass.id, studentId: student.id, status: "ACTIVE" },
+  });
+  await prisma.enrollment.create({
+    data: { classId: clashClass.id, studentId: student.id, status: "ACTIVE" },
+  });
+  await expectThrow("a clashing exam for a shared student is blocked", async () =>
+    saveExam(coordinator, {
+      classId: clashClass.id,
+      date: examDate,
+      startMin: 9 * 60 + 30,
+      endMin: 11 * 60 + 30,
+      hall: "E2E Hall",
+    }),
+  );
+  await expectThrow("students cannot schedule exams", async () =>
+    saveExam(student, {
+      classId: clashClass.id,
+      date: examDate,
+      startMin: 9 * 60,
+      endMin: 10 * 60,
+    }),
+  );
+  await deleteExam(coordinator, firstExam.saved.id);
+  ok(
+    "the exam can be removed after scheduling",
+    (await prisma.examSchedule.count({ where: { id: firstExam.saved.id } })) === 0,
+  );
+
+  // ── 13. FYP supervision: changes requested + progress notes (spec §12) ───
+  console.log("\n13. FYP review notes and supervision progress");
+  const app3 = await mkApplication("E2E — changes requested");
+  cleanup.fypIds.push(app3.id);
+  const changes = await requestFypChanges(fypHead, app3.id, "Add the evaluation strategy and dataset source.");
+  ok("the FYP Head can request changes", changes.status === "CHANGES_REQUESTED");
+  const changesNotified = await prisma.notification.count({
+    where: { userId: student3.id, title: { contains: "Changes requested" }, createdAt: { gte: RUN_STARTED } },
+  });
+  ok("the group is notified with the remarks", changesNotified > 0);
+
+  const resubmitted = await resubmitFypApplication(student3, app3.id, {
+    title: "E2E — changes requested (revised)",
+    domain: "E2E",
+    description:
+      "Revised submission from the workflow run: the evaluation strategy and the dataset source were added as the reviewer asked.",
+    technologies: "Vitest",
+    groupName: "E2E Group",
+    members: "E2E Member",
+    registrationNos: "S22CSC099",
+    department: "Computer Science",
+    semester: "Fall 2026",
+  });
+  ok("the group can revise and resubmit in place", resubmitted.status === "PENDING" && resubmitted.remarks === null);
+  const resubmitNotified = await prisma.notification.count({
+    where: { userId: fypHead.id, title: { contains: "resubmitted" }, createdAt: { gte: RUN_STARTED } },
+  });
+  ok("the FYP Head is told the application came back", resubmitNotified > 0);
+  await expectThrow("another student cannot resubmit someone else's application", async () =>
+    resubmitFypApplication(student, app3.id, {
+      title: "Hijack attempt",
+      domain: "x",
+      description: "This should never be allowed to pass, not even once, because it is not my application at all.",
+      technologies: "x",
+      groupName: "x",
+      members: "x",
+      registrationNos: "x",
+      department: "Computer Science",
+      semester: "Fall 2026",
+    }),
+  );
+
+  const reDecided = await decideFyp(fypHead, app3.id, "APPROVED", "Looks good after revision.", saadia.id);
+  ok("a corrected application can still be approved", reDecided.status === "APPROVED" && reDecided.supervisorId === saadia.id);
+
+  const note = await addFypProgressUpdate(saadia, app1.id, "E2E: scope agreed, start the implementation log.");
+  ok("the assigned supervisor can add a progress note", note.id.length > 0);
+  const noteNotified = await prisma.notification.count({
+    where: { userId: student3.id, title: { contains: "progress note" }, createdAt: { gte: RUN_STARTED } },
+  });
+  ok("the group is notified of the progress note", noteNotified > 0);
+  await expectThrow("an unrelated user cannot add progress notes", async () =>
+    addFypProgressUpdate(faculty3, app1.id, "not my project"),
+  );
+  ok(
+    "progress notes are audited",
+    (await listAudit({ take: 200 })).some((t) => t.action === "fyp.progress_note" && t.createdAt >= RUN_STARTED),
   );
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
@@ -429,12 +686,16 @@ async function main() {
     clashes: (await prisma.clashReport.deleteMany({ where: { id: { in: cleanup.clashReportIds } } })).count,
     slots: (await prisma.timetableSlot.deleteMany({ where: { id: { in: cleanup.slotIds } } })).count,
     fyp: (await prisma.fypApplication.deleteMany({ where: { id: { in: cleanup.fypIds } } })).count,
+    classes: (await prisma.courseClass.deleteMany({ where: { id: { in: cleanup.createdClassIds } } })).count,
+    exams: (await prisma.examSchedule.deleteMany({ where: { id: { in: cleanup.examIds } } })).count,
+    accounts: (await prisma.user.deleteMany({ where: { id: { in: cleanup.accountIds } } })).count,
     notifications: (await prisma.notification.deleteMany({ where: { createdAt: { gte: RUN_STARTED } } })).count,
   };
   console.log(
     `  removed ${removed.attendance} attendance rows · ${removed.results} results · ${removed.assessments} assessment(s) · ` +
       `${removed.messages} message(s) · ${removed.clashes} clash report(s) · ${removed.slots} session(s) · ` +
-      `${removed.fyp} FYP application(s) · ${removed.notifications} notification(s)`,
+      `${removed.fyp} FYP application(s) · ${removed.classes} test class(es) · ${removed.accounts} test account(s) · ` +
+      `${removed.notifications} notification(s)`,
   );
 
   console.log(`\n${pass} passed, ${fail} failed`);

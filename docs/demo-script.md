@@ -51,11 +51,13 @@
 - Faculty `/faculty/students`: search by name/reg-no/course → permitted academic profile
   (attendance, midterm, results, CGPA) — the view is audited.
 - Admin `/admin/users` + `/admin/audit`: roles and the action trail (everything above is logged).
+- Admin `/admin/forms`: the **forms manager** — add a form (label/type lines build the fields),
+  retire one with a click; students see the change immediately in `/forms`.
 
 ## 2d. University IDs, coordinator changes & the FYP request desk (4:00–5:00)
 
-- **Every account carries its university ID.** Students use registration numbers (`23-0001`…),
-  staff use employee IDs (`EMP-101` faculty, `EMP-201` coordinator, `EMP-301` FYP Head) — the ID
+- **Every account carries its university ID.** Students use registration numbers (`S22CSC001`…),
+  staff use employee IDs (`FAC001` faculty, `COORD001` coordinator, `FYP001` FYP Head) — the ID
   shows in the top bar, on the dashboard and on **My Profile** (sidebar → My Profile), together
   with the record attached to it and the role's full capability list.
 - Sign in as **coordinator** → `/coordinator/timetable`: the weekly grid is editable — move a
@@ -65,7 +67,29 @@
 - Sign in as **FYP Head** → `/fyphead`: the request desk. Every application submitted by a group
   lands here; approving one assigns the faculty supervisor (both sides get a notification),
   rejecting one records the reason. The decided table carries the supervisor and employee ID.
-- Student `/fyp` then shows *Supervisor: Ms. Saadia Karim (EMP-104)* on their approved project.
+- Student `/fyp` then shows the assigned supervisor with their employee ID on the approved project.
+
+## 2e. Accounts, exams & FYP supervision (5:00–6:00)
+
+- **One sign-in for everyone** — `/sign-in` accepts a University ID (`S22CSC003`) *or* an email;
+  the form maps the ID to the account and signs you in. Signed-out deep links bounce here with
+  `?redirect_url=`, and `/forgot-password` lets a holder reset without staff help. There is **no
+  self-signup**: accounts are issued by the coordination office.
+- Admin `/admin/users`: **New account** (role-aware form → institutional ID is generated:
+  `S26CSC0xx` for students, `FAC0xx`/`COORD0xx` for staff) and **CSV import** for a whole batch.
+  Every row has a **Status** badge; deactivate/reactivate blocks sign-in immediately
+  (`isActive` at the portal + Clerk ban). The account page (`/admin/users/[id]`) carries the
+  identity card, audit history and a **recovery link** (single-use) for password resets.
+- Coordinator `/coordinator/exams`: schedule, move or cancel exams per course; an exam that
+  collides with a hall or a cohort that already sits another exam is **blocked**, class-time
+  coincidences surface as advisories. Students + faculty are notified.
+- Coordinator `/coordinator/timetable`: the same page now also manages **courses & sections** —
+  create a section and assign faculty (an already-busy lecturer is refused), and correct a
+  student's record from `/coordinator/students/[id]`.
+- Faculty `/faculty/fyp`: the **supervision workspace** — supervised groups, members,
+  registration numbers, and a progress-note box; each note notifies the group and appears on the
+  student's `/fyp` page. FYP Head `/fyphead` can also **Request changes** instead of deciding —
+  the group revises and resubmits in place.
 
 ## 3. Forms centre (2:45–4:30)
 

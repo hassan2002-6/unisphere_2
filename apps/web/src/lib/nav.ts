@@ -14,6 +14,7 @@ import {
   Cpu,
   FileSearch,
   FileText,
+  FormInput,
   FlaskConical,
   GraduationCap,
   Inbox,
@@ -102,6 +103,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
         { label: "Exams", href: "/exams", icon: CalendarClock },
         { label: "My Courses", href: "/faculty/courses", icon: BookOpen },
+        { label: "FYP Supervision", href: "/faculty/fyp", icon: GraduationCap },
         { label: "Attendance", href: "/faculty/attendance", icon: CalendarCheck },
         { label: "Marks Entry", href: "/faculty/marks", icon: GraduationCap },
         { label: "Students", href: "/faculty/students", icon: UserSearch },
@@ -131,6 +133,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       items: [
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
         { label: "Timetable Manager", href: "/coordinator/timetable", icon: CalendarCog },
+        { label: "Exam Manager", href: "/coordinator/exams", icon: CalendarClock },
         { label: "Exams", href: "/exams", icon: CalendarClock },
         { label: "Clash Monitor", href: "/coordinator/clashes", icon: AlertTriangle },
       ],
@@ -142,6 +145,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Complaints", href: "/coordinator/complaints", icon: MessageSquareWarning },
         { label: "Students", href: "/coordinator/students", icon: UserSearch },
         { label: "Faculty", href: "/coordinator/faculty", icon: Users },
+        { label: "Reports", href: "/admin/reports", icon: BarChart3 },
         { label: "Review Queue", href: "/reviews", icon: FileSearch },
         { label: "Forms Center", href: "/forms", icon: FileText },
         { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
@@ -228,6 +232,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       title: "Administration",
       items: [
         { label: "Users & Roles", href: "/admin/users", icon: ShieldCheck },
+        { label: "Forms Manager", href: "/admin/forms", icon: FormInput },
         { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
         { label: "Reports", href: "/admin/reports", icon: BarChart3 },
       ],
@@ -268,6 +273,8 @@ const EXTRA_TITLES: { prefix: string; label: string }[] = [
   { prefix: "/complaints/new", label: "File a complaint" },
   { prefix: "/fyphead", label: "FYP Head Console" },
   { prefix: "/coordinator/timetable", label: "Timetable Manager" },
+  { prefix: "/coordinator/exams", label: "Exam Manager" },
+  { prefix: "/faculty/fyp", label: "FYP Supervision" },
   { prefix: "/profile", label: "My Profile" },
 ];
 

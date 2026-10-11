@@ -46,6 +46,7 @@ export async function requireUser(): Promise<User> {
   if (!process.env.DATABASE_URL) redirect("/setup-needed");
   const user = await getCurrentUser();
   if (!user) redirect("/not-provisioned");
+  if (!user.isActive) redirect("/account-disabled");
   return user;
 }
 

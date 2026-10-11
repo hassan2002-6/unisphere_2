@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteSlotAction, saveSlotAction } from "./actions";
+import { deleteSlotAction, saveClassAction, saveSlotAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -106,6 +106,67 @@ export default async function CoordinatorTimetablePage({
         ))}
       </section>
 
+      <details className="rounded-xl border bg-card px-5 py-4">
+        <summary className="cursor-pointer text-sm font-semibold">
+          <Plus className="mr-1 inline h-3.5 w-3.5 text-primary" />
+          Create a course section{" "}
+          <span className="font-normal text-muted-foreground">— then add its weekly sessions below</span>
+        </summary>
+        <form action={saveClassAction} className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-code" className="text-[11px] text-muted-foreground">
+              Course code
+            </Label>
+            <Input id="nc-code" name="courseCode" placeholder="CS-401" required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-title" className="text-[11px] text-muted-foreground">
+              Title
+            </Label>
+            <Input id="nc-title" name="title" placeholder="Machine Learning" required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-section" className="text-[11px] text-muted-foreground">
+              Section
+            </Label>
+            <Input id="nc-section" name="section" placeholder="A" required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-credits" className="text-[11px] text-muted-foreground">
+              Credits
+            </Label>
+            <Input id="nc-credits" name="credits" inputMode="numeric" placeholder="3" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-dept" className="text-[11px] text-muted-foreground">
+              Department
+            </Label>
+            <Input id="nc-dept" name="department" defaultValue="Computer Science" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-semester" className="text-[11px] text-muted-foreground">
+              Semester
+            </Label>
+            <Input id="nc-semester" name="semester" defaultValue="Fall 2026" required />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Label htmlFor="nc-faculty" className="text-[11px] text-muted-foreground">
+              Faculty
+            </Label>
+            <select id="nc-faculty" name="facultyId" defaultValue="" className={FIELD}>
+              <option value="">— Assign later —</option>
+              {(data?.faculty ?? []).map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                  {f.employeeId ? ` (${f.employeeId})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <SubmitButton pendingLabel="Creating…">Create section</SubmitButton>
+        </form>
+      </details>
+
       <datalist id="tt-rooms">
         {(data?.rooms ?? []).map((room) => (
           <option key={room} value={room} />
@@ -122,14 +183,39 @@ export default async function CoordinatorTimetablePage({
                 </CardTitle>
                 <Badge variant="secondary">Section {cls.section}</Badge>
                 <Badge variant="outline">{cls.semester}</Badge>
-                <span className="text-xs text-muted-foreground">
-                  {cls.faculty ? `${cls.faculty.name}${cls.faculty.employeeId ? ` (${cls.faculty.employeeId})` : ""}` : "No faculty assigned"}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <form action={saveClassAction} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={cls.id} />
+                  <input type="hidden" name="courseCode" value={cls.courseCode} />
+                  <input type="hidden" name="title" value={cls.title} />
+                  <input type="hidden" name="section" value={cls.section} />
+                  <input type="hidden" name="department" value={cls.department} />
+                  <input type="hidden" name="semester" value={cls.semester} />
+                  <input type="hidden" name="credits" value={cls.credits ?? ""} />
+                  <select
+                    name="facultyId"
+                    defaultValue={cls.facultyId ?? ""}
+                    aria-label={`Faculty for ${cls.courseCode}`}
+                    className={FIELD}
+                  >
+                    <option value="">— No faculty —</option>
+                    {(data?.faculty ?? []).map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                        {f.employeeId ? ` (${f.employeeId})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <SubmitButton size="sm" variant="secondary" pendingLabel="Saving…">
+                    Assign
+                  </SubmitButton>
+                </form>
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Users className="h-3.5 w-3.5" />
+                  {cls._count.enrollments} enrolled
                 </span>
               </div>
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <Users className="h-3.5 w-3.5" />
-                {cls._count.enrollments} enrolled
-              </span>
             </CardHeader>
             <CardContent className="flex flex-col divide-y p-0">
               {cls.slots.length === 0 ? (

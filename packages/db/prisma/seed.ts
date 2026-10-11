@@ -35,48 +35,48 @@ async function main() {
     name: "Ali Raza",
     role: "STUDENT",
     department: "Computer Science",
-    registrationNo: "23-0001",
+    registrationNo: "S22CSC001",
   });
   const student2 = await upsertUser({
     email: "student2@shu.edu.pk",
     name: "Sara Khan",
     role: "STUDENT",
     department: "Computer Science",
-    registrationNo: "23-0002",
+    registrationNo: "S22CSC002",
   });
   const faculty = await upsertUser({
     email: "faculty@shu.edu.pk",
     name: "Dr. Ateeque Rahman",
     role: "FACULTY",
     department: "Computer Science",
-    employeeId: "EMP-101",
+    employeeId: "FAC001",
   });
   const faculty2 = await upsertUser({
     email: "faculty2@shu.edu.pk",
-    name: "Dr. Saadia Karim",
+    name: "Dr. Sana Tariq",
     role: "FACULTY",
     department: "Computer Science",
-    employeeId: "EMP-102",
+    employeeId: "FAC002",
   });
   await upsertUser({
     email: "coordinator@shu.edu.pk",
     name: "Ms. Hina Qureshi",
     role: "COORDINATOR",
     department: "Examinations & Coordination",
-    employeeId: "EMP-201",
+    employeeId: "COORD001",
   });
   const fypHead = await upsertUser({
     email: "fyphead@shu.edu.pk",
     name: "Prof. Kamran Ali",
     role: "FYP_HEAD",
     department: "Computer Science",
-    employeeId: "EMP-301",
+    employeeId: "FYP001",
   });
   const mentorUsers = await Promise.all(
     [
-      ["mentor@shu.edu.pk", "Engr. Danish Iqbal", "ALU-501"],
-      ["mentor2@shu.edu.pk", "Ms. Ayesha Noor", "ALU-502"],
-      ["mentor3@shu.edu.pk", "Mr. Bilal Ahmed", "ALU-503"],
+      ["mentor@shu.edu.pk", "Engr. Danish Iqbal", "ALU001"],
+      ["mentor2@shu.edu.pk", "Ms. Ayesha Noor", "ALU002"],
+      ["mentor3@shu.edu.pk", "Mr. Bilal Ahmed", "ALU003"],
     ].map(([email, name, employeeId]) =>
       upsertUser({ email, name, role: "MENTOR", department: "Alumni — Software Engineering", employeeId }),
     ),
@@ -435,6 +435,148 @@ async function main() {
         { name: "justification", label: "Justification", type: "textarea", required: true },
       ],
     },
+    // ── Common university forms (spec §11) ────────────────────────────────
+    {
+      key: "bonafide-certificate",
+      title: "Bonafide / Student Status Certificate",
+      description: "Certificate confirming you are a current enrolled student.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Coordination Office",
+      slaDays: 3,
+      fields: [
+        { name: "purpose", label: "Purpose (bank, visa, employer…)", type: "text", required: true },
+        { name: "copies", label: "Copies required", type: "number", required: false },
+      ],
+    },
+    {
+      key: "enrollment-verification",
+      title: "Enrollment / Student Verification Certificate",
+      description: "Verified enrollment letter for external authorities.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Coordination Office",
+      slaDays: 4,
+      fields: [
+        { name: "addressee", label: "Addressed to", type: "text", required: true },
+        { name: "purpose", label: "Purpose", type: "textarea", required: true },
+      ],
+    },
+    {
+      key: "provisional-certificate",
+      title: "Provisional Certificate / Degree Request",
+      description: "Provisional certificate or degree issuance request (final year).",
+      audienceRole: "STUDENT",
+      reviewerRole: "ADMIN",
+      recipientLabel: "Registrar Office",
+      slaDays: 7,
+      fields: [
+        { name: "program", label: "Program", type: "text", required: true },
+        { name: "graduationTerm", label: "Graduation term", type: "text", required: true, placeholder: "Fall 2026" },
+        { name: "notes", label: "Notes", type: "textarea", required: false },
+      ],
+    },
+    {
+      key: "semester-registration",
+      title: "Semester Registration",
+      description: "Register for the upcoming semester and confirm your load.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Coordination Office",
+      slaDays: 5,
+      fields: [
+        { name: "semester", label: "Semester", type: "text", required: true, placeholder: "Spring 2027" },
+        { name: "courseCodes", label: "Course codes (comma separated)", type: "textarea", required: true },
+        { name: "creditHours", label: "Total credit hours", type: "number", required: true },
+      ],
+    },
+    {
+      key: "course-add-drop",
+      title: "Course Add / Drop",
+      description: "Add or drop a course during the adjustment window.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Coordination Office",
+      slaDays: 3,
+      fields: [
+        { name: "action", label: "Action", type: "select", options: ["Add", "Drop"], required: true },
+        { name: "courseCode", label: "Course code", type: "text", required: true },
+        { name: "section", label: "Section", type: "text", required: false },
+        { name: "reason", label: "Reason", type: "textarea", required: true },
+      ],
+    },
+    {
+      key: "exam-request",
+      title: "Examination Request (Recheck / Re-sit)",
+      description: "Request a paper recheck or a re-sit examination.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Examination Cell",
+      slaDays: 5,
+      fields: [
+        { name: "courseCode", label: "Course code", type: "text", required: true },
+        { name: "examTerm", label: "Exam term", type: "text", required: true, placeholder: "Final — Fall 2026" },
+        { name: "requestType", label: "Request type", type: "select", options: ["Recheck", "Re-sit"], required: true },
+        { name: "reason", label: "Reason", type: "textarea", required: true },
+      ],
+    },
+    {
+      key: "fee-dues",
+      title: "Fee / Dues Request",
+      description: "Fee voucher issue, instalment plan, or dues clarification.",
+      audienceRole: "STUDENT",
+      reviewerRole: "ADMIN",
+      recipientLabel: "Accounts Office",
+      slaDays: 4,
+      fields: [
+        { name: "requestType", label: "Request type", type: "select", options: ["Voucher", "Instalment plan", "Clarification"], required: true },
+        { name: "amount", label: "Amount (PKR, if relevant)", type: "number", required: false },
+        { name: "details", label: "Details", type: "textarea", required: true },
+      ],
+    },
+    {
+      key: "info-correction",
+      title: "Student Information Correction",
+      description: "Correct your registered details (name, CNIC, contact, program).",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Coordination Office",
+      slaDays: 3,
+      fields: [
+        { name: "field", label: "Field to correct", type: "text", required: true, placeholder: "CNIC / phone / name" },
+        { name: "currentValue", label: "Current value", type: "text", required: true },
+        { name: "newValue", label: "Corrected value", type: "text", required: true },
+        { name: "evidence", label: "Supporting document (description)", type: "textarea", required: false },
+      ],
+    },
+    {
+      key: "general-application",
+      title: "General Application (Faculty / Administration)",
+      description: "Any other request addressed to faculty or administration.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Coordination Office",
+      slaDays: 5,
+      fields: [
+        { name: "addressedTo", label: "Addressed to", type: "text", required: true, placeholder: "FYP Head / Faculty / Admin" },
+        { name: "subject", label: "Subject", type: "text", required: true },
+        { name: "details", label: "Details", type: "textarea", required: true },
+      ],
+    },
+    {
+      key: "faculty-lab-request",
+      title: "Lab / Equipment Request",
+      description: "Faculty request for lab equipment or a software licence for teaching.",
+      audienceRole: "FACULTY",
+      reviewerRole: "ADMIN",
+      recipientLabel: "Lab Administration",
+      slaDays: 4,
+      fields: [
+        { name: "item", label: "Item / equipment", type: "text", required: true },
+        { name: "courseCode", label: "For course (optional)", type: "text", required: false },
+        { name: "justification", label: "Justification", type: "textarea", required: true },
+      ],
+    },
   ];
   for (const t of templates) {
     await prisma.formTemplate.upsert({ where: { key: t.key }, update: { ...t }, create: t });
@@ -556,7 +698,7 @@ async function main() {
         technologies: "Next.js, TypeScript, PostgreSQL, Prisma, Clerk, Tailwind",
         groupName: "Team UniSphere",
         members: "Ali Raza, Ishan Rajwani, Carol Swan",
-        registrationNos: "23-0001, 23-0008, 23-0012",
+        registrationNos: "S22CSC001, S22CSC008, S22CSC012",
         supervisorPref: "Dr. Ateeque Rahman",
         department: "Computer Science",
         semester: "Fall 2026",
@@ -575,8 +717,8 @@ async function main() {
         technologies: "Python, OpenCV, FastAPI, PostgreSQL",
         groupName: "Team Vision",
         members: "Sara Khan, Hamza Tariq",
-        registrationNos: "23-0002, 23-0031",
-        supervisorPref: "Dr. Saadia Karim",
+        registrationNos: "S22CSC002, S22CSC031",
+        supervisorPref: "Ms. Saadia Karim",
         department: "Computer Science",
         semester: "Fall 2026",
         status: "APPROVED",
@@ -614,7 +756,7 @@ async function main() {
         projectName: "Vision training — face recognition",
         groupName: "Team Vision",
         members: "Sara Khan, Hamza Tariq",
-        supervisor: "Dr. Saadia Karim",
+        supervisor: "Ms. Saadia Karim",
         resourceType: "GPU",
         config: "RTX 3090 ×2",
         purpose: "Fine-tune recognition models for the classroom prototype.",
@@ -750,21 +892,21 @@ async function main() {
   }
 
   // ── FYP-II demo fleet ──────────────────────────────────────────────────
-  // 10 students (23-0001–23-0010), 3 faculty, coordinator, FYP Head, Saadia
+  // 10 students (S22CSC001–S22CSC010), 3 faculty, coordinator, FYP Head, Saadia
   // Karim (co-supervisor, FYP-related), and a system administrator — plus
   // enrollments, attendance, assessments/scores, archived results (CGPA),
   // messages and audit entries.
   const studentFleet: [string, string, string][] = [
-    ["student@shu.edu.pk", "Ali Raza", "23-0001"],
-    ["student2@shu.edu.pk", "Sara Khan", "23-0002"],
-    ["student3@shu.edu.pk", "Ahmed Malik", "23-0003"],
-    ["student4@shu.edu.pk", "Fatima Noor", "23-0004"],
-    ["student5@shu.edu.pk", "Bilal Ahmed", "23-0005"],
-    ["student6@shu.edu.pk", "Ayesha Siddiqui", "23-0006"],
-    ["student7@shu.edu.pk", "Hamza Iqbal", "23-0007"],
-    ["student8@shu.edu.pk", "Zainab Ali", "23-0008"],
-    ["student9@shu.edu.pk", "Usman Tariq", "23-0009"],
-    ["student10@shu.edu.pk", "Maryam Sheikh", "23-0010"],
+    ["student@shu.edu.pk", "Ali Raza", "S22CSC001"],
+    ["student2@shu.edu.pk", "Sara Khan", "S22CSC002"],
+    ["student3@shu.edu.pk", "Ahmed Malik", "S22CSC003"],
+    ["student4@shu.edu.pk", "Fatima Noor", "S22CSC004"],
+    ["student5@shu.edu.pk", "Bilal Ahmed", "S22CSC005"],
+    ["student6@shu.edu.pk", "Ayesha Siddiqui", "S22CSC006"],
+    ["student7@shu.edu.pk", "Hamza Iqbal", "S22CSC007"],
+    ["student8@shu.edu.pk", "Zainab Ali", "S22CSC008"],
+    ["student9@shu.edu.pk", "Usman Tariq", "S22CSC009"],
+    ["student10@shu.edu.pk", "Maryam Sheikh", "S22CSC010"],
   ];
   const students: Awaited<ReturnType<typeof upsertUser>>[] = [];
   for (const [email, name, reg] of studentFleet) {
@@ -781,7 +923,7 @@ async function main() {
     name: "Dr. Kamran Shah",
     role: "FACULTY",
     department: "Computer Science",
-    employeeId: "EMP-103",
+    employeeId: "FAC003",
   });
   await prisma.facultyProfile.upsert({
     where: { userId: faculty3.id },
@@ -795,7 +937,7 @@ async function main() {
     name: "Ms. Saadia Karim",
     role: "FACULTY",
     department: "Computer Science",
-    employeeId: "EMP-104",
+    employeeId: "FAC004",
   });
   const saadia = await prisma.user.findUnique({ where: { email: "saadia.karim@shu.edu.pk" } });
   if (saadia) {
@@ -817,7 +959,7 @@ async function main() {
     name: "UniSphere Administrator",
     role: "ADMIN",
     department: "IT Services",
-    employeeId: "EMP-001",
+    employeeId: "ADMIN001",
   });
   console.log(`✓ demo fleet: ${students.length} students · 3 faculty · coordinator · FYP Head · co-supervisor · admin`);
 
@@ -995,7 +1137,7 @@ async function main() {
   console.log("✓ sample complaints / FYP / resource / mentorship flows");
   console.log("── seed complete ──────────────────────────────");
   console.log("Demo logins (one per role):");
-  console.log("  student@shu.edu.pk (23-0001) · faculty@shu.edu.pk (EMP-101) · coordinator@shu.edu.pk (EMP-201)");
+  console.log("  student@shu.edu.pk (S22CSC001) · faculty@shu.edu.pk (FAC001) · coordinator@shu.edu.pk (COORD001)");
   console.log("  fyphead@shu.edu.pk · mentor@shu.edu.pk · admin@shu.edu.pk");
   console.log("  + students student2..10@shu.edu.pk · faculty2/3@shu.edu.pk · saadia.karim@shu.edu.pk");
 }

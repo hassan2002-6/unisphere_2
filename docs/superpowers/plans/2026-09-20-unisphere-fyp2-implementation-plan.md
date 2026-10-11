@@ -742,8 +742,8 @@ course coordinate also have their id and portal where he can change the changes 
 their id and portal too where he/she receive request."*
 
 **Identity.** Every account now carries its university ID end-to-end: students use registration
-numbers (`23-0001`…`23-0010`), staff use employee IDs (`EMP-101/102/103/104` faculty, `EMP-201`
-coordinator, `EMP-301` FYP Head, `EMP-001` admin), alumni mentors use `ALU-501`… IDs are seeded
+numbers (`S22CSC001`…`S22CSC010`), staff use employee IDs (`FAC001`–`FAC004` faculty, `COORD001`
+coordinator, `FYP001` FYP Head, `ADMIN001` admin), alumni mentors use `ALU001`… IDs are seeded
 (and re-seeding now repairs stale ones — `upsertUser` updates `registrationNo`/`employeeId`),
 displayed in the topbar, the dashboard description, the FYP/supervision views and on the new
 **`/profile`** page (visible to all six roles): identity card, role record (programme/batch/
@@ -777,3 +777,43 @@ notification + non-faculty rejection + student denial) for **52/52 checks**, cle
 sessions/applications/notifications it creates. All 62 authenticated captures (six personas,
 including `/profile` for every role, `/coordinator/timetable`, `/fyphead`) refresh from
 production with 0 problems.
+
+### Institutional accounts, exam management & FYP supervision
+
+**Provisioning (spec §4/§5).** Accounts are issued, never self-registered: `AUTO_PROVISION=false`,
+and `src/server/services/accounts.ts` owns the lifecycle — `createAccount` (role-aware form,
+`nextInstitutionalId()` mints `S22CSC0xx`/`FAC0xx`/`COORD0xx`, invitation via Clerk),
+`importAccountsFromCsv`, `setAccountActive` (portal `isActive` + Clerk ban), `updateAccountInfo`
+and `initiateAccountRecovery` (single-use sign-in ticket, shown once, never logged). The public
+sign-in (/sign-in) is a custom form over Clerk's signal API: **University ID or email**
+(`resolveLoginIdentifier`), show/hide password, MFA fallback, Google SSO, `?ticket=` recovery and
+`?__clerk_ticket=` links, `?redirect_url=` honouring; `/forgot-password` and `/sso-callback` are
+public, and `requireUser()` bounces deactivated accounts to `/account-disabled`.
+
+**Exam manager (spec §9).** `/coordinator/exams` (new `exam-manage.ts`): schedule / move / cancel
+exams per course with hall + cohort double-bookings blocked by the clash engine and class-time
+coincidences surfaced as advisories; faculty and enrolled students are notified, changes audited,
+and the system never moves anything on its own.
+
+**Coordinator record management (spec §7).** `/coordinator/timetable` gained courses & sections
+(course code, title, section, semester, credits, faculty assignment with a busy-lecturer block and
+a notification) and `/coordinator/students/[id]` gained an audited **record correction** form
+(section/semester/batch with a reason; the student is notified).
+
+**FYP supervision (spec §12).** `FypStatus` gained `CHANGES_REQUESTED`; the FYP Head can request
+changes with remarks instead of deciding, the group revises and **resubmits in place**
+(`resubmitFypApplication` → PENDING), `/faculty/fyp` is the supervisor workspace (supervised
+groups + progress notes that notify the group and appear on the student's `/fyp` page), and every
+note is audited (`fyp.progress_note`).
+
+**Forms manager (spec §11).** Eleven more university form templates ship in the seed (bonafide,
+enrollment verification, provisional certificate, semester registration, add/drop, exam recheck,
+fee/dues, information correction, general application, faculty lab request) and `/admin/forms`
+lets the administration add a template from a compact field description (`Label | type | optional`)
+or retire one instantly.
+
+**Verification (wave).** **376 unit tests** (7 files — `forms-admin.test.ts` covers the field
+parser, `status.test.ts` the new FYP transitions) and **85/85 E2E checks** in
+`scripts/test-workflows.ts` (new sections 11–13: account lifecycle + recovery + University-ID
+resolution, class/faculty/exam management with clash blocks, FYP changes-requested → resubmit →
+approve + progress notes).

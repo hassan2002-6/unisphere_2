@@ -32,7 +32,8 @@ export const MACHINES: Record<MachineKey, Record<string, readonly string[]>> = {
   },
   // PENDING → {APPROVED, REJECTED}
   fyp: {
-    PENDING: ["APPROVED", "REJECTED"],
+    PENDING: ["APPROVED", "REJECTED", "CHANGES_REQUESTED"],
+    CHANGES_REQUESTED: ["PENDING", "APPROVED", "REJECTED"],
     APPROVED: [],
     REJECTED: [],
   },

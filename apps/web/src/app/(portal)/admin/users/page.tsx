@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { CreateAccountForm, CsvImportForm } from "@/components/admin-account-forms";
+import { StatusBadge } from "@/components/status-badge";
 import { roleChangeAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +28,7 @@ type UserRow = {
   department: string | null;
   registrationNo: string | null;
   employeeId: string | null;
+  isActive: boolean;
   createdAt: Date;
 };
 
@@ -70,6 +73,7 @@ export default async function AdminUsersPage({
           department: true,
           registrationNo: true,
           employeeId: true,
+          isActive: true,
           createdAt: true,
         },
       }),
@@ -146,6 +150,27 @@ export default async function AdminUsersPage({
         </Alert>
       ) : (
         <>
+          <details className="rounded-xl border bg-card px-5 py-4">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Create an account{" "}
+              <span className="font-normal text-muted-foreground">
+                — student, faculty, coordinator, FYP Head, mentor or admin
+              </span>
+            </summary>
+            <div className="mt-4">
+              <CreateAccountForm />
+            </div>
+          </details>
+
+          <details className="rounded-xl border bg-card px-5 py-4">
+            <summary className="cursor-pointer text-sm font-semibold">
+              Bulk import <span className="font-normal text-muted-foreground">— validated CSV</span>
+            </summary>
+            <div className="mt-4">
+              <CsvImportForm />
+            </div>
+          </details>
+
           <section aria-label="Accounts by role" className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary" className="tabular-nums">
               Total {totalUsers}
@@ -195,6 +220,7 @@ export default async function AdminUsersPage({
                       <TableHead>Role</TableHead>
                       <TableHead>Unread</TableHead>
                       <TableHead>Reg / Employee</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="pr-5">Change role</TableHead>
@@ -237,6 +263,9 @@ export default async function AdminUsersPage({
                             </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{identity || "—"}</TableCell>
+                          <TableCell>
+                            <StatusBadge status={u.isActive ? "ACTIVE" : "DEACTIVATED"} />
+                          </TableCell>
                           <TableCell>{u.department ?? "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">
                             {u.createdAt.toLocaleDateString("en-GB", {
@@ -247,24 +276,29 @@ export default async function AdminUsersPage({
                             })}
                           </TableCell>
                           <TableCell className="pr-5">
-                            <form action={roleChangeAction} className="flex items-center gap-2">
-                              <input type="hidden" name="userId" value={u.id} />
-                              <select
-                                name="role"
-                                defaultValue={u.role}
-                                aria-label={`New role for ${u.name}`}
-                                className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
-                              >
-                                {ROLE_VALUES.map((role) => (
-                                  <option key={role} value={role}>
-                                    {ROLE_LABELS[role]}
-                                  </option>
-                                ))}
-                              </select>
-                              <SubmitButton size="sm" variant="secondary" pendingLabel="Saving…">
-                                Set
-                              </SubmitButton>
-                            </form>
+                            <div className="flex items-center gap-2">
+                              <form action={roleChangeAction} className="flex items-center gap-2">
+                                <input type="hidden" name="userId" value={u.id} />
+                                <select
+                                  name="role"
+                                  defaultValue={u.role}
+                                  aria-label={`New role for ${u.name}`}
+                                  className="border-input h-8 rounded-md border bg-transparent px-2 text-sm"
+                                >
+                                  {ROLE_VALUES.map((role) => (
+                                    <option key={role} value={role}>
+                                      {ROLE_LABELS[role]}
+                                    </option>
+                                  ))}
+                                </select>
+                                <SubmitButton size="sm" variant="secondary" pendingLabel="Saving…">
+                                  Set
+                                </SubmitButton>
+                              </form>
+                              <Button asChild size="sm" variant="ghost">
+                                <Link href={`/admin/users/${u.id}`}>Manage</Link>
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

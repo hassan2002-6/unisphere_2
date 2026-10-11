@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireCapability } from "@/lib/auth";
-import { deleteSlot, saveSlot } from "@/server/services/timetable-manage";
+import { deleteSlot, saveClass, saveSlot } from "@/server/services/timetable-manage";
 import { ServiceError } from "@/server/services/forms";
 
 /** Accept "HH:MM" (native time input) → minutes since midnight. */
@@ -61,4 +61,34 @@ export async function deleteSlotAction(formData: FormData) {
   revalidatePath("/timetable");
   revalidatePath("/coordinator/clashes");
   redirect(`${MANAGER}?saved=${encodeURIComponent("Session removed — faculty and students were notified.")}`);
+}
+
+/** Course & section management: create a section or reassign its faculty (§8). */
+export async function saveClassAction(formData: FormData) {
+  const user = await requireCapability("timetable.manage");
+  const id = String(formData.get("id") ?? "") || undefined;
+  const creditsRaw = String(formData.get("credits") ?? "").trim();
+  const facultyId = String(formData.get("facultyId") ?? "").trim() || null;
+
+  let note = id ? "Course updated." : "Course section created.";
+  try {
+    const saved = await saveClass(user, {
+      id,
+      courseCode: String(formData.get("courseCode") ?? ""),
+      title: String(formData.get("title") ?? ""),
+      section: String(formData.get("section") ?? ""),
+      department: String(formData.get("department") ?? ""),
+      semester: String(formData.get("semester") ?? ""),
+      credits: creditsRaw ? Number.parseInt(creditsRaw, 10) : null,
+      facultyId,
+    });
+    note = `${saved.courseCode} · Section ${saved.section} saved${saved.facultyId ? " — the faculty member was notified." : "."}`;
+  } catch (e) {
+    const message = e instanceof ServiceError ? e.message : "Could not save the course.";
+    redirect(`${MANAGER}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(MANAGER);
+  revalidatePath("/timetable");
+  revalidatePath("/coordinator/clashes");
+  redirect(`${MANAGER}?saved=${encodeURIComponent(note)}`);
 }

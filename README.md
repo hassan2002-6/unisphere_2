@@ -17,11 +17,11 @@ alumni mentorship, audit logs, and a grounded AI assistant.
 | App        | Next.js 16.3 (App Router, TypeScript strict), React 19       |
 | UI         | Tailwind CSS 4.3 + shadcn/ui (radix), custom UniSphere theme |
 | Data       | PostgreSQL (Neon) via Prisma 7.10 (`prisma7.config.ts`)      |
-| Auth       | Clerk 7.9 — 6 roles: STUDENT, FACULTY, COORDINATOR, FYP_HEAD, MENTOR, ADMIN |
+| Auth       | Clerk 7.9 — one sign-in for 6 roles (University ID or email), provisioned by the coordination office |
 | AI         | Provider-agnostic adapter (Groq default) + Postgres-FTS retrieval |
 | Deploy     | Vercel (Hobby) — root directory `apps/web`                   |
 | Lint/format| oxlint + oxfmt (oxc toolchain)                               |
-| Tests      | Vitest — 370 tests (unit + security suite) + 52-check E2E script |
+| Tests      | Vitest — 376 tests (unit + security suite) + 85-check E2E script |
 
 ## Repository layout
 
@@ -62,7 +62,7 @@ cd ../.. && bun run dev          # turbo — http://localhost:3000
 ```bash
 bun run lint        # oxlint
 bun run typecheck   # tsc --noEmit across the workspace
-bun run test        # vitest — 370 tests incl. RBAC matrix + guard scan
+bun run test        # vitest — 376 tests incl. RBAC matrix + guard scan
 bun run build       # Next production build (typechecked)
 ```
 
@@ -70,7 +70,7 @@ Domain extras:
 
 ```bash
 cd apps/web
-bun run scripts/test-workflows.ts    # 52-check end-to-end acceptance across every workflow
+bun run scripts/test-workflows.ts    # 85-check end-to-end acceptance across every workflow
 bun run scripts/eval-ai.ts           # 33-question AI retrieval eval (needs DATABASE_URL)
 bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATABASE_URL)
 ```
@@ -84,8 +84,13 @@ bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATA
 | Marks & GPA       | `/marks`, `/faculty/marks(+[classId])`                    | ✅ |
 | Student search    | `/faculty/students(+[id])`, `/coordinator/students(+[id])` | ✅ |
 | Messaging         | `/messages` (inbox · sent · compose, every role)          | ✅ |
-| Audit log         | `/admin/audit`, `/admin/users`                            | ✅ |
+| Accounts & sign-in| `/admin/users(+[id])` lifecycle, `/sign-in`, `/forgot-password` | ✅ |
+| Audit log         | `/admin/audit`                                            | ✅ |
 | Timetable + clash | `/timetable`, `/exams`, `/coordinator/clashes`, student clash reports `/clashes` | ✅ |
+| Timetable manager | `/coordinator/timetable` — sessions, courses & sections, faculty assignment | ✅ |
+| Exam manager      | `/coordinator/exams` — schedule/move/cancel with clash blocking | ✅ |
+| Forms manager     | `/admin/forms` — add/retire form templates (spec §11)     | ✅ |
+| FYP supervision   | `/fyphead` request desk, `/faculty/fyp` progress notes    | ✅ |
 | Academic planning | `/planning`, `/faculty/courses`                           | ✅ |
 | Forms centre      | `/forms`, `/forms/new/[key]`, `/submissions(+detail)`, `/reviews`, `/faculty/reviews` | ✅ |
 | Complaint box     | `/complaints(+new/detail)`, `/faculty/complaints`, `/coordinator/complaints` | ✅ |
@@ -101,13 +106,18 @@ bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATA
 All modules above are in scope and implemented (the FYP-I deck had parked attendance/results —
 the FYP-II spec brings them in, with GPA computed from published results).
 
+**University-ID sign-in.** Accounts are provisioned by the coordination office (no public
+self-signup — `AUTO_PROVISION=false`): the admin creates an account, the holder receives an
+invitation and sets their own password. Sign-in accepts the University ID (`S22CSC003`, `FAC001`,
+`COORD001`…) or an email; deactivated accounts are blocked at every layer.
+
 ## Demo accounts
 
 18 seeded personas share **one password: `UniSphere#Demo2026`**
 
 | Role | Accounts | Notes |
 | ---- | -------- | ----- |
-| Students | `student@shu.edu.pk` … `student10@shu.edu.pk` (STU001–STU010) | attendance, marks, clash reports |
+| Students | `student@shu.edu.pk` … `student10@shu.edu.pk` (registration nos `S22CSC001`…) | attendance, marks, clash reports |
 | Faculty | `faculty@`, `faculty2@`, `faculty3@`, `saadia.karim@` | attendance marking, marks entry, student search |
 | Coordinator | `coordinator@shu.edu.pk` | clash queue, forms, broadcasts |
 | FYP Head | `fyphead@shu.edu.pk` | FYP approvals, resources |

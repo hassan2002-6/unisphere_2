@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/db";
 import type { User } from "@unisphere/db";
+import { can } from "@/lib/rbac";
 import { recordAudit } from "./audit";
 import { gradeFor } from "./marks";
+import { ServiceError } from "./forms";
+import { notifyUser } from "./notifications";
 
 /**
  * Student search + permitted profile view (spec §6, §7, §14).
@@ -203,4 +206,72 @@ export async function recordProfileView(viewer: User, studentId: string, student
     entityId: studentId,
     summary: `Viewed academic profile of ${studentName}`,
   });
+}
+
+/**
+ * Authorized record correction (spec §8): the coordinator may fix a student's
+ * academic placement — section, semester, batch, programme — with a recorded
+ * reason. The student and their faculty are notified and the change is
+ * audited; the university ID itself is never editable here.
+ */
+export async function correctStudentRecord(
+  actor: User,
+  studentId: string,
+  input: { section?: string | null; semester?: number | null; batch?: string | null; program?: string; reason: string },
+) {
+  if (!can(actor.role, "students.search")) {
+    throw new ServiceError("forbidden", "Not permitted to correct student records", 403);
+  }
+  const reason = input.reason.trim();
+  if (reason.length < 5) throw new ServiceError("validation_error", "Record a short reason for the correction", 422);
+
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    include: { studentProfile: true },
+  });
+  if (!student) throw new ServiceError("not_found", "Student not found", 404);
+  if (student.role !== "STUDENT") throw new ServiceError("validation_error", "That account is not a student", 422);
+
+  const profile = student.studentProfile;
+  if (!profile) throw new ServiceError("not_found", "This student has no academic profile yet", 404);
+
+  const changed: string[] = [];
+  const data: { section?: string | null; semester?: number | null; batch?: string | null; program?: string } = {};
+  if (input.section !== undefined && (input.section?.trim() || null) !== profile.section) {
+    data.section = input.section?.trim() || null;
+    changed.push(`section ${profile.section ?? "—"} → ${data.section ?? "—"}`);
+  }
+  if (input.semester !== undefined && input.semester !== profile.semester) {
+    data.semester = input.semester;
+    changed.push(`semester ${profile.semester ?? "—"} → ${input.semester ?? "—"}`);
+  }
+  if (input.batch !== undefined && (input.batch?.trim() || null) !== profile.batch) {
+    data.batch = input.batch?.trim() || null;
+    changed.push(`batch ${profile.batch ?? "—"} → ${data.batch ?? "—"}`);
+  }
+  if (input.program?.trim() && input.program.trim() !== profile.program) {
+    data.program = input.program.trim();
+    changed.push(`programme ${profile.program} → ${data.program}`);
+  }
+  if (changed.length === 0) throw new ServiceError("no_changes", "Nothing changed", 400);
+
+  await prisma.studentProfile.update({ where: { userId: studentId }, data });
+
+  await recordAudit({
+    actorId: actor.id,
+    action: "student.record_update",
+    entity: "User",
+    entityId: studentId,
+    summary: `Corrected ${student.name} (${student.registrationNo ?? "—"}): ${changed.join("; ")}`,
+    meta: { reason, changed },
+  });
+
+  await notifyUser(studentId, {
+    type: "SYSTEM",
+    title: "Your academic record was updated",
+    body: `${changed.join("; ")}. Reason: ${reason}`,
+    link: "/profile",
+  });
+
+  return { changed };
 }

@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, Inbox, UserCheck, XCircle } from "lucide-react";
+import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, Inbox, PenLine, UserCheck, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { listFypQueue, listSupervisors } from "@/server/services/fyp";
 import { listAllMentorProfiles } from "@/server/services/mentorship";
-import { decideFypAction } from "@/app/(portal)/fyp/actions";
+import { decideFypAction, requestChangesFypAction } from "@/app/(portal)/fyp/actions";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import type { StatTone } from "@/components/stat-card";
@@ -49,6 +49,7 @@ export default async function FypHeadPage() {
   const pending = queue.filter((q) => q.status === "PENDING");
   const approved = queue.filter((q) => q.status === "APPROVED");
   const rejected = queue.filter((q) => q.status === "REJECTED");
+  const changesRequested = queue.filter((q) => q.status === "CHANGES_REQUESTED");
 
   const tiles: { label: string; value: number; hint: string; icon: LucideIcon; tone: StatTone }[] = [
     { label: "Requests waiting", value: pending.length, hint: pending.length ? "Decide and assign a supervisor" : "Inbox is clear", icon: Inbox, tone: pending.length ? "warning" : "success" },
@@ -173,6 +174,20 @@ export default async function FypHeadPage() {
                         </Button>
                       }
                     />
+                    <ConfirmAction
+                      action={requestChangesFypAction}
+                      values={{ id: a.id }}
+                      title={`Ask “${a.title}” for corrections?`}
+                      description="The group keeps their place in the queue and is notified with your notes; you can approve or reject once they revise."
+                      confirmLabel="Request changes"
+                      reason={{ name: "remarks", label: "What needs fixing", placeholder: "Add a clearer scope and the dataset source…", required: true }}
+                      trigger={
+                        <Button type="button" variant="secondary" size="sm">
+                          <PenLine className="h-4 w-4" />
+                          Request changes
+                        </Button>
+                      }
+                    />
                   </div>
                 </div>
               </article>
@@ -189,7 +204,7 @@ export default async function FypHeadPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {approved.length + rejected.length === 0 ? (
+          {approved.length + rejected.length + changesRequested.length === 0 ? (
             <p className="px-5 py-6 text-sm text-muted-foreground">No decisions recorded yet.</p>
           ) : (
             <div className="overflow-x-auto">
@@ -205,7 +220,7 @@ export default async function FypHeadPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {[...approved, ...rejected].map((a) => (
+                  {[...changesRequested, ...approved, ...rejected].map((a) => (
                     <TableRow key={a.id}>
                       <TableCell className="pl-5">
                         <span className="font-medium">{a.title}</span>

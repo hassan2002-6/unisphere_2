@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { createFypAction } from "./actions";
+import { createFypAction, resubmitFypAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +85,96 @@ export default async function FypPage({
                     <p className="mt-1 text-xs text-muted-foreground">
                       Remarks from {a.decidedBy?.name ?? "reviewer"}: {a.remarks}
                     </p>
+                  ) : null}
+                  {a.progressUpdates.length > 0 ? (
+                    <details className="mt-2 rounded-lg border bg-muted/20 px-3 py-2">
+                      <summary className="cursor-pointer text-xs font-semibold text-primary">
+                        Supervisor progress notes ({a.progressUpdates.length})
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        {a.progressUpdates.map((u) => (
+                          <div key={u.id}>
+                            <p className="text-xs">{u.note}</p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {u.author.name} ·{" "}
+                              {u.createdAt.toLocaleString("en-GB", {
+                                timeZone: "Asia/Karachi",
+                                day: "2-digit",
+                                month: "short",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
+                  {a.status === "CHANGES_REQUESTED" && a.applicantId === user.id ? (
+                    <details className="mt-3 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2">
+                      <summary className="cursor-pointer text-xs font-semibold text-primary">
+                        Revision requested — revise & resubmit
+                      </summary>
+                      <form action={resubmitFypAction} className="mt-3 grid max-w-2xl gap-3">
+                        <input type="hidden" name="id" value={a.id} />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`title-${a.id}`}>Project title</Label>
+                            <Input id={`title-${a.id}`} name="title" defaultValue={a.title} required minLength={6} maxLength={200} />
+                          </div>
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`domain-${a.id}`}>Domain</Label>
+                            <Input id={`domain-${a.id}`} name="domain" defaultValue={a.domain} required />
+                          </div>
+                        </div>
+                        <div className="grid gap-1.5">
+                          <Label htmlFor={`description-${a.id}`}>Description</Label>
+                          <Textarea
+                            id={`description-${a.id}`}
+                            name="description"
+                            rows={4}
+                            defaultValue={a.description}
+                            required
+                            minLength={50}
+                            maxLength={4000}
+                          />
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`technologies-${a.id}`}>Technologies</Label>
+                            <Input id={`technologies-${a.id}`} name="technologies" defaultValue={a.technologies} required />
+                          </div>
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`supervisorPref-${a.id}`}>Supervisor preference</Label>
+                            <Input
+                              id={`supervisorPref-${a.id}`}
+                              name="supervisorPref"
+                              defaultValue={a.supervisorPref ?? ""}
+                              placeholder="Optional"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`groupName-${a.id}`}>Group name</Label>
+                            <Input id={`groupName-${a.id}`} name="groupName" defaultValue={a.groupName} required />
+                          </div>
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`members-${a.id}`}>Members</Label>
+                            <Input id={`members-${a.id}`} name="members" defaultValue={a.members} required />
+                          </div>
+                          <div className="grid gap-1.5">
+                            <Label htmlFor={`registrationNos-${a.id}`}>Registration nos.</Label>
+                            <Input id={`registrationNos-${a.id}`} name="registrationNos" defaultValue={a.registrationNos} required />
+                          </div>
+                        </div>
+                        <input type="hidden" name="department" value={a.department} />
+                        <input type="hidden" name="semester" value={a.semester} />
+                        <SubmitButton pendingLabel="Resubmitting…" size="sm" className="w-fit">
+                          Resubmit for review
+                        </SubmitButton>
+                      </form>
+                    </details>
                   ) : null}
                 </div>
                 <StatusBadge status={a.status} />

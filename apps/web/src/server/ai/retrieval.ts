@@ -167,6 +167,7 @@ export function buildSystemPrompt(personalLines: string[], sources: Source[]): s
     "Answer questions about timetables, exams, forms, complaints, FYP, GPU/lab resources, internships and mentorship.",
     "GROUNDING RULES:",
     "- Use ONLY the KNOWLEDGE BASE and PERSONAL CONTEXT below. If the answer is not there, say you don't have that information and point to the coordination office or the relevant portal page.",
+    "- For policy questions that are not covered by the knowledge base, ask the user to confirm with university staff (the coordination office) or to check official university notices — never guess.",
     "- Never invent dates, deadlines, or policy. Cite knowledge-base entries as [1], [2] when you use them.",
     "- Keep answers short and practical (under 180 words), in plain text.",
     "",

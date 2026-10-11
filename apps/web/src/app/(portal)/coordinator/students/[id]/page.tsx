@@ -1,16 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { ArrowLeft, Award, BookOpen, CalendarCheck, GraduationCap, UserRound } from "lucide-react";
+import { ArrowLeft, Award, BookOpen, CalendarCheck, GraduationCap, SquarePen, UserRound } from "lucide-react";
 import { requireUser, requireCapability } from "@/lib/auth";
 import { getStudentAcademicProfile, recordProfileView } from "@/server/services/students";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
+import { SubmitButton } from "@/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { correctStudentRecordAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +47,17 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
 }
 
 /** Permitted academic profile — coordinator view (spec §7). */
-export default async function CoordinatorStudentProfilePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CoordinatorStudentProfilePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string; error?: string }>;
+}) {
   const viewer = await requireUser();
   await requireCapability("students.search");
   const { id } = await params;
+  const { saved, error } = await searchParams;
 
   let profile: Awaited<ReturnType<typeof getStudentAcademicProfile>> = null;
   try {
@@ -83,6 +94,19 @@ export default async function CoordinatorStudentProfilePage({ params }: { params
           </Button>
         }
       />
+
+      {saved ? (
+        <Alert variant="success">
+          <AlertTitle>Record updated</AlertTitle>
+          <AlertDescription>{saved}</AlertDescription>
+        </Alert>
+      ) : null}
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Not saved</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-3">
         <StatCard
@@ -123,6 +147,61 @@ export default async function CoordinatorStudentProfilePage({ params }: { params
           <Field label="Department" value={student.department ?? "—"} />
           <Field label="Email" value={student.email} />
           <Field label="Member since" value={student.memberSince.toLocaleDateString("en-GB", MEMBER_SINCE_FMT)} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="border-b px-5 py-3.5">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <SquarePen className="h-4 w-4 text-muted-foreground" />
+            Correct academic record
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Authorized corrections only — the student is notified and the change is recorded with your name and
+            reason. The university ID itself is never editable here.
+          </p>
+        </CardHeader>
+        <CardContent className="px-5 pt-4">
+          <form action={correctStudentRecordAction} className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <input type="hidden" name="studentId" value={student.id} />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="corr-program" className="text-[11px] text-muted-foreground">
+                Programme
+              </label>
+              <Input id="corr-program" name="program" defaultValue={sp?.program ?? ""} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="corr-semester" className="text-[11px] text-muted-foreground">
+                Semester
+              </label>
+              <Input
+                id="corr-semester"
+                name="semester"
+                inputMode="numeric"
+                defaultValue={sp?.semester ?? ""}
+                placeholder="e.g. 7"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="corr-section" className="text-[11px] text-muted-foreground">
+                Section
+              </label>
+              <Input id="corr-section" name="section" defaultValue={sp?.section ?? ""} placeholder="A" />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="corr-batch" className="text-[11px] text-muted-foreground">
+                Batch
+              </label>
+              <Input id="corr-batch" name="batch" defaultValue={sp?.batch ?? ""} placeholder="2022" />
+            </div>
+            <div className="flex flex-col gap-1 lg:col-span-2">
+              <label htmlFor="corr-reason" className="text-[11px] text-muted-foreground">
+                Reason for the correction
+              </label>
+              <Input id="corr-reason" name="reason" required placeholder="e.g. section change approved by the HOD" />
+            </div>
+            <SubmitButton pendingLabel="Saving…">Save correction</SubmitButton>
+          </form>
         </CardContent>
       </Card>
 

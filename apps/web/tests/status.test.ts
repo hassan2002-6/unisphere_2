@@ -27,6 +27,14 @@ describe("status machines (§6.2)", () => {
     expect(canTransition("fyp", "APPROVED", "REJECTED")).toBe(false);
   });
 
+  it("fyp: changes requested keeps the group in the loop (revise → resubmit → decide)", () => {
+    expect(canTransition("fyp", "PENDING", "CHANGES_REQUESTED")).toBe(true);
+    expect(canTransition("fyp", "CHANGES_REQUESTED", "PENDING")).toBe(true);
+    expect(canTransition("fyp", "CHANGES_REQUESTED", "APPROVED")).toBe(true);
+    expect(canTransition("fyp", "CHANGES_REQUESTED", "REJECTED")).toBe(true);
+    expect(canTransition("fyp", "APPROVED", "CHANGES_REQUESTED")).toBe(false);
+  });
+
   it("resource request: full chain and cancellations", () => {
     expect(canTransition("resourceRequest", "PENDING", "RECOMMENDED")).toBe(true);
     expect(canTransition("resourceRequest", "RECOMMENDED", "ALLOCATED")).toBe(true);
