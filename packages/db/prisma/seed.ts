@@ -918,6 +918,63 @@ async function main() {
     });
     students.push(u);
   }
+
+  // ── FYP demo state for the supervision workspace (spec §12) ────────────
+  // The student keeps one APPROVED project with a supervisor + progress notes
+  // (so /fyp shows the supervision trail), while the pending application the
+  // FYP Head reviews in the demo belongs to another student — the submitter
+  // stays below the two-application cap so a live submission still works.
+  const studentTen = students[9];
+  const pendingApp = await prisma.fypApplication.findFirst({
+    where: { title: "UniSphere — Unified University Portal", applicantId: student.id },
+  });
+  if (pendingApp && studentTen) {
+    await prisma.fypApplication.update({
+      where: { id: pendingApp.id },
+      data: { applicantId: studentTen.id, members: "Maryam Sheikh, Usman Tariq", registrationNos: "S22CSC010, S22CSC009" },
+    });
+  }
+  const supervisedApp = await prisma.fypApplication.findFirst({
+    where: { title: "CampusNav — Indoor Navigation for SHU" },
+  });
+  if (!supervisedApp) {
+    const created = await prisma.fypApplication.create({
+      data: {
+        applicantId: student.id,
+        title: "CampusNav — Indoor Navigation for SHU",
+        domain: "Mobile Computing / GIS",
+        description:
+          "Indoor wayfinding for the SHU campus: accessible routes, timetable-aware class routing, and an offline floor-plan cache for the basement labs.",
+        technologies: "React Native, MapLibre, Node.js, PostgreSQL",
+        groupName: "Team UniSphere",
+        members: "Ali Raza, Ishan Rajwani, Carol Swan",
+        registrationNos: "S22CSC001, S22CSC008, S22CSC012",
+        supervisorPref: "Dr. Ateeque Rahman",
+        department: "Computer Science",
+        semester: "Fall 2026",
+        status: "APPROVED",
+        remarks: "Approved — align the wayfinding data model with the timetable module.",
+        supervisorId: faculty.id,
+        decidedById: fypHead.id,
+        decidedAt: new Date(Date.now() - 6 * 24 * 3600 * 1000),
+      },
+    });
+    await prisma.fypProgressUpdate.createMany({
+      data: [
+        {
+          applicationId: created.id,
+          authorId: faculty.id,
+          note: "Proposal accepted. Next: prototype the map renderer with the ground-floor plan before the end of the month.",
+        },
+        {
+          applicationId: created.id,
+          authorId: faculty.id,
+          note: "Reviewed the data-model draft — link rooms to timetable slots by room code, then class-to-class routing becomes a graph query.",
+        },
+      ],
+    });
+  }
+
   const faculty3 = await upsertUser({
     email: "faculty3@shu.edu.pk",
     name: "Dr. Kamran Shah",

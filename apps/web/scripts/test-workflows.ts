@@ -378,6 +378,9 @@ async function main() {
 
   // ── 10. FYP Head assigns a supervisor ─────────────────────────────────────
   console.log("\n10. FYP Head request desk");
+  // Sweep leftovers from an interrupted earlier run (the demo seed never uses
+  // the "E2E —" prefix).
+  await prisma.fypApplication.deleteMany({ where: { title: { startsWith: "E2E — " } } });
   const fypHead = await user("fyphead@shu.edu.pk");
   const saadia = await user("saadia.karim@shu.edu.pk");
   const student3 = await user("student3@shu.edu.pk");

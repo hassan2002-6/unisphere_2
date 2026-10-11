@@ -776,7 +776,9 @@ across all six roles (**370 unit tests**). `scripts/test-workflows.ts` gained se
 notification + non-faculty rejection + student denial) for **52/52 checks**, cleaning up the
 sessions/applications/notifications it creates. All 62 authenticated captures (six personas,
 including `/profile` for every role, `/coordinator/timetable`, `/fyphead`) refresh from
-production with 0 problems.
+production with 0 problems. The institutional wave adds four captures (coordinator exam manager
+for the coordinator and the admin, faculty supervision, forms manager) — **66 pages, 0 problems**,
+refreshed from production.
 
 ### Institutional accounts, exam management & FYP supervision
 
