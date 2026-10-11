@@ -38,7 +38,12 @@ async function clerk<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export type ClerkUserLite = { id: string; email_addresses?: { email_address: string }[] };
+export type ClerkUserLite = {
+  id: string;
+  email_addresses?: { email_address: string }[];
+  password_enabled?: boolean;
+  external_accounts?: { provider?: string }[];
+};
 
 /** Clerk's `?email_address[]=` filter is unreliable (and paged) — scan all pages. */
 export async function findClerkUserByEmail(email: string): Promise<ClerkUserLite | undefined> {
@@ -52,6 +57,23 @@ export async function findClerkUserByEmail(email: string): Promise<ClerkUserLite
     if (page.length < 100) return undefined;
     offset += 100;
   }
+}
+
+/**
+ * How does this account actually authenticate? Password-provisioned university
+ * accounts use the password form; accounts created through Google have no
+ * password at all and must use the Google button — the sign-in form tells the
+ * user which one applies instead of leaving them with a raw Clerk error.
+ */
+export async function getClerkAuthSummary(
+  email: string,
+): Promise<{ passwordEnabled: boolean; googleLinked: boolean } | undefined> {
+  const user = await findClerkUserByEmail(email);
+  if (!user) return undefined;
+  return {
+    passwordEnabled: user.password_enabled === true,
+    googleLinked: (user.external_accounts ?? []).some((a) => a.provider === "oauth_google"),
+  };
 }
 
 /**

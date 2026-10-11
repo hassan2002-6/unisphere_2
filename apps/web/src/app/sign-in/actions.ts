@@ -1,7 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
-import { resolveLoginIdentifier } from "@/server/services/accounts";
+import { resolveLoginIdentifier, signInHintFor } from "@/server/services/accounts";
 
 /**
  * Sign-in support (spec §4): the login form accepts a University ID
@@ -34,4 +34,17 @@ export async function resolveLoginIdentifierAction(
   if (rateLimited(ip)) return null;
   if (typeof identifier !== "string" || identifier.length > 120) return null;
   return resolveLoginIdentifier(identifier);
+}
+
+/**
+ * Which credential does the account actually have (password vs Google)? Asked
+ * only after a failed password attempt, so the holder of a Google-created
+ * account is told to use the Google button instead of seeing a raw Clerk error.
+ */
+export async function signInHintAction(identifier: string): Promise<"password" | "google" | "unknown" | null> {
+  const h = await headers();
+  const ip = (h.get("x-forwarded-for") ?? "local").split(",")[0]?.trim() || "local";
+  if (rateLimited(ip)) return null;
+  if (typeof identifier !== "string" || identifier.length > 120) return null;
+  return signInHintFor(identifier);
 }

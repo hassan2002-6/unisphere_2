@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs";
 import { Eye, EyeOff, GraduationCap, Loader2 } from "lucide-react";
-import { resolveLoginIdentifierAction } from "@/app/sign-in/actions";
+import { resolveLoginIdentifierAction, signInHintAction } from "@/app/sign-in/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -35,6 +35,8 @@ function describeError(error: unknown): string {
     return "We couldn't find that University ID or email address. Check the ID with the coordination office.";
   if (code.includes("password_incorrect"))
     return "That password is incorrect. Use “Forgot password” if you need it reset.";
+  if (code.includes("strategy_for_user_invalid") || code.includes("no_password"))
+    return "This account has no password — if it was created with Google, use “Continue with Google” below. Otherwise ask the coordination office for an invitation.";
   if (code.includes("too_many_requests")) return "Too many attempts — wait a minute and try again.";
   if (code.includes("banned")) return "This account is deactivated. Contact the coordination office.";
   return textOf(error);
@@ -136,7 +138,18 @@ export function SignInForm() {
       }
       const res = await signIn.password({ identifier: loginId, password });
       if (res.error) {
-        setError(describeError(res.error));
+        let message = describeError(res.error);
+        try {
+          // Google-created accounts have no password at all: point the holder
+          // at the button that actually works instead of a generic error.
+          const hint = await signInHintAction(loginId);
+          if (hint === "google") {
+            message = "This account signs in with Google — use “Continue with Google” below instead of a password.";
+          }
+        } catch {
+          // keep the generic message
+        }
+        setError(message);
         return;
       }
       if (signIn.status === "complete") {

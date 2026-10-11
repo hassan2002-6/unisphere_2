@@ -8,6 +8,7 @@ import {
   clerkConfigured,
   createClerkSignInToken,
   findClerkUserByEmail,
+  getClerkAuthSummary,
   inviteClerkUser,
   setClerkBanned,
 } from "@/server/clerk-admin";
@@ -91,6 +92,28 @@ export async function resolveLoginIdentifier(
   });
   if (!user || !user.isActive) return null;
   return { email: user.email, name: user.name };
+}
+
+export type SignInMethod = "password" | "google" | "unknown";
+
+/**
+ * Which credential does this account actually have? University accounts are
+ * provisioned with a password (invitation → the holder sets it); accounts
+ * created through Google have no password at all and can only use the Google
+ * button. The sign-in form asks before showing a raw error (spec §4).
+ */
+export async function signInHintFor(identifier: string): Promise<SignInMethod | null> {
+  const base = await resolveLoginIdentifier(identifier);
+  if (!base) return null;
+  if (!clerkConfigured()) return "unknown";
+  try {
+    const summary = await getClerkAuthSummary(base.email);
+    if (!summary) return "unknown";
+    if (summary.passwordEnabled) return "password";
+    return summary.googleLinked ? "google" : "unknown";
+  } catch {
+    return "unknown";
+  }
 }
 
 export type CreateAccountInput = {
