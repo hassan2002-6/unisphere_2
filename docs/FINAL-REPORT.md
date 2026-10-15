@@ -198,6 +198,11 @@ API route skips server-side authorization.
 
 - `bun run lint` — pass · `bun run typecheck` — pass · `bun run test` — **352
   passed** · `bun run build` — pass (production Next build).
+- **`bun run fmt:check` (oxfmt) is not an enforced gate**: the repo predates an
+  oxfmt config, so `oxfmt --check .` flags 263 of 318 files (including
+  untouched pre-existing code). Formatting everything is intentionally not
+  done — it would churn the whole tree for no functional gain. New code
+  follows each file's existing style.
 - End-to-end acceptance vs the live Neon database: **126 checks, 0 failures**
   (sections: timetable/clash, attendance, marks, messaging, search, exports,
   accounts & provisioning, coordinator classes/exams, FYP lifecycle +
