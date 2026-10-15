@@ -187,6 +187,11 @@ function cdpClient(ws) {
       for (const fn of list) fn();
     }
   };
+  // A crashed Chrome must fail loudly instead of leaving promises pending forever.
+  ws.onclose = () => {
+    for (const { reject: rej } of pending.values()) rej(new Error("cdp connection closed"));
+    pending.clear();
+  };
   return {
     send(method, params = {}) {
       const id = ++msgId;

@@ -137,6 +137,7 @@ invitation and sets their own password. Sign-in accepts the University ID (`S22C
 
 Every account signs in through the single `/sign-in` page and lands on its role dashboard.
 `bun run scripts/link-clerk-users.ts` (from `apps/web`) creates/links the Clerk users.
+Full sign-in guide (verification-code answer, Google flow, password resets): **`DEMO-LOGIN.md`**.
 
 ## Security model
 
