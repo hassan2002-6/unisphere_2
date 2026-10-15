@@ -93,7 +93,6 @@ const TIMEOUT_MS = 25_000;
 async function oneShot(
   provider: NonNullable<ReturnType<typeof resolveProvider>>,
   messages: ChatMsg[],
-  contextForFallback: string[],
 ): Promise<LLMResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -151,7 +150,7 @@ export async function callLLM(messages: ChatMsg[], contextForFallback: string[] 
   }
   for (let attempt = 1; ; attempt++) {
     try {
-      return await oneShot(provider, messages, contextForFallback);
+      return await oneShot(provider, messages);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       const permanent = /responded 4(?!29)\d\d/.test(message);

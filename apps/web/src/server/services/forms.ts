@@ -219,15 +219,28 @@ export async function getMySubmission(user: User, id: string) {
   return sub;
 }
 
-/** Supporting-document bytes — the submitter and reviewers only. */
+/** Supporting-document bytes — the submitter, the current-step approver, or an admin. */
 export async function getSubmissionAttachment(user: User, id: string) {
   const sub = await prisma.formSubmission.findUnique({
     where: { id },
-    select: { submittedById: true, attachmentName: true, attachmentMime: true, attachmentData: true },
+    select: {
+      submittedById: true,
+      attachmentName: true,
+      attachmentMime: true,
+      attachmentData: true,
+      chain: true,
+      currentStep: true,
+      template: { select: { reviewerRole: true } },
+    },
   });
   if (!sub?.attachmentData || !sub.attachmentName) throw new ServiceError("not_found", "No document on this submission", 404);
-  if (sub.submittedById !== user.id && !can(user.role, "forms.review")) {
-    throw new ServiceError("forbidden", "Not allowed to read this document", 403);
+  // Same record-level rule as decideSubmission: being staff is not enough —
+  // you must be the submission's current approver (or its submitter/an admin).
+  const isSubmitter = sub.submittedById === user.id;
+  const isStepReviewer = can(user.role, "forms.review") && currentApprover(sub, sub.template.reviewerRole) === user.role;
+  const isAdmin = user.role === "ADMIN";
+  if (!isSubmitter && !isStepReviewer && !isAdmin) {
+    throw new ServiceError("forbidden", "You are not a reviewer for this submission", 403);
   }
   return { fileName: sub.attachmentName, mime: sub.attachmentMime ?? "application/octet-stream", data: sub.attachmentData };
 }

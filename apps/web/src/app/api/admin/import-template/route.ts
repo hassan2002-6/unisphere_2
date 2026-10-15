@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   await requireCapability("users.manage");
   const entity = (new URL(request.url).searchParams.get("entity") ?? "students") as ImportEntity;
-  if (!(entity in IMPORT_COLUMNS)) {
+  if (!Object.hasOwn(IMPORT_COLUMNS, entity)) {
     return NextResponse.json({ error: "unknown_entity" }, { status: 400 });
   }
   return new NextResponse(templateCsv(entity), {

@@ -105,7 +105,12 @@ export async function upsertFormTemplate(actor: User, input: TemplateInput) {
   const key = slugify(input.key || title);
   if (key.length < 3) throw new ServiceError("validation_error", "The form key is too short", 422);
   if (!ROLES.includes(input.audienceRole as Role)) throw new ServiceError("validation_error", "Pick who can see this form", 422);
-  if (!ROLES.includes(input.reviewerRole as Role)) throw new ServiceError("validation_error", "Pick who reviews this form", 422);
+  // Only roles that actually hold forms.review may sit in an approval chain —
+  // otherwise the chain hands decisions to roles the matrix never allowed.
+  const REVIEW_ROLES: Role[] = ["FACULTY", "COORDINATOR", "FYP_HEAD", "ADMIN"];
+  if (!REVIEW_ROLES.includes(input.reviewerRole as Role)) {
+    throw new ServiceError("validation_error", "Pick who reviews this form", 422);
+  }
 
   const fields = parseTemplateFields(input.fieldsText) as Prisma.InputJsonValue;
   const slaDays = input.slaDays ? Math.max(1, Math.min(60, Number(input.slaDays) || 0)) : null;
@@ -175,8 +180,16 @@ export async function listSubmissionsAdmin(
   const STATUS_VALUES = ["SUBMITTED", "UNDER_REVIEW", "CORRECTIONS_REQUESTED", "APPROVED", "REJECTED", "WITHDRAWN"];
   const status = filters?.status && STATUS_VALUES.includes(filters.status) ? (filters.status as FormStatus) : undefined;
   const q = filters?.q?.trim().slice(0, 80);
-  const from = filters?.from ? new Date(`${filters.from}T00:00:00+05:00`) : null;
-  const to = filters?.to ? new Date(`${filters.to}T23:59:59+05:00`) : null;
+  // A malformed date must be ignored, not turned into an Invalid Date that
+  // crashes the page when serialised.
+  const dayRe = /^\d{4}-\d{2}-\d{2}$/;
+  const parseDay = (v: string | undefined, endOfDay = false) => {
+    if (!v || !dayRe.test(v)) return null;
+    const d = new Date(`${v}T${endOfDay ? "23:59:59" : "00:00:00"}+05:00`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const from = parseDay(filters?.from);
+  const to = parseDay(filters?.to, true);
 
   const where: Prisma.FormSubmissionWhereInput = {
     ...(status ? { status } : {}),

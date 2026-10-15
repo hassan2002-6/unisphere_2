@@ -176,6 +176,7 @@ export async function listMyComplaints(user: User, opts?: { cursor?: string; tak
     where: { submittedById: user.id },
     orderBy: { createdAt: "desc" },
     take: take + 1,
+    omit: { attachmentData: true },
     include: { assignedTo: { select: { name: true } } },
     ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
   });
@@ -249,6 +250,8 @@ export async function listManagedComplaints(user: User, opts?: ManagedFilters) {
     where,
     orderBy: [{ status: "asc" }, { priority: "desc" }, { createdAt: "asc" }],
     take: take + 1,
+    // Never pull attachment bytes into a list (RSC payload) — fetch on demand.
+    omit: { attachmentData: true },
     include: {
       submittedBy: { select: { name: true, registrationNo: true } },
       assignedTo: { select: { name: true } },

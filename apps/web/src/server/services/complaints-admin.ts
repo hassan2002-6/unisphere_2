@@ -101,6 +101,15 @@ export async function upsertComplaintRoute(user: User, id: string | null, input:
   const data = sanitizeRoute(input);
   const category = await prisma.complaintCategory.findUnique({ where: { key: data.categoryKey } });
   if (!category) throw new ServiceError("validation_error", "Unknown category — create it first", 422);
+  // A specific assignee must be an active staff member who could legally
+  // receive complaints — never a student account.
+  if (data.targetUserId) {
+    const target = await prisma.user.findFirst({
+      where: { id: data.targetUserId, isActive: true, role: { in: ROUTE_ROLES } },
+      select: { id: true },
+    });
+    if (!target) throw new ServiceError("validation_error", "That person can’t receive complaints", 422);
+  }
 
   if (id) {
     const existing = await prisma.complaintRoute.findUnique({ where: { id } });

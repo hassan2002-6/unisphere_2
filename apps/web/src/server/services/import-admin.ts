@@ -26,7 +26,9 @@ export const IMPORT_HELP: Record<ImportEntity, string> = {
 };
 
 export function templateCsv(entity: ImportEntity): string {
-  const header = IMPORT_COLUMNS[entity].join(",");
+  const columns = IMPORT_COLUMNS[entity];
+  if (!columns) throw new Error(`Unknown import entity: ${entity}`);
+  const header = columns.join(",");
   const samples: Record<ImportEntity, string[]> = {
     students: [
       "Ayesha Khan,ayesha.khan@shu.edu.pk,S23CSC001,BSCS,2023,3,A",
@@ -95,7 +97,7 @@ function assertImporter(user: User) {
 
 export async function importCsv(user: User, entity: ImportEntity, csvText: string): Promise<ImportReport> {
   assertImporter(user);
-  if (!(entity in IMPORT_COLUMNS)) throw new ServiceError("validation_error", "Unknown import type", 422);
+  if (!Object.hasOwn(IMPORT_COLUMNS, entity)) throw new ServiceError("validation_error", "Unknown import type", 422);
 
   const rows = parseCsv(csvText.slice(0, 2_000_000));
   if (rows.length < 2) throw new ServiceError("validation_error", "The CSV needs a header row and at least one record", 422);

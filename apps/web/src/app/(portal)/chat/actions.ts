@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
+import { ServiceError } from "@/server/services/forms";
 import { ask, getOrCreateSession } from "@/server/ai/assistant";
 
 export async function sendMessageAction(formData: FormData) {
@@ -25,7 +26,9 @@ export async function sendMessageAction(formData: FormData) {
   try {
     await ask(user, sessionId, question);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "The assistant failed to answer";
+    // Only deliberate, user-facing service errors are echoed; driver/DB noise
+    // (connection strings, stack text) must never reach the UI.
+    const msg = e instanceof ServiceError ? e.message : "The assistant hit an unexpected error — please try again.";
     redirect(`/chat?s=${sessionId}&error=${encodeURIComponent(msg)}`);
   }
   revalidatePath("/chat");
