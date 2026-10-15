@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s · UniSphere",
   },
   description:
-    "Unified university portal — timetable, exams, forms, complaints, internships, mentorship, FYP applications, and GPU/resource allocation in one place.",
+    "Unified university portal — timetable, exams, forms, complaints, internships, FYP applications, and GPU/resource allocation in one place.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,13 +1,14 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { Check, Play, X } from "lucide-react";
+import { Check, PencilLine, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Queue decision buttons with a shared pending state (server action in the form). */
 export function ReviewActions({ status, disabled }: { status: string; disabled?: boolean }) {
   const { pending } = useFormStatus();
   const off = pending || disabled;
+  const decidable = status === "SUBMITTED" || status === "UNDER_REVIEW";
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -15,6 +16,12 @@ export function ReviewActions({ status, disabled }: { status: string; disabled?:
         <Button type="submit" name="decision" value="UNDER_REVIEW" variant="secondary" size="sm" disabled={off}>
           <Play className="h-3.5 w-3.5" />
           Start review
+        </Button>
+      ) : null}
+      {decidable ? (
+        <Button type="submit" name="decision" value="CORRECTIONS_REQUESTED" variant="outline" size="sm" disabled={off}>
+          <PencilLine className="h-3.5 w-3.5" />
+          Request corrections
         </Button>
       ) : null}
       <Button

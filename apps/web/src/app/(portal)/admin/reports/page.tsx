@@ -1,4 +1,4 @@
-import { BarChart3, Briefcase, Download, FlaskConical, UserCheck } from "lucide-react";
+import { BarChart3, Briefcase, Download, FlaskConical } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { getSummary } from "@/server/services/reports";
 import { PageHeader } from "@/components/page-header";
@@ -139,7 +139,6 @@ export default async function AdminReportsPage() {
 
       <section aria-label="Programme numbers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="Open internships" value={summary.internshipsOpen} icon={Briefcase} tone="info" />
-        <StatCard label="Approved mentors" value={summary.mentorsApproved} icon={UserCheck} tone="success" />
         <StatCard label="Labs tracked" value={summary.labs.length} icon={FlaskConical} tone="primary" />
       </section>
     </>

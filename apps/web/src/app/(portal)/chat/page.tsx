@@ -18,7 +18,6 @@ const SUGGESTIONS = [
   "How do I file a complaint about a faculty member?",
   "How do I request a GPU for my FYP?",
   "What happens after I submit an FYP application?",
-  "How do mentorship sessions work?",
 ];
 
 export default async function ChatPage({
@@ -154,7 +153,7 @@ export default async function ChatPage({
                 <div className="space-y-1">
                   <h2 className="text-base font-semibold">Ask me anything about UniSphere</h2>
                   <p className="mx-auto max-w-md text-sm text-muted-foreground">
-                    Timetables, forms, FYP, GPU requests, internships, mentorship — I read the same system you do and
+                    Timetables, forms, FYP, GPU requests and internships — I read the same system you do and
                     cite my sources.
                   </p>
                 </div>

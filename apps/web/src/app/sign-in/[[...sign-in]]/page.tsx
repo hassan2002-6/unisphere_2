@@ -3,7 +3,7 @@ import { SignInForm } from "@/components/sign-in-form";
 
 /**
  * The single sign-in page for every role — students, faculty, coordinators,
- * the FYP Head, mentors and admins all authenticate here and land on their own
+ * the FYP Head and admins all authenticate here and land on their own
  * dashboard. Styled as the setup2.html prototype's login screen: crimson
  * gradient backdrop with a centred white card.
  *

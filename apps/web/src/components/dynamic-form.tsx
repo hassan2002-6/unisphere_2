@@ -27,13 +27,25 @@ export function DynamicForm({
   fields,
   action,
   submitLabel = "Submit request",
+  defaultValues,
+  pendingNote = "You'll get a notification with the reviewer's decision.",
+  attachment,
 }: {
   fields: FormFieldSpec[];
   action: (prev: FormActionState | undefined, fd: FormData) => Promise<FormActionState>;
   submitLabel?: string;
+  /** Prefill (used when resubmitting after a corrections request). */
+  defaultValues?: Record<string, unknown>;
+  pendingNote?: string;
+  /** Supporting-document upload block (label + whether it's mandatory). */
+  attachment?: { label: string; required?: boolean };
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const errorFor = (name: string) => state.fieldErrors?.find((e) => e.path === name)?.message;
+  const dv = (name: string) => {
+    const v = defaultValues?.[name];
+    return v === null || v === undefined ? undefined : String(v);
+  };
 
   return (
     <form action={formAction} className="grid max-w-xl gap-5">
@@ -63,6 +75,7 @@ export function DynamicForm({
                 placeholder={f.placeholder}
                 rows={4}
                 required={f.required}
+                defaultValue={dv(f.name)}
                 aria-invalid={err ? true : undefined}
               />
             ) : f.type === "select" ? (
@@ -70,7 +83,7 @@ export function DynamicForm({
                 id={f.name}
                 name={f.name}
                 required={f.required}
-                defaultValue=""
+                defaultValue={dv(f.name) ?? ""}
                 aria-invalid={err ? true : undefined}
                 className={cn(CONTROL_CLASS, "appearance-none bg-[length:1rem] pr-8")}
               >
@@ -92,6 +105,7 @@ export function DynamicForm({
                   id={f.name}
                   name={f.name}
                   type="checkbox"
+                  defaultChecked={defaultValues?.[f.name] === true}
                   className="size-4 shrink-0 accent-primary"
                   aria-invalid={err ? true : undefined}
                 />
@@ -104,6 +118,7 @@ export function DynamicForm({
                 type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
                 placeholder={f.placeholder}
                 required={f.required}
+                defaultValue={dv(f.name)}
                 aria-invalid={err ? true : undefined}
               />
             )}
@@ -117,14 +132,34 @@ export function DynamicForm({
         );
       })}
 
+      {attachment ? (
+        <div className="grid gap-1.5">
+          <Label htmlFor="attachment" className="text-sm">
+            {attachment.label}
+            {attachment.required ? <span className="ml-1 text-destructive" aria-hidden>*</span> : (
+              <span className="ml-1.5 text-xs font-normal text-muted-foreground">optional</span>
+            )}
+          </Label>
+          <input
+            id="attachment"
+            name="attachment"
+            type="file"
+            required={attachment.required}
+            accept=".pdf,.doc,.docx,.txt,.csv,.png,.jpg,.jpeg,.zip"
+            className="border-input rounded-md border bg-transparent px-2.5 py-1.5 text-sm file:mr-2 file:rounded file:border-0 file:bg-muted file:px-2 file:py-0.5 file:text-xs"
+          />
+          <p className="text-xs text-muted-foreground">
+            PDF, Word, text, image or zip — up to 2 MB. The reviewer can download it with your request.
+          </p>
+        </div>
+      ) : null}
+
       <div className="flex items-center gap-3 pt-1">
         <Button type="submit" disabled={pending} className="w-fit">
           {pending ? <Loader2 className="animate-spin" /> : null}
           {pending ? "Submitting…" : submitLabel}
         </Button>
-        <p className="text-xs text-muted-foreground">
-          You&apos;ll get a notification with the reviewer&apos;s decision.
-        </p>
+        <p className="text-xs text-muted-foreground">{pendingNote}</p>
       </div>
     </form>
   );

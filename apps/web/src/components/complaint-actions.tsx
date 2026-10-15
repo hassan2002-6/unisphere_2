@@ -1,40 +1,39 @@
 "use client";
 
 import { useFormStatus } from "react-dom";
-import { Check, Play, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-/** Complaint transition buttons with a shared pending state (server action in the form). */
+/**
+ * Quick-action buttons for the complaint queue. Each button carries its own
+ * `action` value into the shared server action (spec §6 recipient actions).
+ */
 export function ComplaintActions({ status }: { status: string }) {
   const { pending } = useFormStatus();
 
+  const actions: { value: string; label: string; primary?: boolean }[] = [];
+  if (status === "OPEN") actions.push({ value: "acknowledge", label: "Acknowledge" });
+  if (status === "IN_REVIEW" || status === "AWAITING_INFO" || status === "OPEN")
+    actions.push({ value: "respond", label: "Respond" });
+  if (status === "IN_REVIEW" || status === "AWAITING_INFO")
+    actions.push({ value: "request_info", label: "Request info" });
+  if (status === "IN_REVIEW" || status === "AWAITING_INFO") actions.push({ value: "resolve", label: "Resolve", primary: true });
+  if (status === "RESOLVED") actions.push({ value: "close", label: "Close" });
+
   return (
     <div className="flex flex-wrap gap-2">
-      {status === "OPEN" ? (
-        <Button type="submit" name="status" value="IN_REVIEW" variant="secondary" size="sm" disabled={pending}>
-          <Play className="h-3.5 w-3.5" />
-          Start review
-        </Button>
-      ) : null}
-      {status === "IN_REVIEW" ? (
+      {actions.map((a) => (
         <Button
+          key={a.value}
           type="submit"
-          name="status"
-          value="RESOLVED"
+          name="action"
+          value={a.value}
+          variant={a.primary ? "default" : "outline"}
           size="sm"
           disabled={pending}
-          className="bg-success text-white hover:bg-success/90"
         >
-          <Check className="h-3.5 w-3.5" />
-          Resolve
+          {a.label}
         </Button>
-      ) : null}
-      {status === "IN_REVIEW" || status === "RESOLVED" ? (
-        <Button type="submit" name="status" value="CLOSED" variant="outline" size="sm" disabled={pending}>
-          <X className="h-3.5 w-3.5" />
-          Close
-        </Button>
-      ) : null}
+      ))}
     </div>
   );
 }

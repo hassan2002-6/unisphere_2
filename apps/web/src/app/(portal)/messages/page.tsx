@@ -154,7 +154,7 @@ export default async function MessagesPage({
               <EmptyState
                 icon={Inbox}
                 title="Inbox empty"
-                description="Messages from faculty, coordinators, mentors and other portal users land here."
+                description="Messages from faculty, coordinators and other portal users land here."
                 action={
                   <Button asChild>
                     <Link href="/messages?view=compose">

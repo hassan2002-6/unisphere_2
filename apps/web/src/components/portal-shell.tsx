@@ -10,9 +10,18 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { NAV_BY_ROLE, navItemForPath, pageTitleFor } from "@/lib/nav";
 import { ROLE_LABELS, type Role } from "@/lib/rbac";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { UserAvatar } from "@/components/user-avatar";
 import { cn } from "cn";
 
-type ShellUser = { name: string; email: string; role: Role; registrationNo: string | null; employeeId: string | null };
+type ShellUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  registrationNo: string | null;
+  employeeId: string | null;
+  hasAvatar: boolean;
+};
 
 /** "Student Portal", "Faculty Portal", …… — the prototype's sidebar subtitle. */
 const PORTAL_NAMES: Record<Role, string> = {
@@ -23,18 +32,6 @@ const PORTAL_NAMES: Record<Role, string> = {
   MENTOR: "Mentor Portal",
   ADMIN: "Administrator Portal",
 };
-
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "U"
-  );
-}
 
 /** Red header block — logo + portal name, exactly like the prototype's sidebar header. */
 function Brand({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
@@ -177,13 +174,8 @@ export function PortalShell({
             <ThemeToggle />
             {bell}
             <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
-            {/* User block — red initials avatar + name/role (prototype topbar) */}
-            <span
-              aria-hidden
-              className="flex h-[38px] w-[38px] items-center justify-center rounded-full bg-primary text-sm font-semibold text-white"
-            >
-              {initials(user.name)}
-            </span>
+            {/* User block — avatar (photo or crimson initials) + name/role (prototype topbar) */}
+            <UserAvatar name={user.name} userId={user.id} hasAvatar={user.hasAvatar} />
             <div className="hidden leading-tight sm:block">
               <span className="block text-[13px] font-semibold">{user.name}</span>
               <small className="block text-[11px] text-muted-foreground">

@@ -9,7 +9,7 @@
 | Faculty     | faculty@shu.edu.pk (+ faculty2@, faculty3@, saadia.karim@) | Dashboard (faculty) |
 | Coordinator | coordinator@shu.edu.pk                            | Dashboard (coordinator) |
 | FYP Head    | fyphead@shu.edu.pk                                | Dashboard (FYP head)    |
-| Mentor      | mentor@shu.edu.pk                                 | Mentor console          |
+| Mentor      | mentor@shu.edu.pk                                 | Standard dashboard (alumni-mentorship console retired from the active portal) |
 | Admin       | admin@shu.edu.pk                                  | Dashboard (admin)       |
 
 > Every role signs in through the same **/sign-in** page. Start as **student@shu.edu.pk**.
@@ -96,15 +96,26 @@
 - Student: `/forms` → pick *Bonafide certificate* → dynamic form renders from the template's JSON
   field spec → submit. Validation is the same zod schema on every entry point.
 - `/submissions` → open the submission → timeline shows SUBMITTED now.
-- Faculty: `/reviews` → start review → approve with a comment. Point at the `FormEvent` timeline.
+- Faculty: `/reviews` → start review → **Request corrections** with a remark (or approve). Student
+  sees CORRECTIONS_REQUESTED on `/submissions/[id]` and **resubmits in place** — optionally with a
+  supporting document (PDF/photo) that the reviewer can open straight from the queue.
 - Student: notification bell has the approval; `/submissions` shows APPROVED.
+- Admin `/admin/forms`: the forms manager now also **browses every submission** (filter by form,
+  status, applicant, date), previews the payload, **edits templates** (publishing a new version so
+  old submissions keep their snapshot) and configures the attachment label / requirement per form.
 
 ## 4. Complaint box (4:30–5:45)
 
-- Student: `/complaints/new` → category *Faculty* → file it.
+- Student: `/complaints/new` → category *Faculty* → file it — attach photo evidence if wanted;
+  the service issues the reference (`CMP-2026-00xx`) and routes by the category rule.
 - Point out routing: faculty-category complaints hit `/faculty/complaints` **and** the
-  coordination office; the student tracks status on `/complaints/[id]`.
-- Faculty: start review → resolve with a note. Student sees the resolved state + notification.
+  coordination office; the student tracks status on `/complaints/[id]` with public updates only.
+- Faculty/coordinator: acknowledge → **internal notes** (staff-only — the student never sees
+  them) → reply/request info → **forward** to another handler → **escalate** (priority jumps to
+  HIGH and it lands with the senior office) → resolve with a note. Overdue complaints wear a red
+  badge computed from the route's SLA.
+- Admin `/admin/complaints`: manage categories and the **routing rules** — who each category goes
+  to, default priority, escalate-after hours and the escalation target.
 
 ## 5. FYP + GPU/resource workflow (5:45–8:30) — the showcase
 
@@ -118,14 +129,18 @@
   decrement is a transactional race test"* (run `scripts/test-concurrency.ts` live if asked).
 - `/admin/labs` + `/admin/inventory` for the physical inventory CRUD.
 
-## 6. Internships + mentorship (8:30–10:30)
+## 6. Assignments, live data & internships (8:30–10:30)
 
+- Faculty `/faculty/assignments`: create an assignment for a course section — deadline, marks,
+  allowed file types, optional brief. Students of that section get a notification instantly.
+- Student `/assignments`: sees the brief, uploads a PDF (wrong types refused; late uploads are
+  flagged, not blocked) — `/assignments/[id]` shows marks + feedback once graded.
+- Faculty: open the assignment → submissions table → **grade with marks + feedback** → the
+  student is notified.
+- Admin `/admin/data`: **CSV import** for a whole student/faculty/course batch (template
+  download, per-row error report) — alongside the per-account creation flow.
 - `/internships`: browse (search/tags), open one, apply. `/admin/internships` as poster:
   shortlist → accept; student notified.
-- `/mentorship`: mentor directory (approved only) → request mentorship.
-- Mentor console (`/mentor`): set profile → FYP Head approves on `/admin/mentors` →
-  accept request → propose session; student confirms on `/mentorship`; complete session
-  closes the mentorship.
 
 ## 7. AI assistant (10:30–11:30)
 
@@ -134,6 +149,9 @@
 - Say: *"Retrieval is Postgres full-text over a curated university corpus plus the student's own
   records; if nothing matches it says so instead of inventing. Without an API key it still answers
   from the corpus (offline fallback)."*
+- Admin `/admin/knowledge`: upload/replace knowledge documents, archive stale ones, and triage the
+  **unanswered questions** the assistant captured when it had no matching source — turn one into
+  a visible FAQ-grown clause on the spot.
 
 ## 8. Close (11:30–12:00)
 
@@ -141,8 +159,9 @@
 - `/admin/reports`: operational counts + CSV export (`/api/reports/summary?format=csv`).
 - `/admin/audit`: every important action (role change, marks published, clash resolved…) is in the
   audit trail; `/admin/users` shows the 18 personas and lets an admin adjust a role.
-- Wrap: *"45 portal routes, 35 models, 358 automated tests including an RBAC/guard suite that fails
-  the build if a page skips authorization."*
+- Wrap: *"Everything you saw is server-authorised — the RBAC/guard suite fails the build if a page
+  skips authorization; 350+ unit tests plus a 120-check end-to-end workflow script run before every
+  commit."*
 
 ## Rehearsal checklist
 

@@ -62,7 +62,7 @@ cd ../.. && bun run dev          # turbo — http://localhost:3000
 ```bash
 bun run lint        # oxlint
 bun run typecheck   # tsc --noEmit across the workspace
-bun run test        # vitest — 376 tests incl. RBAC matrix + guard scan
+bun run test        # vitest — 350+ tests incl. RBAC matrix + guard scan
 bun run build       # Next production build (typechecked)
 ```
 
@@ -70,7 +70,7 @@ Domain extras:
 
 ```bash
 cd apps/web
-bun run scripts/test-workflows.ts    # 85-check end-to-end acceptance across every workflow
+bun run scripts/test-workflows.ts    # 120-check end-to-end acceptance across every workflow
 bun run scripts/eval-ai.ts           # 33-question AI retrieval eval (needs DATABASE_URL)
 bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATABASE_URL)
 ```
@@ -92,19 +92,23 @@ bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATA
 | Forms manager     | `/admin/forms` — add/retire form templates (spec §11)     | ✅ |
 | FYP supervision   | `/fyphead` request desk, `/faculty/fyp` progress notes    | ✅ |
 | Academic planning | `/planning`, `/faculty/courses`                           | ✅ |
-| Forms centre      | `/forms`, `/forms/new/[key]`, `/submissions(+detail)`, `/reviews`, `/faculty/reviews` | ✅ |
-| Complaint box     | `/complaints(+new/detail)`, `/faculty/complaints`, `/coordinator/complaints` | ✅ |
+| Forms centre      | `/forms`, `/forms/new/[key]`, `/submissions(+detail)`, `/reviews`, `/faculty/reviews` — corrections round-trip, review chains, supporting documents | ✅ |
+| Complaint box     | `/complaints(+new/detail)`, `/faculty/complaints`, `/coordinator/complaints` — routing rules, internal notes, forward/escalate, attachments, SLA badges | ✅ |
+| Assignments       | `/assignments(+detail)`, `/faculty/assignments(+[id])` — deadline, marks, typed uploads, late flags, grading | ✅ |
+| Admin toolkit     | `/admin/data(+import)` CSV import, `/admin/complaints` routing rules, `/admin/knowledge` AI corpus + unanswered triage | ✅ |
+| Photos & avatars  | `/profile` photo upload (PNG/JPG/WebP, magic-byte checked) surfaced in the top bar everywhere | ✅ |
 | Notifications     | `/notifications`, `/admin/broadcast`                      | ✅ |
 | FYP workflow      | `/fyp`, `/admin/fyp`                                      | ✅ |
 | GPU / resources   | `/resources/request`, `/resources/my`, `/admin/requests`, `/admin/allocations` | ✅ |
 | Labs & inventory  | `/admin/labs`, `/admin/inventory`                         | ✅ |
 | Reports           | `/admin/reports`, `/api/reports/summary?format=csv`       | ✅ |
 | Internships       | `/internships(+detail)`, `/admin/internships`             | ✅ |
-| Mentorship        | `/mentorship`, `/mentor`, `/admin/mentors`                | ✅ |
 | AI assistant      | `/chat` (grounded, citation chips)                        | ✅ |
 
 All modules above are in scope and implemented (the FYP-I deck had parked attendance/results —
-the FYP-II spec brings them in, with GPA computed from published results).
+the FYP-II spec brings them in, with GPA computed from published results). The alumni-mentorship
+console (`/mentorship`, `/mentor`, `/admin/mentors`) is retired from the active portal — its DB
+models and mentor account remain, but the module is no longer in the spec's active scope.
 
 **University-ID sign-in.** Accounts are provisioned by the coordination office (no public
 self-signup — `AUTO_PROVISION=false`): the admin creates an account, the holder receives an
@@ -128,7 +132,7 @@ invitation and sets their own password. Sign-in accepts the University ID (`S22C
 | Faculty | `faculty@`, `faculty2@`, `faculty3@`, `saadia.karim@` | attendance marking, marks entry, student search |
 | Coordinator | `coordinator@shu.edu.pk` | clash queue, forms, broadcasts |
 | FYP Head | `fyphead@shu.edu.pk` | FYP approvals, resources |
-| Mentor | `mentor@shu.edu.pk` | alumni mentorship console |
+| Mentor | `mentor@shu.edu.pk` | standard dashboard (console retired) |
 | Admin | `admin@shu.edu.pk` | users & roles, audit log, reports |
 
 Every account signs in through the single `/sign-in` page and lands on its role dashboard.

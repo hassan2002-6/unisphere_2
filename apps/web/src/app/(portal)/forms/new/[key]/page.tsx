@@ -70,7 +70,15 @@ export default async function SubmitFormPage({ params }: { params: Promise<{ key
       <Card>
         <CardContent className="pt-6">
           {canSubmit ? (
-            <DynamicForm fields={fields.data} action={boundAction} />
+            <DynamicForm
+              fields={fields.data}
+              action={boundAction}
+              attachment={
+                template.requiresAttachment || template.attachmentLabel
+                  ? { label: template.attachmentLabel ?? "Supporting document", required: template.requiresAttachment }
+                  : undefined
+              }
+            />
           ) : (
             <p className="text-sm text-muted-foreground">
               Submission is disabled for your role.{" "}

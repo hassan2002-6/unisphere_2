@@ -35,7 +35,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             {[
               "Timetable & exam clashes flagged the moment they appear",
               "Forms, complaints, FYP applications and GPU requests — tracked end-to-end",
-              "Internships, alumni mentorship and an AI assistant that cites its sources",
+              "Internships and an AI assistant that cites its sources",
             ].map((line) => (
               <li key={line} className="flex gap-2.5">
                 <span aria-hidden className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-sidebar-primary" />

@@ -15,18 +15,23 @@ export type MachineKey =
   | "internshipApplication";
 
 export const MACHINES: Record<MachineKey, Record<string, readonly string[]>> = {
-  // SUBMITTED → UNDER_REVIEW → {APPROVED, REJECTED}; SUBMITTED → WITHDRAWN (submitter only)
+  // SUBMITTED → UNDER_REVIEW → {APPROVED, REJECTED, CORRECTIONS_REQUESTED};
+  // CORRECTIONS_REQUESTED → SUBMITTED (holder revises + resubmits);
+  // SUBMITTED → WITHDRAWN (submitter only)
   form: {
     SUBMITTED: ["UNDER_REVIEW", "WITHDRAWN"],
-    UNDER_REVIEW: ["APPROVED", "REJECTED"],
+    UNDER_REVIEW: ["APPROVED", "REJECTED", "CORRECTIONS_REQUESTED"],
+    CORRECTIONS_REQUESTED: ["SUBMITTED", "WITHDRAWN"],
     APPROVED: [],
     REJECTED: [],
     WITHDRAWN: [],
   },
-  // OPEN → IN_REVIEW → {RESOLVED, CLOSED}; RESOLVED → CLOSED
+  // OPEN → IN_REVIEW → {AWAITING_INFO, RESOLVED, CLOSED}; AWAITING_INFO → IN_REVIEW (holder replied);
+  // RESOLVED → CLOSED
   complaint: {
     OPEN: ["IN_REVIEW"],
-    IN_REVIEW: ["RESOLVED", "CLOSED"],
+    IN_REVIEW: ["AWAITING_INFO", "RESOLVED", "CLOSED"],
+    AWAITING_INFO: ["IN_REVIEW", "RESOLVED", "CLOSED"],
     RESOLVED: ["CLOSED"],
     CLOSED: [],
   },

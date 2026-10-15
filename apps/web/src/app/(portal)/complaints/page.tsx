@@ -68,8 +68,10 @@ export default async function ComplaintsPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-5">Subject</TableHead>
+                  <TableHead className="pl-5">Ref</TableHead>
+                  <TableHead>Subject</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Priority</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Filed</TableHead>
                   <TableHead className="pr-5 text-right">Actions</TableHead>
@@ -78,12 +80,19 @@ export default async function ComplaintsPage() {
               <TableBody>
                 {data.items.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell className="pl-5 font-medium">{c.subject}</TableCell>
+                    <TableCell className="pl-5 font-mono text-xs text-muted-foreground">{c.refNo}</TableCell>
+                    <TableCell className="font-medium">{c.subject}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{c.category}</Badge>
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={c.status} />
+                      <Badge variant="outline">{c.priority.toLowerCase()}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="flex items-center gap-2">
+                        <StatusBadge status={c.status} />
+                        {c.overdue ? <StatusBadge status="OVERDUE" /> : null}
+                      </span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {c.createdAt.toLocaleString("en-GB", { timeZone: "Asia/Karachi", day: "2-digit", month: "short", year: "numeric" })}

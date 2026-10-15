@@ -18,7 +18,6 @@ export async function getSummary() {
     resources,
     labs,
     internshipsOpen,
-    mentorsApproved,
   ] = await Promise.all([
     prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
     prisma.formSubmission.groupBy({ by: ["status"], _count: { _all: true } }),
@@ -29,7 +28,6 @@ export async function getSummary() {
     prisma.resource.findMany({ orderBy: [{ type: "asc" }, { name: "asc" }] }),
     prisma.lab.findMany({ orderBy: { number: "asc" } }),
     prisma.internship.count({ where: { status: "OPEN" } }),
-    prisma.mentorProfile.count({ where: { isApproved: true } }),
   ]);
 
   const asCounts = (rows: { _count: { _all: number } }[], key: string) =>
@@ -55,7 +53,6 @@ export async function getSummary() {
     })),
     labs: labs.map((l) => ({ name: l.name, number: l.number, capacity: l.capacity, type: l.type })),
     internshipsOpen,
-    mentorsApproved,
   };
 }
 
@@ -87,7 +84,6 @@ export function summaryToCsv(s: ReportSummary): string {
   for (const l of s.labs) lines.push([l.name, l.number, l.capacity, l.type ?? ""].join(","));
   section("Other");
   kv("openInternships", s.internshipsOpen);
-  kv("approvedMentors", s.mentorsApproved);
 
   return lines.join("\n");
 }

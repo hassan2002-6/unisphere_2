@@ -23,6 +23,7 @@ enum Role {
 enum FormStatus {
   SUBMITTED
   UNDER_REVIEW
+  CORRECTIONS_REQUESTED
   APPROVED
   REJECTED
   WITHDRAWN
@@ -31,8 +32,28 @@ enum FormStatus {
 enum ComplaintStatus {
   OPEN
   IN_REVIEW
+  AWAITING_INFO
   RESOLVED
   CLOSED
+}
+
+enum ComplaintPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ComplaintEventVisibility {
+  PUBLIC
+  INTERNAL
+}
+
+enum ComplaintEventKind {
+  STATUS
+  RESPONSE
+  FORWARD
+  NOTE
+  ESCALATION
 }
 
 enum FypStatus {
@@ -96,6 +117,7 @@ enum NotificationType {
   SYSTEM
   MESSAGE
   CLASH
+  ASSIGNMENT
 }
 
 enum DayOfWeek {
@@ -119,6 +141,9 @@ model User {
   employeeId     String?
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
+  avatarMime     String?
+  avatarData     Bytes?
+  avatarUpdatedAt DateTime?
 
   studentProfile StudentProfile?
   facultyProfile FacultyProfile?
@@ -159,6 +184,12 @@ model User {
   clashReports           ClashReport[]           @relation("ClashReporter")
   clashReportsHandled    ClashReport[]           @relation("ClashHandler")
   fypProgressNotes       FypProgressUpdate[]     @relation("FypProgressAuthor")
+  assignmentsCreated     Assignment[]            @relation("AssignmentCreator")
+  assignmentSubmissions  AssignmentSubmission[]  @relation("AssignmentSubmitter")
+  assignmentsGraded      AssignmentSubmission[]  @relation("AssignmentGrader")
+  complaintEventsFrom    ComplaintEvent[]        @relation("ComplaintEventAssigneeFrom")
+  complaintEventsTo      ComplaintEvent[]        @relation("ComplaintEventAssigneeTo")
+  unansweredQuestions    UnansweredQuestion[]
 }
 
 model StudentProfile {
@@ -209,6 +240,8 @@ model CourseClass {
   attendance AttendanceRecord[]
   assessments Assessment[]
   results    CourseResult[]
+  assignments Assignment[]
+  complaints Complaint[]
 
   @@index([courseCode, section])
 }
@@ -302,6 +335,12 @@ model FormTemplate {
   fields         Json
   active         Boolean          @default(true)
   slaDays        Int?
+  version        Int              @default(1)
+  /** Ordered approval chain (role names, e.g. ["FACULTY","COORDINATOR"]); [] = reviewerRole only. */
+  approverChain  String[]         @default([])
+  /** Supporting-document settings (spec: admin configures required documents). */
+  attachmentLabel     String?
+  requiresAttachment  Boolean         @default(false)
   submissions    FormSubmission[]
 }
 
@@ -312,6 +351,17 @@ model FormSubmission {
   payload       Json
   status        FormStatus   @default(SUBMITTED)
   reviewerId    String?
+  templateVersion Int        @default(1)
+  /** Field definitions as they were when this submission was made (never mutated). */
+  templateSnapshot Json?
+  /** Snapshot of the approval chain at submit time. */
+  chain         String[]     @default([])
+  currentStep   Int          @default(0)
+  /** Optional supporting document (spec: “required documents where applicable”). */
+  attachmentName String?
+  attachmentMime String?
+  attachmentSize Int?
+  attachmentData Bytes?
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   template      FormTemplate @relation(fields: [templateId], references: [id])
@@ -321,6 +371,7 @@ model FormSubmission {
 
   @@index([status])
   @@index([submittedById])
+  @@index([reviewerId])
 }
 
 model FormEvent {
@@ -338,31 +389,140 @@ model FormEvent {
 // ── Complaints ───────────────────────────────────────────────────────────
 model Complaint {
   id            String           @id @default(cuid())
+  refNo         String           @unique
   submittedById String
   subject       String
   category      String
   description   String
+  priority      ComplaintPriority @default(MEDIUM)
+  classId       String?
   status        ComplaintStatus  @default(OPEN)
   assignedToId  String?
+  dueAt         DateTime?
+  attachmentName String?
+  attachmentMime String?
+  attachmentSize Int?
+  attachmentData Bytes?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   submittedBy   User             @relation("ComplaintSubmitter", fields: [submittedById], references: [id])
   assignedTo    User?            @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
+  class         CourseClass?     @relation(fields: [classId], references: [id])
   events        ComplaintEvent[]
 
   @@index([status])
   @@index([submittedById])
+  @@index([assignedToId])
+  @@index([priority])
 }
 
 model ComplaintEvent {
-  id          String          @id @default(cuid())
-  complaintId String
-  actorId     String?
-  status      ComplaintStatus
-  comment     String?
-  createdAt   DateTime        @default(now())
-  complaint   Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
-  actor       User?           @relation("ComplaintEventActor", fields: [actorId], references: [id])
+  id             String          @id @default(cuid())
+  complaintId    String
+  actorId        String?
+  status         ComplaintStatus
+  kind           ComplaintEventKind @default(STATUS)
+  visibility     ComplaintEventVisibility @default(PUBLIC)
+  comment        String?
+  assigneeFromId String?
+  assigneeToId   String?
+  createdAt      DateTime        @default(now())
+  complaint      Complaint       @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  actor          User?           @relation("ComplaintEventActor", fields: [actorId], references: [id])
+  assigneeFrom   User?           @relation("ComplaintEventAssigneeFrom", fields: [assigneeFromId], references: [id])
+  assigneeTo     User?           @relation("ComplaintEventAssigneeTo", fields: [assigneeToId], references: [id])
+}
+
+/** Admin-managed complaint categories (spec §6 "manage complaint categories"). */
+model ComplaintCategory {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([active])
+}
+
+/** Admin-managed routing: category → responsible role/user, priority, escalation. */
+model ComplaintRoute {
+  id                 String            @id @default(cuid())
+  categoryKey        String
+  targetRole         Role?
+  targetUserId       String?
+  defaultPriority    ComplaintPriority @default(MEDIUM)
+  escalateAfterHours Int?
+  escalateToRole     Role?
+  active             Boolean           @default(true)
+  sortOrder          Int               @default(0)
+  createdAt          DateTime          @default(now())
+
+  @@index([categoryKey, active])
+}
+
+// ── Assignments (spec §4) ────────────────────────────────────────────────
+model Assignment {
+  id             String    @id @default(cuid())
+  classId        String
+  title          String
+  instructions   String
+  deadline       DateTime
+  maxMarks       Int       @default(100)
+  /** Comma list of allowed file extensions, e.g. "pdf,docx,zip". Empty = any supported type. */
+  allowedTypes   String?
+  attachmentName String?
+  attachmentMime String?
+  attachmentSize Int?
+  attachmentData Bytes?
+  createdById    String
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  class          CourseClass @relation(fields: [classId], references: [id])
+  createdBy      User      @relation("AssignmentCreator", fields: [createdById], references: [id])
+  submissions    AssignmentSubmission[]
+
+  @@index([classId])
+  @@index([deadline])
+}
+
+model AssignmentSubmission {
+  id           String    @id @default(cuid())
+  assignmentId String
+  studentId    String
+  fileName     String
+  fileMime     String
+  fileSize     Int
+  fileData     Bytes
+  note         String?
+  submittedAt  DateTime  @default(now())
+  isLate       Boolean   @default(false)
+  attempt      Int       @default(1)
+  marks        Int?
+  feedback     String?
+  gradedById   String?
+  gradedAt     DateTime?
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      User      @relation("AssignmentSubmitter", fields: [studentId], references: [id])
+  gradedBy     User?     @relation("AssignmentGrader", fields: [gradedById], references: [id])
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId])
+  @@index([gradedById])
+}
+
+/** Chatbot gaps: questions the knowledge base couldn't answer, for admin review (spec §9). */
+model UnansweredQuestion {
+  id        String    @id @default(cuid())
+  question  String
+  role      Role?
+  userId    String?
+  createdAt DateTime  @default(now())
+  resolvedAt DateTime?
+  resolvedById String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([resolvedAt])
 }
 
 // ── Internships ──────────────────────────────────────────────────────────
@@ -549,7 +709,30 @@ model KnowledgeDoc {
   source    String
   content   String
   tags      String[]
+  isArchived Boolean @default(false)
+  updatedById String?
   updatedAt DateTime @updatedAt
+
+  @@index([isArchived])
+}
+
+/**
+ * Questions the assistant could not ground in the knowledge base — the Admin →
+ * Knowledge screen reviews these and the answers become new knowledge docs.
+ * Written by the chat pipeline, never by clients.
+ */
+model AiUnanswered {
+  id           String    @id @default(cuid())
+  question     String
+  role         Role
+  userId       String?
+  sessionId    String?
+  reviewedAt   DateTime?
+  reviewedById String?
+  note         String?
+  createdAt    DateTime  @default(now())
+
+  @@index([reviewedAt, createdAt])
 }
 
 // Academic planning: BSCS degree plan (8 semesters) — seeded, shown in /planning.

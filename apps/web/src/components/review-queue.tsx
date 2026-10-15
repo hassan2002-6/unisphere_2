@@ -6,12 +6,13 @@ import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { ReviewActions } from "@/components/review-actions";
 import { decideAction } from "@/app/(portal)/forms/actions";
-import { Inbox } from "lucide-react";
+import { Inbox, Paperclip } from "lucide-react";
 
 type QueueItem = {
   id: string;
   status: string;
   payload: unknown;
+  attachmentName?: string | null;
   createdAt: Date;
   template: { title: string; audienceRole: string };
   submittedBy: { name: string; email: string; registrationNo: string | null };
@@ -102,6 +103,16 @@ export function ReviewQueue({
                       </div>
                     ))}
                   </dl>
+
+                  {s.attachmentName ? (
+                    <a
+                      href={`/api/submissions/${s.id}/attachment`}
+                      className="inline-flex w-fit items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted/40"
+                    >
+                      <Paperclip className="h-3.5 w-3.5 text-muted-foreground" />
+                      {s.attachmentName}
+                    </a>
+                  ) : null}
 
                   <form action={decideAction} className="mt-auto space-y-3 border-t pt-4">
                     <input type="hidden" name="id" value={s.id} />

@@ -11,7 +11,7 @@ import { notifyUser } from "./notifications";
  *  - FACULTY     → students of their courses, coordinator, FYP Head, admin
  *  - COORDINATOR → faculty, students, FYP Head, admin
  *  - FYP_HEAD    → faculty, students, coordinator, admin
- *  - MENTOR      → their mentees (+ admin)
+ *  - MENTOR      → admins
  *  - ADMIN       → everyone (capped)
  */
 
@@ -77,11 +77,6 @@ export async function getRecipients(user: User): Promise<RecipientRow[]> {
     });
     rows.push(...staff.filter((s) => !rows.some((r) => r.id === s.id)));
   } else if (user.role === "MENTOR") {
-    const mentees = await prisma.mentorshipRequest.findMany({
-      where: { mentorId: user.id, status: { in: ["ACCEPTED", "PENDING"] } },
-      include: { student: { select: userSelect } },
-    });
-    rows.push(...mentees.map((m) => m.student));
     const admins = await prisma.user.findMany({ where: { role: "ADMIN" }, select: userSelect });
     rows.push(...admins);
   } else if (user.role === "ADMIN") {

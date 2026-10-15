@@ -38,6 +38,8 @@ export async function saveTemplateAction(formData: FormData) {
       recipientLabel: String(formData.get("recipientLabel") ?? "Coordination Office"),
       slaDays: String(formData.get("slaDays") ?? "") || null,
       fieldsText: String(formData.get("fieldsText") ?? ""),
+      attachmentLabel: String(formData.get("attachmentLabel") ?? ""),
+      requiresAttachment: String(formData.get("requiresAttachment") ?? "") === "on",
     });
   } catch (e) {
     const msg = e instanceof ServiceError ? e.message : "Could not save the form.";

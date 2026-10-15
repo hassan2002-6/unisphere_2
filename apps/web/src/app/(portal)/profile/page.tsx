@@ -41,10 +41,9 @@ export default async function ProfilePage() {
   // The university ID + the role-specific record attached to it.
   let student: Awaited<ReturnType<typeof loadStudent>> | null = null;
   let faculty: Awaited<ReturnType<typeof loadFaculty>> | null = null;
-  let mentor: Awaited<ReturnType<typeof loadMentor>> | null = null;
   let dbError = false;
   try {
-    [student, faculty, mentor] = await Promise.all([loadStudent(user.id), loadFaculty(user.id), loadMentor(user.id)]);
+    [student, faculty] = await Promise.all([loadStudent(user.id), loadFaculty(user.id)]);
   } catch {
     dbError = true;
   }
@@ -157,25 +156,11 @@ export default async function ProfilePage() {
                 <Field label="Office" value={faculty.office ?? "—"} />
                 <Field label="Courses teaching" value={`${faculty.courses} active`} />
                 <Field label="FYP groups supervised" value={`${faculty.supervised}`} />
-                {mentor ? (
-                  <>
-                    <Field label="Mentor headline" value={mentor.headline} />
-                    <Field label="Mentees" value={`${mentor.activeMentees} active`} />
-                  </>
-                ) : null}
               </dl>
             ) : (
               <dl className="divide-y">
                 <Field label="Account type" value={ROLE_LABELS[user.role]} />
                 <Field label="Sign-in" value="Single sign-in — this account opens the portal for your role only." />
-                {mentor ? (
-                  <>
-                    <Field label="Mentor headline" value={mentor.headline} />
-                    <Field label="Company" value={mentor.company ?? "—"} />
-                    <Field label="Mentees" value={`${mentor.activeMentees} active`} />
-                    <Field label="Profile" value={mentor.isApproved ? "Approved — visible to students" : "Awaiting approval"} />
-                  </>
-                ) : null}
               </dl>
             )}
           </CardContent>
@@ -241,16 +226,4 @@ async function loadFaculty(userId: string) {
   return { designation: profile?.designation ?? null, office: profile?.office ?? null, courses, supervised };
 }
 
-async function loadMentor(userId: string) {
-  const profile = await prisma.mentorProfile.findUnique({ where: { userId } });
-  if (!profile) return null;
-  const activeMentees = await prisma.mentorshipRequest.count({
-    where: { mentorId: userId, status: { in: ["PENDING", "ACCEPTED"] } },
-  });
-  return {
-    headline: profile.headline,
-    company: profile.company,
-    isApproved: profile.isApproved,
-    activeMentees,
-  };
-}
+

@@ -12,6 +12,16 @@ export async function sendMessageAction(formData: FormData) {
   const question = String(formData.get("question") ?? "").trim();
   if (!sessionId || question.length < 2) return;
 
+  // Cheap abuse guard: 12 questions per rolling minute per user (spec §9).
+  const recent = await prisma.chatMessage.count({
+    where: { role: "user", createdAt: { gte: new Date(Date.now() - 60_000) }, session: { userId: user.id } },
+  });
+  if (recent >= 12) {
+    redirect(
+      `/chat?s=${sessionId}&error=${encodeURIComponent("You're asking faster than the assistant can answer — wait a minute and try again.")}`,
+    );
+  }
+
   try {
     await ask(user, sessionId, question);
   } catch (e) {

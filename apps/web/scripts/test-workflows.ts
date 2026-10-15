@@ -33,6 +33,25 @@ import {
   resolveLoginIdentifier,
   setAccountActive,
 } from "@/server/services/accounts";
+import {
+  createAssignment,
+  getFacultyAssignment,
+  getSubmissionFile,
+  gradeSubmission,
+  listMyAssignments,
+  submitAssignment,
+  updateAssignment,
+} from "@/server/services/assignments";
+import {
+  actOnComplaint,
+  addInternalNote,
+  createComplaint,
+  getComplaint,
+  listManagedComplaints,
+  replyToComplaint,
+} from "@/server/services/complaints";
+import { createComplaintCategory, upsertComplaintRoute } from "@/server/services/complaints-admin";
+import { decideSubmission, getSubmissionAttachment, resubmitForm, submitForm } from "@/server/services/forms";
 import { ServiceError } from "@/server/services/forms";
 
 const RUN_STARTED = new Date();
@@ -49,6 +68,11 @@ const cleanup = {
   accountIds: [] as string[],
   createdClassIds: [] as string[],
   examIds: [] as string[],
+  assignmentIds: [] as string[],
+  submissionIds: [] as string[],
+  complaintIds: [] as string[],
+  complaintRouteIds: [] as string[],
+  formSubmissionIds: [] as string[],
 };
 
 let pass = 0;
@@ -665,6 +689,207 @@ async function main() {
     (await listAudit({ take: 200 })).some((t) => t.action === "fyp.progress_note" && t.createdAt >= RUN_STARTED),
   );
 
+  // ── 14. Assignments: author → submit → grade (spec §4) ───────────────────
+  console.log("\n14. Assignments lifecycle");
+  await prisma.assignment.deleteMany({ where: { title: { startsWith: "E2E — " } } });
+  const aClass = await prisma.courseClass.findFirst({
+    where: { facultyId: faculty.id, enrollments: { some: { studentId: student.id, status: "ACTIVE" } } },
+    orderBy: { courseCode: "asc" },
+  });
+  ok("faculty teaches a class the student is enrolled in", !!aClass);
+  if (aClass) {
+    const asg = await createAssignment(faculty, {
+      classId: aClass.id,
+      title: "E2E — Lab Report",
+      instructions: "Workflow test assignment — upload a short PDF to exercise the full path.",
+      deadline: new Date(Date.now() + 3 * 86_400_000),
+      maxMarks: 10,
+      allowedTypes: "pdf,txt",
+    });
+    cleanup.assignmentIds.push(asg.id);
+    ok("assignment created (open)", asg.closedAt === null);
+
+    const myList = await listMyAssignments(student);
+    ok("enrolled student sees it in /assignments", myList.some((a) => a.id === asg.id));
+
+    const outsider = await prisma.user.findFirst({
+      where: {
+        role: "STUDENT",
+        isActive: true,
+        id: { notIn: [student.id, student2.id] },
+        enrollments: { none: { classId: aClass.id } },
+      },
+      select: { id: true },
+    });
+    if (outsider) {
+      const notEnrolled = await prisma.user.findUniqueOrThrow({ where: { id: outsider.id } });
+      await expectThrow("a student outside the class cannot submit", async () =>
+        submitAssignment(notEnrolled, asg.id, { fileName: "x.pdf", fileMime: "application/pdf", fileData: Buffer.from("nope") }),
+      );
+    }
+    await expectThrow("a disallowed file type is rejected", async () =>
+      submitAssignment(student, asg.id, { fileName: "notes.exe", fileMime: "application/octet-stream", fileData: Buffer.from("MZ") }),
+    );
+
+    const submission = await submitAssignment(student, asg.id, {
+      fileName: "lab-report.pdf",
+      fileMime: "application/pdf",
+      fileData: Buffer.from("%PDF-1.4 E2E workflow test"),
+      note: "First draft.",
+    });
+    cleanup.submissionIds.push(submission.id);
+    ok("submission stored and on time", submission.isLate === false && submission.marks === null);
+
+    const staffView = await getFacultyAssignment(faculty, asg.id);
+    ok("faculty submission table lists it", staffView.assignment.submissions.some((s) => s.id === submission.id));
+
+    const graded = await gradeSubmission(faculty, submission.id, { marks: 8, feedback: "Solid — add a conclusion." });
+    ok("graded with marks + feedback", graded.marks === 8 && graded.gradedAt !== null);
+    ok(
+      "student notified about the grade",
+      (await prisma.notification.count({ where: { userId: student.id, type: "ASSIGNMENT", title: "Assignment graded", createdAt: { gte: RUN_STARTED } } })) > 0,
+    );
+
+    const file = await getSubmissionFile(student, submission.id);
+    ok("owner downloads the submitted file", file.fileName === "lab-report.pdf" && file.data.length > 0);
+    await expectThrow("an unrelated user cannot download it", async () => getSubmissionFile(student2, submission.id));
+
+    const closed = await updateAssignment(faculty, asg.id, { closed: true });
+    ok("assignment can be closed", closed.closedAt !== null);
+    await expectThrow("closed assignments refuse further submissions", async () =>
+      submitAssignment(student, asg.id, { fileName: "again.pdf", fileMime: "application/pdf", fileData: Buffer.from("x") }),
+    );
+  }
+
+  // ── 15. Complaints: routing → internal notes → escalate → resolve (spec §6) ─
+  console.log("\n15. Complaints pipeline");
+  await prisma.complaint.deleteMany({ where: { subject: { startsWith: "E2E — " } } });
+  const e2eCat = await prisma.complaintCategory.findUnique({ where: { key: "e2e-workflow" } });
+  if (!e2eCat) {
+    try {
+      await createComplaintCategory(admin, { key: "e2e-workflow", label: "E2E Workflow" });
+    } catch {
+      /* raced or already created by an interrupted run */
+    }
+  }
+  const route = await upsertComplaintRoute(admin, null, {
+    categoryKey: "e2e-workflow",
+    targetRole: "ADMIN",
+    targetUserId: null,
+    defaultPriority: "MEDIUM",
+    escalateAfterHours: 48,
+    escalateToRole: "COORDINATOR",
+    sortOrder: 99,
+    active: true,
+  });
+  cleanup.complaintRouteIds.push(route.id);
+
+  const complaint = await createComplaint(student, {
+    subject: "E2E — Projector flickers in R-204",
+    category: "e2e-workflow",
+    description: "Workflow test: the projector in R-204 flickers and shuts off mid-lecture.",
+  });
+  cleanup.complaintIds.push(complaint.id);
+  ok("reference number issued", /^[A-Z]+-\d{4}-\d{4,}$/.test(complaint.refNo), complaint.refNo);
+  ok("routing auto-assigned a handler", complaint.assignedToId !== null);
+  ok("routing set the rule's priority", complaint.priority === "MEDIUM");
+  ok("escalation deadline set from the rule", complaint.dueAt !== null);
+
+  const managerId = complaint.assignedToId;
+  const manager = managerId ? await prisma.user.findUniqueOrThrow({ where: { id: managerId } }) : admin;
+  await actOnComplaint(manager, complaint.id, "acknowledge", { comment: "Received — inspecting the room." });
+  const afterAck = await prisma.complaint.findUniqueOrThrow({ where: { id: complaint.id } });
+  ok("acknowledged → IN_REVIEW + claimed", afterAck.status === "IN_REVIEW" && afterAck.assignedToId === manager.id);
+
+  await addInternalNote(manager, complaint.id, "Facilities says the lamp module is end-of-life.");
+  const managerView = await getComplaint(manager, complaint.id);
+  const studentView = await getComplaint(student, complaint.id);
+  ok(
+    "internal note visible to staff only",
+    managerView.events.some((e) => e.visibility === "INTERNAL") && !studentView.events.some((e) => e.visibility === "INTERNAL"),
+  );
+
+  await replyToComplaint(student, complaint.id, "It happens after about 20 minutes of use.");
+  ok(
+    "student reply lands in the trail",
+    (await prisma.complaintEvent.count({ where: { complaintId: complaint.id, actorId: student.id, comment: { contains: "20 minutes" } } })) > 0,
+  );
+
+  await actOnComplaint(manager, complaint.id, "escalate", { comment: "Needs a budget approval for a replacement." });
+  const escalated = await prisma.complaint.findUniqueOrThrow({ where: { id: complaint.id } });
+  ok("escalation bumps priority to HIGH", escalated.priority === "HIGH");
+  ok(
+    "escalation is recorded",
+    (await prisma.complaintEvent.count({ where: { complaintId: complaint.id, kind: "ESCALATION" } })) > 0,
+  );
+
+  await actOnComplaint(manager, complaint.id, "resolve", { comment: "Replacement lamp fitted; verified working." });
+  const resolvedRow = await prisma.complaint.findUniqueOrThrow({ where: { id: complaint.id } });
+  ok("manager resolves the complaint", resolvedRow.status === "RESOLVED");
+  ok(
+    "submitter notified of the resolution",
+    (await prisma.notification.count({ where: { userId: student.id, type: "COMPLAINT", createdAt: { gte: RUN_STARTED } } })) > 0,
+  );
+  const managedQueue = await listManagedComplaints(manager, { q: complaint.refNo });
+  ok("management queue filters by reference number", managedQueue.items.some((c) => c.id === complaint.id));
+
+  await actOnComplaint(manager, complaint.id, "close", { comment: "Closing after confirmation." });
+  ok("resolved complaint closes", (await prisma.complaint.findUniqueOrThrow({ where: { id: complaint.id } })).status === "CLOSED");
+  await expectThrow("a student cannot act as office staff", async () =>
+    actOnComplaint(student, complaint.id, "close", {}),
+  );
+
+  // ── 16. Forms: corrections round-trip + supporting document (spec §7/§D) ──
+  console.log("\n16. Form corrections + supporting document");
+  const tpl = await prisma.formTemplate.findFirst({
+    where: { active: true, audienceRole: "STUDENT", reviewerRole: "COORDINATOR" },
+    orderBy: { title: "asc" },
+  });
+  ok("a student form with a coordinator reviewer exists", !!tpl);
+  if (tpl) {
+    type FSpec = { name: string; type: string; required: boolean; options?: string[] };
+    const specs = (tpl.fields as FSpec[]).filter((f) => f && typeof f.name === "string");
+    const buildPayload = () => {
+      const payload: Record<string, unknown> = {};
+      for (const f of specs) {
+        if (!f.required) continue;
+        payload[f.name] =
+          f.type === "number" ? 5 : f.type === "date" ? "2026-05-05" : f.type === "select" ? (f.options?.[0] ?? "Yes") : f.type === "checkbox" ? true : "E2E workflow test entry";
+      }
+      return payload;
+    };
+
+    const formSub = await submitForm(student, tpl.key, buildPayload());
+    cleanup.formSubmissionIds.push(formSub.id);
+    ok("form submitted (status SUBMITTED)", formSub.status === "SUBMITTED");
+
+    const correctable = await decideSubmission(coordinator, formSub.id, "CORRECTIONS_REQUESTED", "Please attach evidence and fix the semester.");
+    ok("reviewer requests corrections", correctable.status === "CORRECTIONS_REQUESTED");
+
+    const revised = await resubmitForm(student, formSub.id, buildPayload(), {
+      name: "e2e-evidence.pdf",
+      mime: "application/pdf",
+      data: Buffer.from("%PDF-1.4 E2E evidence"),
+    });
+    ok("resubmission re-enters the queue", revised.status === "SUBMITTED");
+    ok("supporting document stored", revised.attachmentName === "e2e-evidence.pdf");
+
+    const reviewerFile = await getSubmissionAttachment(coordinator, formSub.id);
+    ok("reviewer can open the document", reviewerFile.fileName === "e2e-evidence.pdf" && reviewerFile.data.length > 0);
+    await expectThrow("an unrelated user cannot open it", async () => getSubmissionAttachment(student2, formSub.id));
+
+    const events = await prisma.formEvent.findMany({ where: { submissionId: formSub.id }, orderBy: { createdAt: "asc" } });
+    ok(
+      "trail shows submit → corrections → resubmit",
+      events.some((e) => e.toStatus === "SUBMITTED") &&
+        events.some((e) => e.toStatus === "CORRECTIONS_REQUESTED") &&
+        events.length >= 3,
+    );
+
+    const approved = await decideSubmission(coordinator, formSub.id, "APPROVED", "All good now.");
+    ok("corrected submission can then be approved", approved.status === "APPROVED");
+  }
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
   console.log("\nCleanup");
   const removed = {
@@ -691,13 +916,24 @@ async function main() {
     fyp: (await prisma.fypApplication.deleteMany({ where: { id: { in: cleanup.fypIds } } })).count,
     classes: (await prisma.courseClass.deleteMany({ where: { id: { in: cleanup.createdClassIds } } })).count,
     exams: (await prisma.examSchedule.deleteMany({ where: { id: { in: cleanup.examIds } } })).count,
+    submissions: (await prisma.assignmentSubmission.deleteMany({ where: { id: { in: cleanup.submissionIds } } })).count,
+    assignments: (await prisma.assignment.deleteMany({ where: { id: { in: cleanup.assignmentIds } } })).count,
+    complaintEvents: (
+      await prisma.complaintEvent.deleteMany({ where: { complaintId: { in: cleanup.complaintIds } } })
+    ).count,
+    complaints: (await prisma.complaint.deleteMany({ where: { id: { in: cleanup.complaintIds } } })).count,
+    complaintRoutes: (await prisma.complaintRoute.deleteMany({ where: { id: { in: cleanup.complaintRouteIds } } })).count,
+    formSubmissions: (
+      await prisma.formSubmission.deleteMany({ where: { id: { in: cleanup.formSubmissionIds } } })
+    ).count,
     accounts: (await prisma.user.deleteMany({ where: { id: { in: cleanup.accountIds } } })).count,
     notifications: (await prisma.notification.deleteMany({ where: { createdAt: { gte: RUN_STARTED } } })).count,
   };
   console.log(
     `  removed ${removed.attendance} attendance rows · ${removed.results} results · ${removed.assessments} assessment(s) · ` +
       `${removed.messages} message(s) · ${removed.clashes} clash report(s) · ${removed.slots} session(s) · ` +
-      `${removed.fyp} FYP application(s) · ${removed.classes} test class(es) · ${removed.accounts} test account(s) · ` +
+      `${removed.fyp} FYP application(s) · ${removed.classes} test class(es) · ${removed.assignments} assignment(s) · ` +
+      `${removed.complaints} complaint(s) · ${removed.formSubmissions} form submission(s) · ${removed.accounts} test account(s) · ` +
       `${removed.notifications} notification(s)`,
   );
 

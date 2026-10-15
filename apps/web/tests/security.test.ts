@@ -18,7 +18,6 @@ const CAPABILITIES: Capability[] = [
   "fyp.submit",
   "resources.request",
   "internships.apply",
-  "mentorship.request",
   "chat.use",
   "forms.review",
   "complaints.manage",
@@ -26,10 +25,8 @@ const CAPABILITIES: Capability[] = [
   "resources.manage",
   "inventory.manage",
   "internships.post",
-  "mentors.approve",
   "broadcast",
   "reports.view",
-  "mentor.serve",
   "clashes.view",
   "clashes.manage",
   "timetable.manage",
@@ -49,7 +46,6 @@ const EXPECTED: Record<Role, Capability[]> = {
     "fyp.submit",
     "resources.request",
     "internships.apply",
-    "mentorship.request",
     "chat.use",
     "messages.send",
   ],
@@ -83,14 +79,13 @@ const EXPECTED: Record<Role, Capability[]> = {
     "resources.manage",
     "inventory.manage",
     "internships.post",
-    "mentors.approve",
     "broadcast",
     "reports.view",
     "students.search",
     "messages.send",
     "audit.view",
   ],
-  MENTOR: ["mentor.serve", "messages.send"],
+  MENTOR: ["messages.send"],
   ADMIN: [
     "forms.submit",
     "forms.review",
@@ -99,7 +94,6 @@ const EXPECTED: Record<Role, Capability[]> = {
     "resources.manage",
     "inventory.manage",
     "internships.post",
-    "mentors.approve",
     "broadcast",
     "reports.view",
     "clashes.view",
@@ -130,10 +124,9 @@ describe("RBAC matrix", () => {
     expect(can("MENTOR", "reports.view")).toBe(false);
   });
 
-  it("students cannot review forms, broadcast, or approve mentors", () => {
+  it("students cannot review forms or broadcast", () => {
     expect(can("STUDENT", "forms.review")).toBe(false);
     expect(can("STUDENT", "broadcast")).toBe(false);
-    expect(can("STUDENT", "mentors.approve")).toBe(false);
   });
 });
 

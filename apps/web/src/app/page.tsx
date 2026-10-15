@@ -12,7 +12,6 @@ import {
   MessageSquareWarning,
   ShieldCheck,
   Sparkles,
-  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,11 +39,6 @@ const FEATURES = [
     body: "Verified postings from partner companies; apply in one click and track shortlists and offers from your dashboard.",
   },
   {
-    icon: Users,
-    title: "Alumni mentorship",
-    body: "Request a mentor, schedule sessions and get guidance on projects and careers — interest from ~70% of surveyed students.",
-  },
-  {
     icon: Sparkles,
     title: "AI assistant",
     body: "Ask about your timetable, deadlines or policies. Answers are grounded in the university knowledge base and cite their sources.",
@@ -62,11 +56,10 @@ const FEATURES = [
 ] as const;
 
 const ROLES = [
-  { role: "Students", line: "Timetable, forms, complaints, FYP, resources, internships & mentorship" },
+  { role: "Students", line: "Timetable, forms, complaints, FYP, resources & internships" },
   { role: "Faculty", line: "Teaching schedule, review queues and student complaints" },
   { role: "Coordinators", line: "Clash monitor, approvals, faculty directory and broadcasts" },
   { role: "FYP Head", line: "Proposals, resource requests, allocations, labs, inventory and reports" },
-  { role: "Mentors", line: "Mentee requests, sessions and guidance tracking" },
 ] as const;
 
 /** Tiny CSS mock of the portal UI used in the hero. */
@@ -186,7 +179,7 @@ export default async function Home() {
               <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">
                 UniSphere replaces scattered notice boards, email threads and paper forms with a
                 single role-aware portal — timetable and exam clashes, requests, complaints,
-                internships, mentorship and resource allocation, with an AI assistant that cites
+                internships and resource allocation, with an AI assistant that cites
                 its sources.
               </p>
               <div className="flex flex-wrap items-center gap-3">
@@ -219,10 +212,6 @@ export default async function Home() {
                 <div>
                   <dt className="text-muted-foreground">Would use UniSphere</dt>
                   <dd className="mt-0.5 text-2xl font-semibold tabular-nums">71.6%</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">Want alumni mentorship</dt>
-                  <dd className="mt-0.5 text-2xl font-semibold tabular-nums">~70%</dd>
                 </div>
               </dl>
             </div>
@@ -261,15 +250,15 @@ export default async function Home() {
         <section id="roles" className="border-t">
           <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_1.2fr] lg:py-20">
             <div className="space-y-4">
-              <h2 className="text-3xl font-semibold tracking-tight">One portal, five roles</h2>
+              <h2 className="text-3xl font-semibold tracking-tight">One portal, four roles</h2>
               <p className="text-muted-foreground">
                 Every role signs in through the same page and lands on its own dashboard — students,
-                faculty, coordinators, the FYP Head and mentors each see exactly what they need,
+                faculty, coordinators and the FYP Head each see exactly what they need,
                 nothing more. Navigation, permissions and server-side checks are driven by a single
                 RBAC matrix, so sensitive screens stay out of reach by design.
               </p>
               <div className="flex flex-wrap gap-2 pt-2">
-                {["Student", "Faculty", "Coordinator", "FYP Head", "Mentor"].map((r) => (
+                {["Student", "Faculty", "Coordinator", "FYP Head"].map((r) => (
                   <Badge key={r} variant="secondary" className="px-3 py-1 text-xs">
                     {r}
                   </Badge>

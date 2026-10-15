@@ -4,7 +4,8 @@
  *
  * Seeds: 5-role demo users, BSCS degree plan, courses/timetable with one
  * deliberate clash pair, exams (incl. a clash demo), labs, GPU inventory,
- * form templates, internships, knowledge corpus, mentors, and sample flows.
+ * form templates, internships, knowledge corpus, mentors, sample flows,
+ * complaint categories & routing, and a sample assignments workflow.
  */
 import { prisma, type Prisma } from "../src/index";
 
@@ -24,6 +25,17 @@ async function upsertUser(data: {
     update: { name: data.name, role: data.role, registrationNo: data.registrationNo, employeeId: data.employeeId },
     create: { ...data, clerkId: `${SEED_PREFIX}${data.email}` },
   });
+}
+
+/**
+ * CMP-<year>-<seq> reference number (the app's format). Uses the highest
+ * existing sequence for the year + 1, so the seed can never collide.
+ */
+async function nextComplaintRefNo(year: number): Promise<string> {
+  const prefix = `CMP-${year}-`;
+  const rows = await prisma.complaint.findMany({ where: { refNo: { startsWith: prefix } }, select: { refNo: true } });
+  const maxSeq = rows.reduce((max, r) => Math.max(max, Number.parseInt(r.refNo.slice(prefix.length), 10) || 0), 0);
+  return `${prefix}${String(maxSeq + 1).padStart(4, "0")}`;
 }
 
 async function main() {
@@ -658,6 +670,7 @@ async function main() {
   if (!complaint1) {
     await prisma.complaint.create({
       data: {
+        refNo: await nextComplaintRefNo(new Date().getFullYear()),
         submittedById: student.id,
         subject: "Lab 2 AC not working",
         category: "Facilities",
@@ -671,6 +684,7 @@ async function main() {
   if (!complaint2) {
     await prisma.complaint.create({
       data: {
+        refNo: await nextComplaintRefNo(new Date().getFullYear()),
         submittedById: student2.id,
         subject: "Incorrect grade posted for CS-302",
         category: "Faculty",
@@ -686,6 +700,29 @@ async function main() {
       },
     });
   }
+
+  // ── Complaint categories + routing (admin-managed; spec §6) ────────────
+  // Categories upsert by key; the demo routes are rebuilt for the five keys
+  // on every run, so a re-run always lands exactly one active route per
+  // category (never duplicates).
+  const complaintCategoryKeys = ["Faculty", "Facilities", "IT", "Examination", "Other"];
+  for (const key of complaintCategoryKeys) {
+    await prisma.complaintCategory.upsert({
+      where: { key },
+      update: { label: key, active: true },
+      create: { key, label: key, active: true },
+    });
+  }
+  const complaintRouteDefs: Prisma.ComplaintRouteCreateManyInput[] = [
+    { categoryKey: "Faculty", targetRole: "COORDINATOR", targetUserId: null, defaultPriority: "MEDIUM", escalateAfterHours: 48, escalateToRole: "ADMIN", active: true, sortOrder: 1 },
+    { categoryKey: "Examination", targetRole: "COORDINATOR", targetUserId: null, defaultPriority: "MEDIUM", escalateAfterHours: 72, escalateToRole: "ADMIN", active: true, sortOrder: 2 },
+    { categoryKey: "Facilities", targetRole: "ADMIN", targetUserId: null, defaultPriority: "LOW", escalateAfterHours: 96, escalateToRole: "ADMIN", active: true, sortOrder: 3 },
+    { categoryKey: "IT", targetRole: "ADMIN", targetUserId: null, defaultPriority: "MEDIUM", escalateAfterHours: 48, escalateToRole: "ADMIN", active: true, sortOrder: 4 },
+    { categoryKey: "Other", targetRole: "COORDINATOR", targetUserId: null, defaultPriority: "LOW", escalateAfterHours: 96, escalateToRole: "ADMIN", active: true, sortOrder: 5 },
+  ];
+  await prisma.complaintRoute.deleteMany({ where: { categoryKey: { in: complaintCategoryKeys } } });
+  await prisma.complaintRoute.createMany({ data: complaintRouteDefs });
+  console.log(`✓ complaint categories: ${complaintCategoryKeys.length} · routes: ${complaintRouteDefs.length}`);
 
   const fyp1 = await prisma.fypApplication.findFirst({ where: { title: "UniSphere — Unified University Portal" } });
   if (!fyp1) {
@@ -1153,6 +1190,109 @@ async function main() {
     }
   }
   console.log(`✓ marks: ${scoreRows} scores across ${assessmentPlan.length} assessments/class`);
+
+  // ── Assignments + sample submissions (faculty workflow; spec §4) ───────
+  // Deterministic pick: the first class (course code asc) taught by the demo
+  // faculty account. Assignment has no natural unique key, so look up by
+  // (classId, title) and skip when present; submissions upsert on their
+  // unique (assignmentId, studentId) compound key.
+  const demoClass = await prisma.courseClass.findFirst({
+    where: { faculty: { email: "faculty@shu.edu.pk" } },
+    orderBy: { courseCode: "asc" },
+  });
+  if (demoClass) {
+    const now = Date.now();
+    const day = 24 * 3600 * 1000;
+    const assignmentDefs = [
+      {
+        title: "Lab Report 1",
+        instructions:
+          "Write up the data-structures lab: implement the stack and queue operations and compare their costs against the array-backed list. Include your code listing, test output and one paragraph on the edge cases you handled.",
+        maxMarks: 20,
+        allowedTypes: "pdf,docx,zip",
+        dueInDays: 5,
+      },
+      {
+        title: "Midterm Project Proposal",
+        instructions:
+          "Submit a two-page proposal for your midterm project: problem statement, proposed approach and technology stack, plus a two-week work plan. Reference at least three sources and note the risks you foresee.",
+        maxMarks: 50,
+        allowedTypes: "pdf,docx",
+        dueInDays: 12,
+      },
+    ];
+    for (const a of assignmentDefs) {
+      const existing = await prisma.assignment.findFirst({ where: { classId: demoClass.id, title: a.title } });
+      if (!existing) {
+        await prisma.assignment.create({
+          data: {
+            classId: demoClass.id,
+            title: a.title,
+            instructions: a.instructions,
+            deadline: new Date(now + a.dueInDays * day),
+            maxMarks: a.maxMarks,
+            allowedTypes: a.allowedTypes,
+            createdById: faculty.id,
+          },
+        });
+      }
+    }
+
+    const labReport = await prisma.assignment.findFirst({ where: { classId: demoClass.id, title: "Lab Report 1" } });
+    const proposal = await prisma.assignment.findFirst({ where: { classId: demoClass.id, title: "Midterm Project Proposal" } });
+    let submissionRows = 0;
+    if (labReport) {
+      // Demo payload: a tiny placeholder buffer (NOT a real PDF) for the seed.
+      const fileData = Buffer.from("%PDF-1.4 demo placeholder — Lab Report 1 (seeded sample)\n");
+      const graded = {
+        fileName: "lab-report-1.pdf",
+        fileMime: "application/pdf",
+        fileSize: fileData.length,
+        fileData,
+        note: "First draft.",
+        submittedAt: new Date(now - 2 * day),
+        isLate: false,
+        attempt: 1,
+        marks: 17,
+        feedback: "Good structure — add error analysis next time.",
+        gradedById: faculty.id,
+        gradedAt: new Date(now - 1 * day),
+      };
+      await prisma.assignmentSubmission.upsert({
+        where: { assignmentId_studentId: { assignmentId: labReport.id, studentId: student.id } },
+        update: graded,
+        create: { assignmentId: labReport.id, studentId: student.id, ...graded },
+      });
+      submissionRows++;
+    }
+    if (proposal) {
+      // Demo payload: a tiny placeholder buffer (NOT a real PDF) for the seed.
+      const fileData = Buffer.from("%PDF-1.4 demo placeholder — Midterm Project Proposal (seeded sample)\n");
+      const ungraded = {
+        fileName: "midterm-project-proposal.pdf",
+        fileMime: "application/pdf",
+        fileSize: fileData.length,
+        fileData,
+        note: "Draft proposal for the campus navigation app.",
+        submittedAt: new Date(now - 1 * day),
+        isLate: false,
+        attempt: 1,
+        marks: null,
+        feedback: null,
+        gradedById: null,
+        gradedAt: null,
+      };
+      await prisma.assignmentSubmission.upsert({
+        where: { assignmentId_studentId: { assignmentId: proposal.id, studentId: student2.id } },
+        update: ungraded,
+        create: { assignmentId: proposal.id, studentId: student2.id, ...ungraded },
+      });
+      submissionRows++;
+    }
+    console.log(`✓ assignments: ${assignmentDefs.length} on ${demoClass.courseCode} · sample submissions: ${submissionRows} (1 graded)`);
+  } else {
+    console.log("⚠ assignments: skipped — no CourseClass found for faculty@shu.edu.pk");
+  }
 
   // Messages (inbox/sent demo) + audit trail.
   const messageCount = await prisma.message.count();

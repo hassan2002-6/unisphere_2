@@ -19,6 +19,7 @@ import type { LucideIcon } from "lucide-react";
 import { prisma } from "@/lib/db";
 import type { User } from "@unisphere/db";
 import { DAYS, formatDay, getClashReport, getClassesFor, minToLabel } from "@/server/services/schedule";
+import { listFacultyAssignments, listMyAssignments } from "@/server/services/assignments";
 import type { StatTone } from "@/components/stat-card";
 
 export type DashboardStat = {
@@ -127,6 +128,7 @@ async function adminDashboard(): Promise<DashboardData> {
     studentCount,
     facultyCount,
     openComplaints,
+    openAssignments,
     pendingSubmissions,
     pendingFyp,
     pendingResources,
@@ -137,6 +139,7 @@ async function adminDashboard(): Promise<DashboardData> {
     prisma.user.count({ where: { role: "STUDENT" } }),
     prisma.user.count({ where: { role: "FACULTY" } }),
     prisma.complaint.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }),
+    prisma.assignment.count({ where: { closedAt: null } }),
     prisma.formSubmission.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
       include: { template: { select: { title: true } }, submittedBy: { select: { name: true } } },
@@ -187,6 +190,14 @@ async function adminDashboard(): Promise<DashboardData> {
       icon: MessageSquareWarning,
       tone: openComplaints ? "danger" : "default",
       href: "/coordinator/complaints",
+    },
+    {
+      label: "Assignments open",
+      value: openAssignments,
+      hint: openAssignments ? "Across all course sections" : "None open",
+      icon: GraduationCap,
+      tone: openAssignments ? "info" : "default",
+      href: "/faculty/assignments",
     },
     {
       label: "Active allocations",
@@ -282,7 +293,7 @@ async function adminDashboard(): Promise<DashboardData> {
 }
 
 async function studentDashboard(user: User, day: string): Promise<DashboardData> {
-  const [classes, submissions, openComplaints, allocation, lastApp, nextSession, profile] = await Promise.all([
+  const [classes, submissions, openComplaints, allocation, lastApp, profile, myAssignments] = await Promise.all([
     todayClasses(user),
     prisma.formSubmission.findMany({
       where: { submittedById: user.id, status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
@@ -305,17 +316,17 @@ async function studentDashboard(user: User, day: string): Promise<DashboardData>
       include: { internship: { select: { title: true, company: true } } },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.mentorshipSession.findFirst({
-      where: {
-        status: { in: ["PROPOSED", "CONFIRMED"] },
-        request: { studentId: user.id },
-        scheduledAt: { gte: new Date() },
-      },
-      include: { request: { include: { mentor: { select: { name: true } } } } },
-      orderBy: { scheduledAt: "asc" },
-    }),
     prisma.studentProfile.findUnique({ where: { userId: user.id } }),
+    listMyAssignments(user).catch(() => []),
   ]);
+
+  // Assignments still owed, nearest deadline first (submitted ones drop out).
+  const nowMs = Date.now();
+  const owed = myAssignments
+    .filter((a) => a.submissions.length === 0)
+    .sort((a, b) => a.deadline.getTime() - b.deadline.getTime());
+  const weekAhead = nowMs + 7 * 86_400_000;
+  const dueSoon = owed.filter((a) => a.deadline.getTime() <= weekAhead);
 
   const nextClass = classes[0];
   const stats: DashboardStat[] = [
@@ -338,6 +349,14 @@ async function studentDashboard(user: User, day: string): Promise<DashboardData>
       icon: ClipboardList,
       tone: submissions.length ? "warning" : "default",
       href: "/submissions",
+    },
+    {
+      label: "Assignments owed",
+      value: owed.length,
+      hint: dueSoon.length ? `${dueSoon.length} due within 7 days` : owed.length ? "Nothing urgent" : "All submitted",
+      icon: GraduationCap,
+      tone: dueSoon.length ? "warning" : "default",
+      href: "/assignments",
     },
     {
       label: "Open complaints",
@@ -401,33 +420,34 @@ async function studentDashboard(user: User, day: string): Promise<DashboardData>
       })),
     },
     {
-      title: "Career & mentorship",
+      title: "Assignments",
+      icon: GraduationCap,
+      href: "/assignments",
+      hrefLabel: "All assignments",
+      emptyText: "Nothing outstanding — every assignment is submitted.",
+      items: owed.slice(0, 5).map((a) => ({
+        id: a.id,
+        title: `${a.class.courseCode} — ${a.title}`,
+        subtitle: `Due ${fmtDate(a.deadline)} · ${a.maxMarks} marks`,
+        status: a.deadline.getTime() < nowMs ? "OVERDUE" : undefined,
+        href: `/assignments/${a.id}`,
+      })),
+    },
+    {
+      title: "Career",
       icon: Briefcase,
-      emptyText: "Apply to an internship or request a mentor to get started.",
-      items: [
-        ...(lastApp
-          ? [
-              {
-                id: lastApp.id,
-                title: `${lastApp.internship.title} · ${lastApp.internship.company}`,
-                subtitle: "Latest internship application",
-                status: lastApp.status,
-                href: `/internships/${lastApp.internshipId}`,
-              },
-            ]
-          : []),
-        ...(nextSession
-          ? [
-              {
-                id: nextSession.id,
-                title: `Session with ${nextSession.request.mentor.name}`,
-                subtitle: `${fmtDateTime(nextSession.scheduledAt)} · ${nextSession.mode}`,
-                status: nextSession.status,
-                href: "/mentorship",
-              },
-            ]
-          : []),
-      ],
+      emptyText: "Apply to an internship to get started.",
+      items: lastApp
+        ? [
+            {
+              id: lastApp.id,
+              title: `${lastApp.internship.title} · ${lastApp.internship.company}`,
+              subtitle: "Latest internship application",
+              status: lastApp.status,
+              href: `/internships/${lastApp.internshipId}`,
+            },
+          ]
+        : [],
     },
   ];
 
@@ -486,7 +506,7 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
   const nextDay = todays.length === 0 ? nextTeachingDay(schedule, 1) : null;
   const shown = todays.length > 0 ? todays : (nextDay?.slots ?? []);
 
-  const [queue, complaints] = await Promise.all([
+  const [queue, complaints, facultyA] = await Promise.all([
     prisma.formSubmission.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, template: { reviewerRole: "FACULTY" } },
       include: { template: true, submittedBy: { select: { name: true } } },
@@ -499,7 +519,10 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
       take: 3,
       include: { submittedBy: { select: { name: true } } },
     }),
+    listFacultyAssignments(user).catch(() => []),
   ]);
+  const ungraded = facultyA.flatMap((a) => a.submissions).filter((s) => !s.gradedAt).length;
+  const openAssignments = facultyA.filter((a) => !a.closedAt).length;
 
   const stats: DashboardStat[] = [
     {
@@ -513,6 +536,14 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
       icon: CalendarClock,
       tone: "primary",
       href: "/timetable",
+    },
+    {
+      label: "Submissions to grade",
+      value: ungraded,
+      hint: ungraded ? `${openAssignments} assignment${openAssignments === 1 ? "" : "s"} open` : "All marked",
+      icon: GraduationCap,
+      tone: ungraded ? "warning" : "default",
+      href: "/faculty/assignments",
     },
     {
       label: "Forms awaiting review",
@@ -576,6 +607,20 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
       hrefLabel: "Course details",
       emptyText: "No courses are assigned to you yet — the coordinator publishes allocations each semester.",
       items: courseItems,
+    },
+    {
+      title: "Assignments",
+      icon: GraduationCap,
+      href: "/faculty/assignments",
+      hrefLabel: "Manage assignments",
+      emptyText: "No assignments yet — create one from the assignments screen.",
+      items: facultyA.slice(0, 4).map((a) => ({
+        id: a.id,
+        title: `${a.class.courseCode} — ${a.title}`,
+        subtitle: `${a._count.submissions} submission${a._count.submissions === 1 ? "" : "s"} · due ${fmtDate(a.deadline)}`,
+        status: a.closedAt ? "CLOSED" : undefined,
+        href: `/faculty/assignments/${a.id}`,
+      })),
     },
     {
       title: "Review queue",
@@ -846,52 +891,7 @@ async function fypHeadDashboard(): Promise<DashboardData> {
 }
 
 async function mentorDashboard(user: User): Promise<DashboardData> {
-  const [pending, accepted, sessions, profile] = await Promise.all([
-    prisma.mentorshipRequest.findMany({
-      where: { mentorId: user.id, status: "PENDING" },
-      include: { student: { select: { name: true, email: true } } },
-      orderBy: { createdAt: "asc" },
-      take: 4,
-    }),
-    prisma.mentorshipRequest.findMany({
-      where: { mentorId: user.id, status: "ACCEPTED" },
-      include: { student: { select: { name: true } } },
-      take: 6,
-    }),
-    prisma.mentorshipSession.findMany({
-      where: { request: { mentorId: user.id }, status: { in: ["PROPOSED", "CONFIRMED"] } },
-      include: { request: { include: { student: { select: { name: true } } } } },
-      orderBy: { scheduledAt: "asc" },
-      take: 4,
-    }),
-    prisma.mentorProfile.findUnique({ where: { userId: user.id } }),
-  ]);
-
   const stats: DashboardStat[] = [
-    {
-      label: "Pending requests",
-      value: pending.length,
-      hint: pending.length ? "Students waiting on you" : "All answered",
-      icon: Users,
-      tone: pending.length ? "warning" : "default",
-      href: "/mentor",
-    },
-    {
-      label: "Active mentees",
-      value: accepted.length,
-      hint: profile ? `Capacity ${profile.maxActiveMentees}` : undefined,
-      icon: GraduationCap,
-      tone: "success",
-      href: "/mentor",
-    },
-    {
-      label: "Upcoming sessions",
-      value: sessions.length,
-      hint: sessions[0] ? `Next ${fmtDateTime(sessions[0].scheduledAt)}` : "None scheduled",
-      icon: CalendarClock,
-      tone: "info",
-      href: "/mentor",
-    },
     {
       label: "Unread notifications",
       value: await prisma.notification.count({ where: { userId: user.id, readAt: null } }),
@@ -903,48 +903,6 @@ async function mentorDashboard(user: User): Promise<DashboardData> {
   ];
 
   const panels: DashboardPanel[] = [
-    {
-      title: "Mentorship requests",
-      icon: Users,
-      href: "/mentor",
-      hrefLabel: "Mentor console",
-      emptyText: "No new mentorship requests.",
-      items: pending.map((r) => ({
-        id: r.id,
-        title: r.student.name,
-        subtitle: r.message,
-        status: r.status,
-        href: "/mentor",
-      })),
-    },
-    {
-      title: "Upcoming sessions",
-      icon: CalendarClock,
-      href: "/mentor",
-      hrefLabel: "Schedule",
-      emptyText: "No sessions scheduled yet.",
-      items: sessions.map((s) => ({
-        id: s.id,
-        title: `With ${s.request.student.name}`,
-        subtitle: `${fmtDateTime(s.scheduledAt)} · ${s.mode}${s.location ? ` · ${s.location}` : ""}`,
-        status: s.status,
-        href: "/mentor",
-      })),
-    },
-    {
-      title: "Active mentees",
-      icon: GraduationCap,
-      href: "/mentor",
-      hrefLabel: "All mentees",
-      emptyText: "Accept a request to start mentoring.",
-      items: accepted.map((r) => ({
-        id: r.id,
-        title: r.student.name,
-        subtitle: "Mentorship active",
-        status: "ACCEPTED",
-        href: "/mentor",
-      })),
-    },
     {
       title: "Assistant",
       icon: Sparkles,

@@ -64,6 +64,24 @@ export async function ask(user: User, sessionId: string, question: string): Prom
   ]);
   if (!session) throw new Error("Session not found");
 
+  // Nothing grounded → record it for the Admin → Knowledge review queue so the
+  // gap gets filled instead of the assistant inventing policy. Best-effort:
+  // logging must never break the chat.
+  if (sources.length === 0) {
+    try {
+      const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const duplicate = await prisma.aiUnanswered.findFirst({
+        where: { question: q, reviewedAt: null, createdAt: { gte: dayAgo } },
+        select: { id: true },
+      });
+      if (!duplicate) {
+        await prisma.aiUnanswered.create({ data: { question: q, role: user.role, userId: user.id, sessionId } });
+      }
+    } catch (e) {
+      console.error("[ai] failed to log unanswered question:", e instanceof Error ? e.message : e);
+    }
+  }
+
   const messages: ChatMsg[] = [
     { role: "system", content: buildSystemPrompt(personalLines, sources) },
     ...history

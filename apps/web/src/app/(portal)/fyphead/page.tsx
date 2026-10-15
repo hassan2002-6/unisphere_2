@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, Inbox, PenLine, UserCheck, XCircle } from "lucide-react";
+import { BookOpen, CheckCircle2, ClipboardList, GraduationCap, Inbox, PenLine, XCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
 import { listFypQueue, listSupervisors } from "@/server/services/fyp";
-import { listAllMentorProfiles } from "@/server/services/mentorship";
 import { decideFypAction, requestChangesFypAction } from "@/app/(portal)/fyp/actions";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -34,14 +33,9 @@ export default async function FypHeadPage() {
 
   let queue: Awaited<ReturnType<typeof listFypQueue>> = [];
   let supervisors: Awaited<ReturnType<typeof listSupervisors>> = [];
-  let mentorsAwaiting = 0;
   let dbError = false;
   try {
-    [queue, supervisors, mentorsAwaiting] = await Promise.all([
-      listFypQueue(),
-      listSupervisors(),
-      listAllMentorProfiles().then((profiles) => profiles.filter((p) => !p.isApproved).length),
-    ]);
+    [queue, supervisors] = await Promise.all([listFypQueue(), listSupervisors()]);
   } catch {
     dbError = true;
   }
@@ -55,7 +49,6 @@ export default async function FypHeadPage() {
     { label: "Requests waiting", value: pending.length, hint: pending.length ? "Decide and assign a supervisor" : "Inbox is clear", icon: Inbox, tone: pending.length ? "warning" : "success" },
     { label: "Approved groups", value: approved.length, hint: "Supervised this cycle", icon: CheckCircle2, tone: "success" },
     { label: "Rejected", value: rejected.length, hint: "With recorded reasons", icon: XCircle, tone: "default" },
-    { label: "Mentors awaiting approval", value: mentorsAwaiting, hint: "Mentor profiles to review", icon: UserCheck, tone: mentorsAwaiting ? "info" : "default" },
   ];
 
   return (
@@ -66,12 +59,6 @@ export default async function FypHeadPage() {
         description="Every FYP request lands here. Approve with a supervisor assignment, or reject with a reason — the group and the supervisor are notified automatically."
         actions={
           <>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/admin/mentors">
-                <UserCheck className="h-4 w-4" />
-                Mentor approvals
-              </Link>
-            </Button>
             <Button variant="outline" size="sm" asChild>
               <Link href="/admin/fyp">
                 <ClipboardList className="h-4 w-4" />

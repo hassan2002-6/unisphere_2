@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Cpu,
+  Database,
   FileSearch,
   FileText,
   FormInput,
@@ -19,13 +20,13 @@ import {
   GraduationCap,
   Inbox,
   LayoutDashboard,
+  Library,
   Mail,
   Megaphone,
   MessageSquareWarning,
   ScrollText,
   ShieldCheck,
   Sparkles,
-  UserCheck,
   UserCircle,
   UserSearch,
   Users,
@@ -62,6 +63,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     {
       title: "Requests",
       items: [
+        { label: "Assignments", href: "/assignments", icon: ClipboardCheck },
         { label: "Forms Center", href: "/forms", icon: FileText },
         { label: "My Submissions", href: "/submissions", icon: ClipboardList },
         { label: "Complaint Box", href: "/complaints", icon: MessageSquareWarning },
@@ -79,7 +81,6 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       title: "Career",
       items: [
         { label: "Internships", href: "/internships", icon: Briefcase },
-        { label: "Mentorship", href: "/mentorship", icon: Users },
       ],
     },
     {
@@ -103,6 +104,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Timetable", href: "/timetable", icon: CalendarDays },
         { label: "Exams", href: "/exams", icon: CalendarClock },
         { label: "My Courses", href: "/faculty/courses", icon: BookOpen },
+        { label: "Assignments", href: "/faculty/assignments", icon: ClipboardCheck },
         { label: "FYP Supervision", href: "/faculty/fyp", icon: GraduationCap },
         { label: "Attendance", href: "/faculty/attendance", icon: CalendarCheck },
         { label: "Marks Entry", href: "/faculty/marks", icon: GraduationCap },
@@ -191,7 +193,6 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
       title: "Outreach",
       items: [
         { label: "Internships", href: "/admin/internships", icon: Briefcase },
-        { label: "Mentors", href: "/admin/mentors", icon: UserCheck },
         { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone },
       ],
     },
@@ -213,10 +214,6 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "My Profile", href: "/profile", icon: UserCircle },
       ],
     },
-    {
-      title: "Mentorship",
-      items: [{ label: "My Mentees", href: "/mentor", icon: Users }],
-    },
   ],
   ADMIN: [
     {
@@ -231,8 +228,11 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
     {
       title: "Administration",
       items: [
+        { label: "Data Management", href: "/admin/data", icon: Database },
         { label: "Users & Roles", href: "/admin/users", icon: ShieldCheck },
         { label: "Forms Manager", href: "/admin/forms", icon: FormInput },
+        { label: "Complaint Routing", href: "/admin/complaints", icon: MessageSquareWarning },
+        { label: "Knowledge Base", href: "/admin/knowledge", icon: Library },
         { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
         { label: "Reports", href: "/admin/reports", icon: BarChart3 },
       ],
@@ -257,7 +257,6 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Inventory", href: "/admin/inventory", icon: ClipboardList },
         { label: "FYP Applications", href: "/admin/fyp", icon: BookOpen },
         { label: "Internships", href: "/admin/internships", icon: Briefcase },
-        { label: "Mentors", href: "/admin/mentors", icon: UserCheck },
         { label: "Broadcast", href: "/admin/broadcast", icon: Megaphone },
       ],
     },
@@ -266,6 +265,9 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
 
 /** Titles for routes that aren't primary nav items (detail pages, nested routes). */
 const EXTRA_TITLES: { prefix: string; label: string }[] = [
+  { prefix: "/assignments/", label: "Assignment" },
+  { prefix: "/faculty/assignments/", label: "Assignment manager" },
+  { prefix: "/admin/data/import", label: "CSV import" },
   { prefix: "/submissions/", label: "Submission detail" },
   { prefix: "/complaints/", label: "Complaint detail" },
   { prefix: "/internships/", label: "Internship detail" },

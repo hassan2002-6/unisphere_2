@@ -43,7 +43,7 @@ const QUICK_ACTIONS: Record<Role, { label: string; href: string; icon: typeof Bo
     { label: "Resource requests", href: "/admin/requests", icon: Cpu },
     { label: "Reports", href: "/admin/reports", icon: FlaskConical },
   ],
-  MENTOR: [{ label: "Mentor console", href: "/mentor", icon: ClipboardList }],
+  MENTOR: [],
   ADMIN: [
     { label: "Users & roles", href: "/admin/users", icon: ShieldAlert },
     { label: "Audit log", href: "/admin/audit", icon: ClipboardList },

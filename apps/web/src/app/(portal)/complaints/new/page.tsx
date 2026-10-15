@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { COMPLAINT_CATEGORIES } from "@/server/services/complaints";
+import { listActiveCategories } from "@/server/services/complaints";
+import { classesForComplaint } from "@/server/services/assignments";
 import { createComplaintAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,13 @@ export default async function NewComplaintPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  await requireUser();
+  const user = await requireUser();
   const { error } = await searchParams;
+
+  const [categories, courses] = await Promise.all([
+    listActiveCategories(),
+    user.role === "STUDENT" ? classesForComplaint(user) : Promise.resolve([]),
+  ]);
 
   return (
     <>
@@ -26,7 +32,7 @@ export default async function NewComplaintPage({
         breadcrumbs={[{ label: "Complaint Box", href: "/complaints" }, { label: "File a complaint" }]}
         icon={MessageSquarePlus}
         title="File a complaint"
-        description="Complaints are routed by category — faculty complaints reach faculty and the coordination office."
+        description="Your complaint is assigned a reference number and routed to the responsible office by the coordination rules."
       />
 
       {error ? (
@@ -42,7 +48,9 @@ export default async function NewComplaintPage({
             <FileText className="h-4 w-4 text-muted-foreground" />
             Complaint details
           </CardTitle>
-          <CardDescription>Be specific — vague complaints take longer to resolve.</CardDescription>
+          <CardDescription>
+            Be specific — vague complaints take longer to resolve. Priority is set by the university routing rules.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <form action={createComplaintAction} className="grid max-w-xl gap-4">
@@ -57,16 +65,34 @@ export default async function NewComplaintPage({
               <select
                 id="category"
                 name="category"
-                defaultValue="Facilities"
+                defaultValue={categories[0]?.key ?? "Other"}
                 className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
               >
-                {COMPLAINT_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
+                {categories.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.label}
                   </option>
                 ))}
               </select>
             </div>
+            {courses.length > 0 ? (
+              <div className="grid gap-1.5">
+                <Label htmlFor="classId">Related course (optional)</Label>
+                <select
+                  id="classId"
+                  name="classId"
+                  defaultValue=""
+                  className="border-input h-9 w-full rounded-md border bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                >
+                  <option value="">Not course-specific</option>
+                  {courses.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.courseCode} — {c.title} ({c.section})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
             <div className="grid gap-1.5">
               <Label htmlFor="description">
                 Description <span className="text-destructive">*</span>
@@ -76,9 +102,19 @@ export default async function NewComplaintPage({
                 name="description"
                 required
                 minLength={10}
-                maxLength={4000}
+                maxLength={6000}
                 rows={6}
                 placeholder="What happened, where, when — and what outcome you need."
+              />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="attachment">Attachment (optional, max 2 MB — pdf, docx, png, jpg…)</Label>
+              <Input
+                id="attachment"
+                name="attachment"
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.csv,.zip"
+                className="h-9 py-1.5"
               />
             </div>
             <SubmitButton pendingLabel="Submitting…" className="w-fit">
