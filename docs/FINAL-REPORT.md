@@ -115,7 +115,7 @@ bun run dev                          # http://localhost:3000
 # quality gates (all green before the deploy in this report)
 bun run lint      # oxlint
 bun run typecheck # tsc --noEmit
-bun run test      # vitest: 352 tests
+bun run test      # vitest: 412 tests
 bun run build     # next production build
 
 # workflows against the live DB (apps/web)
@@ -196,7 +196,7 @@ API route skips server-side authorization.
 
 ## 12. Test results / build status / deployment
 
-- `bun run lint` — pass · `bun run typecheck` — pass · `bun run test` — **352
+- `bun run lint` — pass · `bun run typecheck` — pass · `bun run test` — **412
   passed** · `bun run build` — pass (production Next build).
 - **`bun run fmt:check` (oxfmt) is not an enforced gate**: the repo predates an
   oxfmt config, so `oxfmt --check .` flags 263 of 318 files (including
