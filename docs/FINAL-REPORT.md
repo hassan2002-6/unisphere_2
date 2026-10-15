@@ -196,7 +196,7 @@ API route skips server-side authorization.
   supervision notes, **assignments**, **complaints pipeline**, **form
   corrections + documents**, **profile photos**); the script cleans up every
   record it creates.
-- Retrieval eval: 33/33 questions grounded or correctly refused.
+- Retrieval eval: 30/30 questions grounded or correctly refused.
 - Deployed to production from commit `e0a7426` (preceded by `17295da` wave +
   `.vercelignore` fix `fd3d069`); `/api/health` green and reports the deployed
   hash.
