@@ -90,8 +90,14 @@ mock data.)
   single-deployment setup, but not distributed.
 - **`www.unisphere-hazel.vercel.app`** does not exist — use the non-`www`
   host.
-- **Formal performance benchmarks** were not re-measured this pass; list pages
-  use cursor pagination and indexes from M1–M6 remain in place.
+- **Formal performance measurement (spec §13):** `bun scripts/measure-perf.ts`
+  times the hot paths against live Neon (n=7, remote client). List queries run
+  p50 **0.09–0.53 s**; role dashboards are the heaviest paths (12+ parallel
+  widgets) at p50 **0.44–1.9 s** depending on network conditions — minimums
+  (dashboard 0.30 s, notifications 0.09 s) show the queries themselves are
+  fast and the spread is remote-round-trip + ISP variance, not query cost.
+  Production HTTP p50: landing 0.44 s, sign-in 0.45 s, authed redirects
+  0.21 s. Re-run any time with the command above.
 - Demo personas sign in with a shared demo password (by design); production
   provisioning flows remain per-user.
 
@@ -114,11 +120,13 @@ bun run build     # next production build
 
 # workflows against the live DB (apps/web)
 bun scripts/test-workflows.ts        # 126-check end-to-end acceptance
-bun scripts/eval-ai.ts               # 33-question retrieval eval
+bun scripts/eval-ai.ts               # 30-question retrieval eval
 bun scripts/test-concurrency.ts      # last-GPU race test
+bun scripts/measure-perf.ts          # hot-path latency report (spec §13)
 bun scripts/link-clerk-users.ts      # (re)create/link the demo personas in Clerk
 bun scripts/gen-permissions.ts       # regenerate docs/PERMISSIONS.md from rbac.ts
 bun run capture:demo                 # refresh docs/demo/screenshots (headless Chrome)
+MOBILE=1 bun run capture:demo        # …390 px viewport → docs/demo/screenshots/app-mobile/
 ```
 
 ## 6. Migrations
@@ -196,6 +204,9 @@ API route skips server-side authorization.
   supervision notes, **assignments**, **complaints pipeline**, **form
   corrections + documents**, **profile photos**); the script cleans up every
   record it creates.
+- Mobile-width evidence (spec §14.17): `MOBILE=1 bun run capture:demo` renders
+  every student route in a true 390×844 phone viewport — **19/19 pages clean,
+  zero horizontal overflow** (`docs/demo/screenshots/app-mobile/`).
 - Retrieval eval: 30/30 questions grounded or correctly refused.
 - Deployed to production from commit `e0a7426` (preceded by `17295da` wave +
   `.vercelignore` fix `fd3d069`); `/api/health` green and reports the deployed

@@ -172,7 +172,8 @@
 - [ ] AI key present **or** the offline-fallback notice pre-explained
 - [ ] Offline kit ready (docs/offline-demo.md) — laptop hotspot + local Postgres
 - [ ] Screenshots fallback exported (`docs/demo/screenshots/` — `01-landing.png`,
-      `01-landing-mobile.png`, `02-sign-in.png` recap the 2026-10 design refresh, and
+      `01-landing-mobile.png`, `02-sign-in.png` recap the 2026-10 design refresh;
       `docs/demo/screenshots/app/` holds 69 authenticated full-page captures across all six
-      personas: `student-*` (19), `coordinator-*` (11), `faculty-*` (11), `fyphead-*` (11),
-      `mentor-*` (4), `admin-*` (13))
+      personas — `student-*` (19), `coordinator-*` (11), `faculty-*` (11), `fyphead-*` (11),
+      `mentor-*` (4), `admin-*` (13); `docs/demo/screenshots/app-mobile/` holds the same
+      student routes at a 390 px phone viewport)

@@ -10,6 +10,7 @@
  * Usage (dev server running):
  *   bun run capture:demo                       # all personas, default route set
  *   BASE=https://unisphere-hazel.vercel.app bun run capture:demo   # against a deployment
+ *   MOBILE=1 bun run capture:demo              # 390 px viewport → docs/demo/screenshots/app-mobile/
  *
  * Requires Google Chrome on this machine (CHROME_BIN overrides the path).
  */
@@ -21,7 +22,8 @@ import { fileURLToPath } from "node:url";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, "../../..");
 const ENV_PATH = resolve(HERE, "../.env.local");
-const SHOTS = resolve(REPO, "docs/demo/screenshots/app");
+const MOBILE = process.env.MOBILE === "1" || process.env.MOBILE === "true";
+const SHOTS = resolve(REPO, MOBILE ? "docs/demo/screenshots/app-mobile" : "docs/demo/screenshots/app");
 const TMP = process.env.TMPDIR || process.env.TEMP || "/tmp";
 const DOMDIR = resolve(TMP, "unisphere-capture/dom");
 const PROFILE_ROOT = resolve(TMP, "unisphere-capture/profiles");
@@ -228,7 +230,7 @@ async function capturePersona(persona, email, pages, secret) {
       "--no-default-browser-check",
       `--remote-debugging-port=${PORT}`,
       `--user-data-dir=${profile}`,
-      "--window-size=1440,1400",
+      MOBILE ? "--window-size=390,1500" : "--window-size=1440,1400",
       "about:blank",
     ],
     { stdio: "ignore" },
@@ -254,6 +256,17 @@ async function capturePersona(persona, email, pages, secret) {
   await cdp.send("Page.enable");
   await cdp.send("Runtime.enable");
 
+  // Deterministic mobile viewport: window-size alone leaves the capture width
+  // dependent on window chrome / off-canvas drawers.
+  if (MOBILE) {
+    await cdp.send("Emulation.setDeviceMetricsOverride", {
+      width: 390,
+      height: 844,
+      deviceScaleFactor: 1,
+      mobile: true,
+    });
+  }
+
   const goto = async (url, settle = 1800) => {
     const loaded = cdp.waitEvent("Page.loadEventFired");
     await cdp.send("Page.navigate", { url });
@@ -268,17 +281,22 @@ async function capturePersona(persona, email, pages, secret) {
     writeFileSync(file, Buffer.from(r.data, "base64"));
   };
 
+  // Viewport-proof auth check: the sidebar that carries "OVERVIEW" collapses
+  // off-canvas on narrow (mobile) captures, so trust the URL as well.
   const authed = (t) => /overview/i.test(t) && !/sign in to unisphere/i.test(t);
+  const onDashboard = async () =>
+    (await cdp.send("Runtime.evaluate", { expression: "location.pathname === '/dashboard'", returnByValue: true }))
+      .result?.value === true;
 
   await goto(`${BASE}/dashboard`, 2500);
   let body = await bodyText();
-  if (!authed(body)) {
+  if (!authed(body) && !(await onDashboard())) {
     const ticket = await mintTicket(email, secret);
     console.log(`  sign-in needed → minting token for ${email}`);
     await goto(`${BASE}/sign-in?__clerk_ticket=${ticket}`, 6000);
     await goto(`${BASE}/dashboard`, 2500);
     body = await bodyText();
-    if (!authed(body)) throw new Error(`sign-in failed for ${email}`);
+    if (!authed(body) && !(await onDashboard())) throw new Error(`sign-in failed for ${email}`);
   }
 
   let ok = 0;
