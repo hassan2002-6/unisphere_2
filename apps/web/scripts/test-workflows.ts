@@ -53,6 +53,7 @@ import {
 import { createComplaintCategory, upsertComplaintRoute } from "@/server/services/complaints-admin";
 import { decideSubmission, getSubmissionAttachment, resubmitForm, submitForm } from "@/server/services/forms";
 import { ServiceError } from "@/server/services/forms";
+import { getAvatarImage, removeAvatar, setAvatar } from "@/server/services/profiles";
 
 const RUN_STARTED = new Date();
 const TEST_DATE = "2025-05-05"; // far outside seeded sessions
@@ -889,6 +890,26 @@ async function main() {
     const approved = await decideSubmission(coordinator, formSub.id, "APPROVED", "All good now.");
     ok("corrected submission can then be approved", approved.status === "APPROVED");
   }
+
+  // ── 17. Profile photo persists (spec §14.12) ─────────────────────────────
+  console.log("\n17. Profile photo persistence");
+  const pngBytes = Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.alloc(32, 1),
+  ]);
+  await setAvatar(student.id, student, { name: "e2e-avatar.png", data: pngBytes });
+  const afterSet = await prisma.user.findUniqueOrThrow({ where: { id: student.id }, select: { avatarMime: true, avatarData: true } });
+  ok("avatar stored in the database (png)", afterSet.avatarMime === "image/png" && (afterSet.avatarData?.length ?? 0) === pngBytes.length);
+  const fetched = await getAvatarImage(student.id);
+  ok("avatar readable after a fresh load", fetched !== null && fetched.mime === "image/png");
+  await expectThrow("a non-image is rejected", async () =>
+    setAvatar(student.id, student, { name: "fake.png", data: Buffer.from("MZ definitely not an image") }),
+  );
+  await expectThrow("another student cannot change your photo", async () =>
+    setAvatar(student.id, student2, { name: "x.png", data: pngBytes }),
+  );
+  await removeAvatar(student.id, student);
+  ok("avatar removed cleanly", (await prisma.user.findUniqueOrThrow({ where: { id: student.id }, select: { avatarMime: true } })).avatarMime === null);
 
   // ── Cleanup ───────────────────────────────────────────────────────────────
   console.log("\nCleanup");

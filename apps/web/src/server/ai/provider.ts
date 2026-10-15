@@ -90,12 +90,11 @@ function cannedReply(context: string[]): string {
 /** Max time we wait for a provider before falling back. */
 const TIMEOUT_MS = 25_000;
 
-export async function callLLM(messages: ChatMsg[], contextForFallback: string[] = []): Promise<LLMResult> {
-  const provider = resolveProvider();
-  if (!provider) {
-    return { text: cannedReply(contextForFallback), provider: "offline", model: "canned-fallback", fallback: true };
-  }
-
+async function oneShot(
+  provider: NonNullable<ReturnType<typeof resolveProvider>>,
+  messages: ChatMsg[],
+  contextForFallback: string[],
+): Promise<LLMResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -134,9 +133,33 @@ export async function callLLM(messages: ChatMsg[], contextForFallback: string[] 
       tokens: data.usage?.total_tokens,
     };
   } catch (e) {
-    console.error("[ai] provider call failed:", e instanceof Error ? e.message : e);
-    return { text: cannedReply(contextForFallback), provider: provider.name, model: provider.model, fallback: true };
+    throw e instanceof Error ? e : new Error(String(e));
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/**
+ * One transparent retry (spec §9 — safe retries): a single timeout, network
+ * blip or 5xx should not silently degrade the assistant to its offline answer.
+ * 4xx responses (bad key, bad request) are permanent and fail fast.
+ */
+export async function callLLM(messages: ChatMsg[], contextForFallback: string[] = []): Promise<LLMResult> {
+  const provider = resolveProvider();
+  if (!provider) {
+    return { text: cannedReply(contextForFallback), provider: "offline", model: "canned-fallback", fallback: true };
+  }
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await oneShot(provider, messages, contextForFallback);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      const permanent = /responded 4(?!29)\d\d/.test(message);
+      if (attempt >= 2 || permanent) {
+        console.error(`[ai] provider call failed (attempt ${attempt}):`, message);
+        return { text: cannedReply(contextForFallback), provider: provider.name, model: provider.model, fallback: true };
+      }
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    }
   }
 }

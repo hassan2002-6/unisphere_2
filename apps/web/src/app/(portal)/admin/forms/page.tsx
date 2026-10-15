@@ -18,14 +18,50 @@ export const dynamic = "force-dynamic";
 
 const ROLES = ["STUDENT", "FACULTY", "COORDINATOR", "FYP_HEAD", "MENTOR", "ADMIN"] as const;
 
+/** Live field preview — reads a template's stored spec and renders what submitters will see. */
 function FieldsPreview({ fields }: { fields: unknown }) {
-  if (!Array.isArray(fields)) return null;
+  if (!Array.isArray(fields) || fields.length === 0) return null;
+  const specs = fields.filter((f): f is Record<string, unknown> => typeof f === "object" && f !== null);
+  const labels = specs
+    .map((f) => String(f.label ?? "?"))
+    .join(" · ");
   return (
-    <span className="text-[11px] text-muted-foreground">
-      {fields
-        .map((f) => (f && typeof f === "object" && "label" in f ? String((f as { label: unknown }).label) : "?"))
-        .join(" · ")}
-    </span>
+    <details className="group/preview max-w-xs">
+      <summary className="cursor-pointer text-[11px] text-muted-foreground hover:text-foreground">
+        {specs.length} field{specs.length === 1 ? "" : "s"} — {labels}
+      </summary>
+      <div className="mt-2 grid gap-2 rounded-md border bg-muted/30 p-3">
+        {specs.map((f, i) => (
+          <div key={i} className="grid gap-1">
+            <span className="text-[11px] font-medium">
+              {String(f.label ?? "Field")}
+              {f.required ? <span className="text-destructive"> *</span> : null}
+            </span>
+            {f.type === "textarea" ? (
+              <div className="h-9 rounded-md border bg-background/60" />
+            ) : f.type === "checkbox" ? (
+              <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                <span className="size-3.5 rounded-sm border" /> Check to select
+              </span>
+            ) : (
+              <div className="flex h-7 items-center rounded-md border bg-background/60 px-2 text-[11px] text-muted-foreground">
+                {f.type === "select"
+                  ? Array.isArray(f.options) && f.options.length
+                    ? (f.options as string[]).slice(0, 4).join(" / ")
+                    : "Choose…"
+                  : f.type === "date"
+                    ? "dd/mm/yyyy"
+                    : f.type === "number"
+                      ? "0"
+                      : f.type === "email"
+                        ? "name@shu.edu.pk"
+                        : "Type here…"}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
