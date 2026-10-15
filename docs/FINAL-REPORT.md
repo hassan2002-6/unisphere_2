@@ -197,8 +197,9 @@ API route skips server-side authorization.
   corrections + documents**, **profile photos**); the script cleans up every
   record it creates.
 - Retrieval eval: 33/33 questions grounded or correctly refused.
-- Deployed to production from commit `17295da` (+ `.vercelignore` fix
-  `fd3d069`); `/api/health` green and reports the deployed hash.
+- Deployed to production from commit `e0a7426` (preceded by `17295da` wave +
+  `.vercelignore` fix `fd3d069`); `/api/health` green and reports the deployed
+  hash.
 - **Deployment limitation:** production deploys must not rely on the local
   `VERCEL_TOKEN` (it expires); the CLI device login is the working path. CLI
   uploads exclude `node_modules`/`.next`/`.turbo` via `.vercelignore`.
