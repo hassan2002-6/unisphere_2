@@ -414,7 +414,7 @@ export default async function AdminFormsPage({
                   className="border-input h-9 rounded-md border bg-background px-3 text-sm"
                   defaultValue={editing?.reviewerRole ?? "COORDINATOR"}
                 >
-                  {ROLES.map((r) => (
+                  {(["FACULTY", "COORDINATOR", "FYP_HEAD", "ADMIN"] as const).map((r) => (
                     <option key={r} value={r}>
                       {r.replace("_", " ")}
                     </option>

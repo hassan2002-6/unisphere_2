@@ -91,9 +91,12 @@ const ALL_CAPS: Capability[] = [
   "fyp.submit",
   "resources.request",
   "internships.apply",
+  "assignments.submit",
   "chat.use",
   "forms.review",
   "complaints.manage",
+  "assignments.manage",
+  "complaints.route",
   "fyp.decide",
   "resources.manage",
   "inventory.manage",
@@ -109,6 +112,8 @@ const ALL_CAPS: Capability[] = [
   "messages.send",
   "audit.view",
   "users.manage",
+  "knowledge.manage",
+  "profiles.manage",
 ];
 
 describe("RBAC matrix (§8.1)", () => {

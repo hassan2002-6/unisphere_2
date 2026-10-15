@@ -143,6 +143,7 @@ async function adminDashboard(): Promise<DashboardData> {
     prisma.formSubmission.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
       include: { template: { select: { title: true } }, submittedBy: { select: { name: true } } },
+      omit: { attachmentData: true, templateSnapshot: true },
       orderBy: { createdAt: "asc" },
       take: 4,
     }),
@@ -264,6 +265,7 @@ async function adminDashboard(): Promise<DashboardData> {
           orderBy: { createdAt: "desc" },
           take: 3,
           include: { submittedBy: { select: { name: true } } },
+          omit: { attachmentData: true },
         })
       ).map((c) => ({
         id: c.id,
@@ -298,6 +300,7 @@ async function studentDashboard(user: User, day: string): Promise<DashboardData>
     prisma.formSubmission.findMany({
       where: { submittedById: user.id, status: { in: ["SUBMITTED", "UNDER_REVIEW"] } },
       include: { template: { select: { title: true } } },
+      omit: { attachmentData: true, templateSnapshot: true },
       orderBy: { createdAt: "desc" },
       take: 4,
     }),
@@ -305,6 +308,7 @@ async function studentDashboard(user: User, day: string): Promise<DashboardData>
       where: { submittedById: user.id, status: { in: ["OPEN", "IN_REVIEW"] } },
       orderBy: { createdAt: "desc" },
       take: 3,
+      omit: { attachmentData: true },
     }),
     prisma.allocation.findFirst({
       where: { status: "ACTIVE", request: { applicantId: user.id } },
@@ -510,6 +514,7 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
     prisma.formSubmission.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, template: { reviewerRole: "FACULTY" } },
       include: { template: true, submittedBy: { select: { name: true } } },
+      omit: { attachmentData: true, templateSnapshot: true },
       orderBy: { createdAt: "asc" },
       take: 4,
     }),
@@ -518,6 +523,7 @@ async function facultyDashboard(user: User, day: string): Promise<DashboardData>
       orderBy: { createdAt: "desc" },
       take: 3,
       include: { submittedBy: { select: { name: true } } },
+      omit: { attachmentData: true },
     }),
     listFacultyAssignments(user).catch(() => []),
   ]);
@@ -660,6 +666,7 @@ async function coordinatorDashboard(): Promise<DashboardData> {
     prisma.formSubmission.findMany({
       where: { status: { in: ["SUBMITTED", "UNDER_REVIEW"] }, template: { reviewerRole: "COORDINATOR" } },
       include: { template: true, submittedBy: { select: { name: true } } },
+      omit: { attachmentData: true, templateSnapshot: true },
       orderBy: { createdAt: "asc" },
       take: 4,
     }),
@@ -668,6 +675,7 @@ async function coordinatorDashboard(): Promise<DashboardData> {
       orderBy: { createdAt: "desc" },
       take: 3,
       include: { submittedBy: { select: { name: true } } },
+      omit: { attachmentData: true },
     }),
     prisma.internship.count({ where: { status: "OPEN" } }),
     getClashReport().catch(() => ({ active: [], resolved: [] })),
