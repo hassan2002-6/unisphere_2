@@ -5,6 +5,13 @@
 /*.jpeg
 /*.pptx
 /*.pdf
+# Local build artifacts are regenerated remotely (bun install + prisma
+# generate run in vercel.json's installCommand) — uploading them turned a
+# 40 s deploy into a 6.4 GB upload that never finished.
+**/node_modules
+**/.next
+**/.turbo
+**/coverage
 # Never upload local env files (secrets stay in Vercel project settings).
 **/.env
 **/.env.*
