@@ -215,9 +215,10 @@ API route skips server-side authorization.
   every student route in a true 390×844 phone viewport — **19/19 pages clean,
   zero horizontal overflow** (`docs/demo/screenshots/app-mobile/`).
 - Retrieval eval: 38/38 questions grounded or correctly refused.
-- Deployed to production from commit `e0a7426` (preceded by `17295da` wave +
-  `.vercelignore` fix `fd3d069`); `/api/health` green and reports the deployed
-  hash.
+- Deployed to production from commit `338bfb6` (2026-10-17 goal-round: multi-recipient
+  complaints, finalization PDFs, admit cards, timetable revisions, corrections, SHU KB);
+  earlier waves shipped from `e0a7426` / `17295da` (+ `.vercelignore` fix `fd3d069`);
+  `/api/health` green and reports the deployed hash.
 - **Deployment limitation:** production deploys must not rely on the local
   `VERCEL_TOKEN` (it expires); the CLI device login is the working path. CLI
   uploads exclude `node_modules`/`.next`/`.turbo` via `.vercelignore`.
