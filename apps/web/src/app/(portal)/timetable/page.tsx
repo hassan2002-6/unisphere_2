@@ -1,11 +1,13 @@
-import { AlertTriangle, CalendarDays, Flag } from "lucide-react";
+import { AlertTriangle, CalendarDays, Flag, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getScheduleData, formatDay, minToLabel } from "@/server/services/schedule";
+import { formatUpdatedBadge, getTimetableUpdatedAtFor } from "@/server/services/timetable-manage";
 import { TimetableGrid } from "@/components/timetable-grid";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -21,6 +23,15 @@ export default async function TimetablePage() {
   } catch (error) {
     console.error("timetable load failed:", error);
     dbError = true;
+  }
+
+  // “Updated …” badge (goal §11): a revision touched one of this user's
+  // courses within the last 7 days. Never blocks the page on failure.
+  let timetableUpdatedAt: Date | null = null;
+  try {
+    timetableUpdatedAt = await getTimetableUpdatedAtFor(user);
+  } catch {
+    timetableUpdatedAt = null;
   }
 
   const weekScope =
@@ -57,6 +68,12 @@ export default async function TimetablePage() {
         description={weekScope}
         actions={
           <>
+            {timetableUpdatedAt ? (
+              <Badge variant="outline" className="h-6 gap-1.5 px-2.5 text-xs font-medium text-muted-foreground">
+                <RefreshCw className="h-3 w-3" />
+                {formatUpdatedBadge(timetableUpdatedAt)}
+              </Badge>
+            ) : null}
             {clashes.length > 0 ? (
               <span className="inline-flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-sm font-medium text-destructive">
                 <AlertTriangle className="h-4 w-4" />

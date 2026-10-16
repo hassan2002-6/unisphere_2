@@ -24,7 +24,15 @@ import { searchStudents, getStudentAcademicProfile } from "@/server/services/stu
 import { listInbox, markMessageRead, sendMessage } from "@/server/services/messages";
 import { listAudit, recordAudit } from "@/server/services/audit";
 import { listClashReports, reportClash, resolveClashReport } from "@/server/services/clash-reports";
-import { deleteSlot, saveClass, saveSlot } from "@/server/services/timetable-manage";
+import {
+  deleteSlot,
+  getTimetableUpdatedAtFor,
+  listTimetableRevisions,
+  previewSlotChange,
+  revertToRevision,
+  saveClass,
+  saveSlot,
+} from "@/server/services/timetable-manage";
 import { deleteExam, saveExam } from "@/server/services/exam-manage";
 import { decideFyp, addFypProgressUpdate, requestFypChanges, resubmitFypApplication } from "@/server/services/fyp";
 import {
@@ -45,15 +53,22 @@ import {
 import {
   actOnComplaint,
   addInternalNote,
+  countUnreadComplaints,
   createComplaint,
   getComplaint,
+  listInboxComplaints,
   listManagedComplaints,
+  markComplaintRead,
   replyToComplaint,
 } from "@/server/services/complaints";
 import { createComplaintCategory, upsertComplaintRoute } from "@/server/services/complaints-admin";
-import { decideSubmission, getSubmissionAttachment, resubmitForm, submitForm } from "@/server/services/forms";
+import { decideSubmission, getSubmissionAttachment, getSubmissionPdfData, resubmitForm, submitForm } from "@/server/services/forms";
 import { ServiceError } from "@/server/services/forms";
 import { getAvatarImage, removeAvatar, setAvatar } from "@/server/services/profiles";
+import { getAdmitCardRule, getEligibility, missingPrerequisites, setAdmitCardRule } from "@/server/services/admit-cards";
+import { createCorrectionRequest, decideCorrection, listCorrectionRequests } from "@/server/services/corrections";
+import { renderSubmissionPdf } from "@/server/pdf";
+import { inflateSync } from "node:zlib";
 
 const RUN_STARTED = new Date();
 const TEST_DATE = "2025-05-05"; // far outside seeded sessions
@@ -74,6 +89,8 @@ const cleanup = {
   complaintIds: [] as string[],
   complaintRouteIds: [] as string[],
   formSubmissionIds: [] as string[],
+  correctionIds: [] as string[],
+  templateIds: [] as string[],
 };
 
 let pass = 0;
@@ -117,6 +134,7 @@ async function main() {
   const faculty = await user("faculty@shu.edu.pk");
   const faculty3 = await user("faculty3@shu.edu.pk");
   const coordinator = await user("coordinator@shu.edu.pk");
+  const fyphead = await user("fyphead@shu.edu.pk");
   const admin = await user("admin@shu.edu.pk");
 
   // ── 1. Clash report lifecycle ─────────────────────────────────────────────
@@ -911,6 +929,334 @@ async function main() {
   await removeAvatar(student.id, student);
   ok("avatar removed cleanly", (await prisma.user.findUniqueOrThrow({ where: { id: student.id }, select: { avatarMime: true } })).avatarMime === null);
 
+  // ── 18. Multi-recipient complaint: To acts, CC is read-only (goal §8) ────
+  console.log("\n18. Multi-recipient complaint (To + CC)");
+  const mrc = await createComplaint(student, {
+    subject: "E2E — Multi-recipient equipment shortage",
+    category: "e2e-workflow",
+    description: "Workflow test: sent to one faculty member with two staff members in CC.",
+    toIds: [faculty.id],
+    ccIds: [coordinator.id, fyphead.id],
+  });
+  cleanup.complaintIds.push(mrc.id);
+  const recipientRows = await prisma.complaintRecipient.findMany({ where: { complaintId: mrc.id } });
+  ok(
+    "one canonical record with To + CC recipient rows",
+    recipientRows.length === 3 &&
+      recipientRows.filter((r) => r.role === "TO").length === 1 &&
+      recipientRows.filter((r) => r.role === "CC").length === 2 &&
+      (await prisma.complaint.count({ where: { subject: mrc.subject } })) === 1,
+  );
+  ok("primary owner is the first To recipient", mrc.assignedToId === faculty.id);
+  const facultyInbox = await listInboxComplaints(faculty, { view: "inbox" });
+  const coordInbox = await listInboxComplaints(coordinator, { view: "inbox" });
+  const headInbox = await listInboxComplaints(fyphead, { view: "inbox" });
+  ok("To recipient sees it in their inbox", facultyInbox.items.some((c) => c.id === mrc.id));
+  ok(
+    "CC recipients see it in their inboxes",
+    coordInbox.items.some((c) => c.id === mrc.id) && headInbox.items.some((c) => c.id === mrc.id),
+  );
+  ok(
+    "unread view + count include it while unread",
+    (await listInboxComplaints(faculty, { view: "unread" })).items.some((c) => c.id === mrc.id) &&
+      (await countUnreadComplaints(faculty)) >= 1,
+  );
+  const facultyView = await getComplaint(faculty, mrc.id);
+  const headView = await getComplaint(fyphead, mrc.id);
+  ok("recipients can open the record with recipient details", facultyView.recipients.length === 3 && headView.recipients.length === 3);
+  ok("To may act; a plain CC recipient (no desk powers) may not", facultyView.canAct === true && headView.canAct === false);
+  await expectThrow("CC without desk powers cannot resolve", async () =>
+    actOnComplaint(fyphead, mrc.id, "resolve", { comment: "CC must not act on this record." }),
+  );
+  const ccNotices = await prisma.notification.count({
+    where: {
+      userId: { in: [coordinator.id, fyphead.id] },
+      type: "COMPLAINT",
+      title: { startsWith: "CC: " },
+      createdAt: { gte: RUN_STARTED },
+    },
+  });
+  ok("CC recipients were notified with a distinguishable CC title", ccNotices >= 2);
+  await actOnComplaint(faculty, mrc.id, "acknowledge", { comment: "Received — checking the lab stores." });
+  await actOnComplaint(faculty, mrc.id, "respond", { comment: "Restock request sent to stores; refill expected by Thursday." });
+  const studentUpdates = await getComplaint(student, mrc.id);
+  ok(
+    "student sees the permitted update + history",
+    studentUpdates.events.some((e) => e.comment?.includes("Restock request")) &&
+      studentUpdates.events.some((e) => e.comment?.includes("Received — checking")),
+  );
+  await markComplaintRead(coordinator, mrc.id);
+  ok(
+    "read state is per-recipient",
+    (await prisma.complaintRecipient.findFirstOrThrow({ where: { complaintId: mrc.id, userId: coordinator.id } })).readAt !== null &&
+      (await prisma.complaintRecipient.findFirstOrThrow({ where: { complaintId: mrc.id, userId: fyphead.id } })).readAt === null,
+  );
+
+  // ── 19. Form finalization → PDF (goal §9 required test) ──────────────────
+  console.log("\n19. Form finalization → PDF");
+  if (tpl) {
+    type FSpec19 = { name: string; type: string; required: boolean; options?: string[] };
+    const specs19 = (tpl.fields as FSpec19[]).filter((f) => f && typeof f.name === "string");
+    const payload19: Record<string, unknown> = {};
+    for (const f of specs19) {
+      if (!f.required) continue;
+      payload19[f.name] =
+        f.type === "number" ? 5 : f.type === "date" ? "2026-06-06" : f.type === "select" ? (f.options?.[0] ?? "Yes") : f.type === "checkbox" ? true : "E2E PDF test entry";
+    }
+    const pdfSub = await submitForm(student, tpl.key, payload19);
+    cleanup.formSubmissionIds.push(pdfSub.id);
+    const preApproval = await getSubmissionPdfData(student, pdfSub.id);
+    ok("pre-approval read carries no finalized date", preApproval.finalizedAt === null);
+    await decideSubmission(coordinator, pdfSub.id, "APPROVED", "Approved — generating the finalized record.");
+    const pdfData = await getSubmissionPdfData(student, pdfSub.id);
+    ok(
+      "finalized data available after approval",
+      pdfData.status === "APPROVED" && pdfData.finalizedAt !== null && /^FRM-\d{4}-/.test(pdfData.refNo),
+      pdfData.refNo,
+    );
+    ok(
+      "approval history records the actor, role and decision",
+      pdfData.approvals.some((a) => a.actorName === coordinator.name && a.decision === "APPROVED" && a.actorRole === "COORDINATOR"),
+    );
+    const pdfBytes = Buffer.from(
+      await renderSubmissionPdf({
+        refNo: pdfData.refNo,
+        title: pdfData.title,
+        status: pdfData.status,
+        submittedBy: {
+          name: pdfData.submittedBy.name,
+          role: pdfData.submittedBy.role,
+          email: pdfData.submittedBy.email,
+          registrationNo: pdfData.submittedBy.registrationNo,
+        },
+        submittedAt: pdfData.submittedAt,
+        finalizedAt: pdfData.finalizedAt,
+        fields: pdfData.fields.map((f) => ({ label: f.label, value: f.value })),
+        approvals: pdfData.approvals.map((a) => ({
+          step: a.step,
+          decision: a.decision,
+          actorName: a.actorName,
+          actorRole: a.actorRole,
+          at: a.at,
+          comment: a.comment,
+        })),
+      }),
+    );
+    ok("PDF renders with a valid header", pdfBytes.subarray(0, 5).toString("latin1").startsWith("%PDF-"), `${pdfBytes.length} bytes`);
+    const rawPdf = pdfBytes.toString("latin1");
+    let pdfText = rawPdf;
+    for (const m of rawPdf.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
+      let content = m[1];
+      try {
+        content = inflateSync(Buffer.from(m[1], "latin1")).toString("latin1");
+      } catch {
+        /* stream not flate-compressed — use the raw slice */
+      }
+      pdfText += content;
+      // pdf-lib draws text as hex strings: <hexbytes> Tj — decode them.
+      for (const hm of content.matchAll(/<([0-9A-Fa-f]{4,})>\s*Tj/g)) {
+        const hx = hm[1];
+        if (hx.length % 2) continue;
+        const raw = Buffer.from(hx, "hex");
+        if (/^feff/i.test(hx)) {
+          const swapped = Buffer.from(raw);
+          swapped.swap16();
+          pdfText += swapped.toString("utf16le");
+        } else {
+          pdfText += raw.toString("latin1");
+        }
+      }
+    }
+    ok(
+      "PDF embeds the reference number + the approval-record label",
+      pdfText.includes(pdfData.refNo) && pdfText.includes("In-portal approval record"),
+    );
+  }
+
+  // ── 20. Admit-card eligibility gate (goal §10 required test) ─────────────
+  console.log("\n20. Admit-card eligibility (prerequisite gate)");
+  const baseRule = await getAdmitCardRule();
+  const admitKey = `e2e-admit-${Date.now()}`;
+  const admitTpl = await prisma.formTemplate.create({
+    data: {
+      key: admitKey,
+      title: "E2E Admit Prerequisite Form",
+      description: "Temporary template created by the E2E suite.",
+      audienceRole: "STUDENT",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Examination Office",
+      fields: [{ name: "ack", label: "Acknowledge the examination rules", type: "checkbox", required: true }],
+      active: true,
+    },
+  });
+  cleanup.templateIds.push(admitTpl.id);
+  await setAdmitCardRule(admin, {
+    requiredFormKey: admitKey,
+    requireEnrollment: baseRule.requireEnrollment,
+    feeClearanceEnabled: baseRule.feeClearanceEnabled,
+    examLabel: baseRule.examLabel,
+  });
+  const blocked = await getEligibility(student, student.id);
+  ok(
+    "generation blocked while the required form is missing",
+    blocked.eligible === false && blocked.checks.some((c) => c.key === "required_form" && !c.passed),
+  );
+  const admitSub = await submitForm(student, admitKey, { ack: true });
+  cleanup.formSubmissionIds.push(admitSub.id);
+  await decideSubmission(coordinator, admitSub.id, "APPROVED", "Prerequisite verified.");
+  const allowed = await getEligibility(student, student.id);
+  ok(
+    "eligible once the required form is approved",
+    allowed.eligible === true && missingPrerequisites(allowed.checks).length === 0,
+  );
+  await expectThrow("students cannot check someone else's eligibility", async () => getEligibility(student2, student.id));
+  await setAdmitCardRule(admin, {
+    requiredFormKey: baseRule.requiredFormKey,
+    requireEnrollment: baseRule.requireEnrollment,
+    feeClearanceEnabled: baseRule.feeClearanceEnabled,
+    examLabel: baseRule.examLabel,
+  });
+  ok("eligibility rule restored after the test", (await getAdmitCardRule()).requiredFormKey === baseRule.requiredFormKey);
+
+  // ── 21. Timetable: conflict → preview → publish once → revert (goal §11) ─
+  console.log("\n21. Timetable revisions: preview, publish once, revert");
+  // Pre-clean leftovers from an aborted earlier run so this section is re-runnable.
+  await prisma.courseClass.deleteMany({ where: { courseCode: { in: ["E2E-901", "E2E-902"] } } });
+  const revClassA = await saveClass(coordinator, {
+    courseCode: "E2E-901",
+    title: "Revision Test A",
+    section: "Z",
+    department: "CS",
+    semester: "E2E 2026",
+    facultyId: null,
+  });
+  cleanup.createdClassIds.push(revClassA.id);
+  const revClassB = await saveClass(coordinator, {
+    courseCode: "E2E-902",
+    title: "Revision Test B",
+    section: "Z",
+    department: "CS",
+    semester: "E2E 2026",
+    facultyId: null,
+  });
+  cleanup.createdClassIds.push(revClassB.id);
+  await prisma.enrollment.create({ data: { studentId: student.id, classId: revClassA.id, status: "ACTIVE" } });
+  const revSlot = await saveSlot(
+    coordinator,
+    { classId: revClassA.id, day: "TUE", startMin: 14 * 60, endMin: 15 * 60, room: "E2E-R2" },
+    "E2E baseline",
+  );
+  cleanup.slotIds.push(revSlot.saved.id);
+  const clashPreview = await previewSlotChange(coordinator, {
+    classId: revClassB.id,
+    day: "TUE",
+    startMin: 14 * 60,
+    endMin: 15 * 60,
+    room: "E2E-R2",
+  });
+  ok("impact preview flags the room conflict", clashPreview.conflicts.some((c) => c.kind === "room"));
+  ok("preview proposes free alternatives", clashPreview.alternatives.length >= 1);
+  const movePreview = await previewSlotChange(coordinator, {
+    id: revSlot.saved.id,
+    classId: revClassA.id,
+    day: "SAT",
+    startMin: 19 * 60,
+    endMin: 20 * 60,
+    room: "E2E-R3",
+  });
+  ok("preview names the affected student cohort", movePreview.affectedStudents.count >= 1);
+  const moveStartedAt = new Date();
+  await saveSlot(
+    coordinator,
+    { id: revSlot.saved.id, classId: revClassA.id, day: "SAT", startMin: 19 * 60, endMin: 20 * 60, room: "E2E-R3" },
+    "E2E move to Saturday",
+  );
+  ok(
+    "published change persists on the shared slot",
+    (await prisma.timetableSlot.findUniqueOrThrow({ where: { id: revSlot.saved.id } })).day === "SAT",
+  );
+  ok(
+    "each publish records a revision",
+    (await prisma.timetableRevision.count({ where: { createdAt: { gte: RUN_STARTED } } })) >= 2,
+  );
+  const studentNotice = await prisma.notification.findFirst({
+    where: { userId: student.id, type: "ANNOUNCEMENT", title: "Timetable updated", createdAt: { gte: moveStartedAt } },
+  });
+  ok(
+    "affected student got exactly one linked notice for the publish",
+    studentNotice !== null &&
+      studentNotice.link === "/timetable" &&
+      (await prisma.notification.count({
+        where: { userId: student.id, title: "Timetable updated", createdAt: { gte: moveStartedAt } },
+      })) === 1,
+  );
+  ok(
+    "unrelated students were not notified",
+    (await prisma.notification.count({
+      where: { userId: student2.id, title: "Timetable updated", createdAt: { gte: moveStartedAt } },
+    })) === 0,
+  );
+  const revisionsList = await listTimetableRevisions(coordinator, 10);
+  const moveRev = revisionsList.find((r) => r.label.includes("E2E-901") && r.label.includes("moved"));
+  ok("history lists the labelled change", !!moveRev, moveRev?.label);
+  if (moveRev) {
+    const reverted = await revertToRevision(coordinator, moveRev.id, "E2E revert after the test");
+    ok(
+      "revert restores the previous schedule",
+      reverted.applied === true && (await prisma.timetableSlot.findUniqueOrThrow({ where: { id: revSlot.saved.id } })).day === "TUE",
+    );
+    ok(
+      "the revert itself is a revision",
+      (await prisma.timetableRevision.count({ where: { createdAt: { gte: RUN_STARTED }, label: { startsWith: "Revert to" } } })) >= 1,
+    );
+  }
+  ok("student sees the recent-update indicator", (await getTimetableUpdatedAtFor(student)) !== null);
+
+  // ── 22. Data correction request → admin applies it (goal §6) ─────────────
+  console.log("\n22. Data correction request workflow");
+  const prof = await prisma.studentProfile.findUniqueOrThrow({ where: { userId: student.id } });
+  const origSection = prof.section;
+  const corr = await createCorrectionRequest(faculty, {
+    entityType: "StudentProfile",
+    recordId: prof.id,
+    field: "section",
+    newValue: "Z",
+    reason: "E2E: the exam seating list shows a different section for this student.",
+  });
+  cleanup.correctionIds.push(corr.id);
+  ok("request stored PENDING with the server-side current value", corr.status === "PENDING" && corr.oldValue === (origSection ?? null));
+  await expectThrow("students cannot request corrections", async () =>
+    createCorrectionRequest(student, {
+      entityType: "StudentProfile",
+      recordId: prof.id,
+      field: "section",
+      newValue: "Y",
+      reason: "students must not be able to request arbitrary record edits",
+    }),
+  );
+  await expectThrow("faculty cannot decide their own request", async () => decideCorrection(faculty, corr.id, { approve: true }));
+  const pendingQueue = await listCorrectionRequests(admin, { status: "PENDING" });
+  ok("admin queue shows the request", pendingQueue.some((r) => r.id === corr.id));
+  await decideCorrection(admin, corr.id, { approve: true, note: "Verified against the registrar list." });
+  ok(
+    "approval applies the corrected value",
+    (await prisma.studentProfile.findUniqueOrThrow({ where: { id: prof.id } })).section === "Z",
+  );
+  ok(
+    "requester notified of the outcome",
+    (await prisma.notification.count({
+      where: { userId: faculty.id, title: { contains: "correction" }, createdAt: { gte: RUN_STARTED } },
+    })) >= 1,
+  );
+  await expectThrow("a decided request cannot be decided again", async () =>
+    decideCorrection(admin, corr.id, { approve: false, note: "changed my mind" }),
+  );
+  await prisma.studentProfile.update({ where: { id: prof.id }, data: { section: origSection } });
+  ok(
+    "test restored the original value",
+    (await prisma.studentProfile.findUniqueOrThrow({ where: { id: prof.id } })).section === origSection,
+  );
+
   // ── Cleanup ───────────────────────────────────────────────────────────────
   console.log("\nCleanup");
   const removed = {
@@ -944,9 +1290,12 @@ async function main() {
     ).count,
     complaints: (await prisma.complaint.deleteMany({ where: { id: { in: cleanup.complaintIds } } })).count,
     complaintRoutes: (await prisma.complaintRoute.deleteMany({ where: { id: { in: cleanup.complaintRouteIds } } })).count,
+    corrections: (await prisma.dataCorrectionRequest.deleteMany({ where: { id: { in: cleanup.correctionIds } } })).count,
     formSubmissions: (
       await prisma.formSubmission.deleteMany({ where: { id: { in: cleanup.formSubmissionIds } } })
     ).count,
+    templates: (await prisma.formTemplate.deleteMany({ where: { id: { in: cleanup.templateIds } } })).count,
+    timetableRevisions: (await prisma.timetableRevision.deleteMany({ where: { createdAt: { gte: RUN_STARTED } } })).count,
     accounts: (await prisma.user.deleteMany({ where: { id: { in: cleanup.accountIds } } })).count,
     notifications: (await prisma.notification.deleteMany({ where: { createdAt: { gte: RUN_STARTED } } })).count,
   };
@@ -954,7 +1303,8 @@ async function main() {
     `  removed ${removed.attendance} attendance rows · ${removed.results} results · ${removed.assessments} assessment(s) · ` +
       `${removed.messages} message(s) · ${removed.clashes} clash report(s) · ${removed.slots} session(s) · ` +
       `${removed.fyp} FYP application(s) · ${removed.classes} test class(es) · ${removed.assignments} assignment(s) · ` +
-      `${removed.complaints} complaint(s) · ${removed.formSubmissions} form submission(s) · ${removed.accounts} test account(s) · ` +
+      `${removed.complaints} complaint(s) · ${removed.formSubmissions} form submission(s) · ${removed.templates} template(s) · ` +
+      `${removed.timetableRevisions} revision(s) · ${removed.corrections} correction(s) · ${removed.accounts} test account(s) · ` +
       `${removed.notifications} notification(s)`,
   );
 

@@ -1,14 +1,15 @@
-import { AlertTriangle, CalendarClock, Flag } from "lucide-react";
+import { AlertTriangle, CalendarClock, CircleAlert, CircleCheck, Download, Flag, IdCard } from "lucide-react";
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getScheduleData, minToLabel } from "@/server/services/schedule";
+import { getEligibility, missingPrerequisites } from "@/server/services/admit-cards";
 import { ClashBadge } from "@/components/clash-badge";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ClashKind } from "@/server/clash";
@@ -34,7 +35,6 @@ export default async function ExamsPage() {
   }
 
   const scope = user.role === "STUDENT" ? "your section" : "your scope";
-
   if (!data) {
     return (
       <>
@@ -46,6 +46,19 @@ export default async function ExamsPage() {
       </>
     );
   }
+
+  // Admit-card eligibility for the signed-in student (spec §10). Loaded in
+  // isolation so a failure there can never take down the exam schedule.
+  let admitCard: Awaited<ReturnType<typeof getEligibility>> | null = null;
+  if (user.role === "STUDENT") {
+    try {
+      admitCard = await getEligibility(user, user.id);
+    } catch (error) {
+      console.error("admit-card check failed:", error);
+    }
+  }
+  const admitMissing = admitCard ? missingPrerequisites(admitCard.checks) : [];
+  const admitNotes = admitCard ? admitCard.checks.filter((c) => c.soft) : [];
 
   const examRows = data.classes
     .flatMap((c) => c.exams.map((e) => ({ exam: e, cls: c })))
@@ -112,6 +125,64 @@ export default async function ExamsPage() {
             tone={flagged ? "danger" : "success"}
           />
         </section>
+      ) : null}
+
+      {admitCard ? (
+        <Card className={admitCard.eligible ? "border-success/40" : "border-warning/40"}>
+          <CardHeader className="py-3.5">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-sm font-semibold">
+              <IdCard className="h-4 w-4 text-muted-foreground" />
+              Admit card — {admitCard.rule.examLabel}
+              {admitCard.eligible ? (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
+                  <CircleCheck className="h-3.5 w-3.5" /> Eligible
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
+                  <CircleAlert className="h-3.5 w-3.5" /> Not eligible yet
+                </span>
+              )}
+            </CardTitle>
+            <CardDescription>
+              {admitCard.eligible
+                ? "Your prerequisites are complete. The download is a watermarked internal preview — not an official university-issued admit card."
+                : "Resolve the outstanding prerequisites below; the download becomes available as soon as they clear."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {admitMissing.length > 0 ? (
+              <ul className="grid gap-2">
+                {admitMissing.map((c) => (
+                  <li key={c.key} className="rounded-lg border border-border/70 bg-muted/20 px-3.5 py-2.5">
+                    <p className="text-sm font-medium text-destructive">{c.label}</p>
+                    <p className="text-xs text-muted-foreground">{c.detail}</p>
+                    {c.key === "required_form" &&
+                    admitCard?.requiredTemplate &&
+                    admitCard.requiredTemplate.active &&
+                    admitCard.requiredTemplate.audienceRole === user.role ? (
+                      <Button asChild variant="outline" size="sm" className="mt-2">
+                        <Link href={`/forms/new/${admitCard.requiredTemplate.key}`}>Open the form</Link>
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {admitNotes.map((c) => (
+              <p key={c.key} className="text-xs text-muted-foreground">
+                Note: {c.detail}
+              </p>
+            ))}
+            {admitCard.eligible ? (
+              <Button asChild size="sm" className="w-fit">
+                <Link href={`/api/admit-card/${user.id}`} prefetch={false}>
+                  <Download className="h-4 w-4" />
+                  Download admit card (preview)
+                </Link>
+              </Button>
+            ) : null}
+          </CardContent>
+        </Card>
       ) : null}
 
       {flagged > 0 ? (

@@ -589,11 +589,45 @@ async function main() {
         { name: "justification", label: "Justification", type: "textarea", required: true },
       ],
     },
+    // ── Admit-card demo (spec §10): the sample form the seeded admit-card
+    //    rule points at. Sample/demo data — replace with the university's
+    //    official examination form before real use.
+    {
+      key: "faculty-form",
+      title: "Faculty Examination Form",
+      description: "Sample/demo form used by the seeded admit-card eligibility rule (spec §10).",
+      audienceRole: "FACULTY",
+      reviewerRole: "COORDINATOR",
+      recipientLabel: "Examination Cell",
+      slaDays: 3,
+      fields: [
+        { name: "examTerm", label: "Examination term", type: "text", required: true },
+        { name: "notes", label: "Notes", type: "text", required: false },
+      ],
+    },
   ];
   for (const t of templates) {
     await prisma.formTemplate.upsert({ where: { key: t.key }, update: { ...t }, create: t });
   }
   console.log(`✓ form templates: ${templates.length}`);
+
+  // ── Admit-card rule (spec §10; demo configuration) ─────────────────────
+  // Singleton row read by the eligibility engine: the student needs the
+  // sample “faculty-form” above approved, plus an enrollment record. Fee
+  // clearance stays OFF by default — the portal keeps no fee ledger, so that
+  // flag would only add a soft “confirm at the accounts office” note.
+  const admitCardRule = {
+    requiredFormKey: "faculty-form",
+    requireEnrollment: true,
+    feeClearanceEnabled: false,
+    examLabel: "Semester Examinations",
+  };
+  await prisma.admitCardRule.upsert({
+    where: { id: "singleton" },
+    update: { ...admitCardRule },
+    create: { id: "singleton", ...admitCardRule },
+  });
+  console.log("✓ admit-card rule: singleton (required form: faculty-form)");
 
   // ── Internships ────────────────────────────────────────────────────────
   const internships: [string, string, string, string, string, string][] = [

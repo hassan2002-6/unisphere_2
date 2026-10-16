@@ -160,11 +160,14 @@ Status key: **DONE** = implemented + tested · **NEW** = implemented this goal r
   staging environment provisioned (documented in HANDOVER).
 
 ## §17 Automated tests
-- DONE — 412 unit/integration (vitest) + 126-check scripted E2E against the live DB +
-  30-question AI eval; scripts clean up their records.
-- NEW — E2E sections for the §8 complaint test, §9 PDF finalization, §10 admit-card
-  eligibility, §11 timetable publish-once, §5/§6 correction request audit; AI eval
-  extended with SHU-fact + privacy-refusal questions.
+- DONE — 509 unit/integration (vitest) + 165-check scripted E2E against the live DB +
+  38-question AI eval (38/38); scripts clean up their records.
+- NEW — E2E sections for the §8 complaint test (To acts / CC read-only, unread view),
+  §9 PDF finalization (pre-approval has no finalized timestamp; renderer output embeds
+  ref no + approval label), §10 admit-card eligibility (blocked → approved → eligible),
+  §11 timetable publish-once (impact preview, one revision per publish, revert, student
+  notice audit), §5/§6 correction request audit (pending → approved → value applied,
+  decided-once); AI eval extended with SHU-fact + privacy-refusal questions.
 
 ## §18 Stages
 - DONE — Stage 1 (audit/login) → 9 (performance/docs) executed in order across waves;

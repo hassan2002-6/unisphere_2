@@ -1,23 +1,52 @@
 import Link from "next/link";
-import { Database, FileSpreadsheet, GraduationCap, Library, MessageSquareWarning, Search, Users } from "lucide-react";
+import {
+  ClipboardCheck,
+  Database,
+  FileSpreadsheet,
+  GraduationCap,
+  Library,
+  MessageSquareWarning,
+  Search,
+  Users,
+} from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
+import {
+  CORRECTIONS_SECTION_ID,
+  listCorrectionRequests,
+  type CorrectionRequestListItem,
+} from "@/server/services/corrections";
 import { PageHeader } from "@/components/page-header";
+import { StatusBadge } from "@/components/status-badge";
+import { SubmitButton } from "@/components/submit-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { decideCorrectionAction } from "./actions";
 
 export const dynamic = "force-dynamic";
+
+const DATE_FMT: Intl.DateTimeFormatOptions = {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  timeZone: "Asia/Karachi",
+};
 
 /**
  * Admin → Data: where records are entered and found. One searchable index over
  * the people, course sections, complaints and submissions an office touches,
  * plus the validated CSV import screen.
  */
-export default async function AdminDataPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+export default async function AdminDataPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; correctionDone?: string; correctionError?: string }>;
+}) {
   const user = await requireUser();
   if (!can(user.role, "users.manage")) {
     return (
@@ -31,8 +60,25 @@ export default async function AdminDataPage({ searchParams }: { searchParams: Pr
     );
   }
 
-  const { q: rawQ } = await searchParams;
+  const { q: rawQ, correctionDone, correctionError } = await searchParams;
   const q = rawQ?.trim().slice(0, 80) ?? "";
+
+  // Data-correction review desk (goal §6) — admins only.
+  const canReviewCorrections = can(user.role, "corrections.manage");
+  let pendingCorrections: CorrectionRequestListItem[] = [];
+  let decidedCorrections: CorrectionRequestListItem[] = [];
+  let correctionsUnavailable = false;
+  if (canReviewCorrections) {
+    try {
+      [pendingCorrections, decidedCorrections] = await Promise.all([
+        listCorrectionRequests(user, { status: "PENDING" }),
+        listCorrectionRequests(user, { status: "DECIDED", take: 10 }),
+      ]);
+    } catch (error) {
+      console.error("corrections load failed:", error);
+      correctionsUnavailable = true;
+    }
+  }
 
   const results = q
     ? await Promise.all([
@@ -121,6 +167,19 @@ export default async function AdminDataPage({ searchParams }: { searchParams: Pr
         description="Enter records the straightforward way — search everything from one box, or follow the screens below."
       />
 
+      {correctionDone ? (
+        <Alert variant="success">
+          <AlertTitle>Decision recorded</AlertTitle>
+          <AlertDescription>{correctionDone}</AlertDescription>
+        </Alert>
+      ) : null}
+      {correctionError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Decision not recorded</AlertTitle>
+          <AlertDescription>{correctionError}</AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardHeader className="py-3.5">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold">
@@ -206,6 +265,140 @@ export default async function AdminDataPage({ searchParams }: { searchParams: Pr
           )}
         </CardContent>
       </Card>
+
+      {canReviewCorrections ? (
+        <Card id={CORRECTIONS_SECTION_ID}>
+          <CardHeader className="border-b px-5 py-3.5">
+            <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-sm font-semibold">
+              <span className="flex items-center gap-2">
+                <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
+                Corrections
+              </span>
+              <Badge variant={pendingCorrections.length > 0 ? "default" : "secondary"} className="tabular-nums">
+                {pendingCorrections.length} awaiting review
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              Faculty requests to change a record they cannot edit. Approving applies the new value to the real record;
+              both outcomes notify the requester and are written to the audit trail.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 px-5 pt-4">
+            {correctionsUnavailable ? (
+              <p className="text-sm text-muted-foreground">
+                Correction requests could not be loaded — check the database connection and refresh.
+              </p>
+            ) : pendingCorrections.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No requests are waiting for review.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                      <TableHead className="pl-5">Requested by</TableHead>
+                      <TableHead>Record</TableHead>
+                      <TableHead>Field</TableHead>
+                      <TableHead>Change</TableHead>
+                      <TableHead>Reason</TableHead>
+                      <TableHead className="pr-5 text-right">Decision</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingCorrections.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell className="pl-5 align-top">
+                          <span className="font-medium">{r.requestedByName}</span>
+                          <p className="text-xs text-muted-foreground">{r.requestedByEmail}</p>
+                          <p className="text-xs tabular-nums text-muted-foreground">
+                            {r.createdAt.toLocaleDateString("en-GB", DATE_FMT)}
+                          </p>
+                        </TableCell>
+                        <TableCell className="align-top text-xs text-muted-foreground">
+                          {r.recordLabel ?? "Record no longer exists"}
+                          <p className="font-mono text-[11px]">{r.entityType}</p>
+                        </TableCell>
+                        <TableCell className="align-top font-medium">{r.fieldLabel}</TableCell>
+                        <TableCell className="align-top font-mono text-xs">
+                          {r.oldValue ?? "—"} <span className="text-muted-foreground">→</span> {r.newValue}
+                        </TableCell>
+                        <TableCell className="max-w-[220px] align-top text-xs text-muted-foreground">{r.reason}</TableCell>
+                        <TableCell className="pr-5 align-top">
+                          <form action={decideCorrectionAction} className="flex flex-col items-end gap-2">
+                            <input type="hidden" name="id" value={r.id} />
+                            <Input
+                              name="note"
+                              placeholder="Note (required to reject)"
+                              aria-label={`Decision note for request ${r.id}`}
+                              className="w-56"
+                            />
+                            <div className="flex items-center gap-2">
+                              <SubmitButton size="sm" name="decision" value="approve" pendingLabel="Saving…">
+                                Approve
+                              </SubmitButton>
+                              <SubmitButton
+                                size="sm"
+                                variant="destructive"
+                                name="decision"
+                                value="reject"
+                                pendingLabel="Saving…"
+                              >
+                                Reject
+                              </SubmitButton>
+                            </div>
+                          </form>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+
+            {decidedCorrections.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Recently decided</p>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50 hover:bg-muted/50">
+                        <TableHead className="pl-5">Record</TableHead>
+                        <TableHead>Field</TableHead>
+                        <TableHead>Change</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Handled by</TableHead>
+                        <TableHead className="pr-5">Note</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {decidedCorrections.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="pl-5 text-xs text-muted-foreground">{r.recordLabel ?? "—"}</TableCell>
+                          <TableCell className="font-medium">{r.fieldLabel}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {r.oldValue ?? "—"} <span className="text-muted-foreground">→</span> {r.newValue}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={r.status} />
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {r.handledByName ?? "—"}
+                            {r.handledAt ? (
+                              <p className="tabular-nums">{r.handledAt.toLocaleDateString("en-GB", DATE_FMT)}</p>
+                            ) : null}
+                          </TableCell>
+                          <TableCell className="pr-5 max-w-[260px] text-xs text-muted-foreground">
+                            {r.decisionNote ?? "—"}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {cards.map((c) => (

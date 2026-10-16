@@ -1,5 +1,13 @@
 import { prisma } from "@/lib/db";
 import type { ComplaintEventKind, ComplaintPriority, User } from "@unisphere/db";
+import {
+  RECIPIENT_ROLES,
+  canActOnComplaint,
+  canManageComplaint,
+  mapInboxView,
+  validateRecipientSelection,
+  type RecipientLike,
+} from "@/lib/complaint-policy";
 import { can } from "@/lib/rbac";
 import { toBytes } from "@/server/bytes";
 import { assertTransition } from "@/server/status";
@@ -8,6 +16,18 @@ import { recordAudit } from "./audit";
 import { ServiceError } from "./forms";
 
 export { ServiceError } from "./forms";
+export {
+  COMPLAINT_STATUSES,
+  INBOX_VIEWS,
+  RECIPIENT_ROLES,
+  canActOnComplaint,
+  canManageComplaint,
+  isRecipientRole,
+  mapInboxView,
+  recipientCanAct,
+  recipientRoleOf,
+  validateRecipientSelection,
+} from "@/lib/complaint-policy";
 
 /**
  * Complaint Box service (spec §6). A complaint is routed by the admin-managed
@@ -81,6 +101,14 @@ export type CreateComplaintInput = {
   description: string;
   classId?: string | null;
   attachment?: { name: string; mime: string; data: Buffer } | null;
+  /**
+   * Explicit multi-recipient routing (goal §8). When either list is present
+   * the picker decides the recipients: To recipients may act, CC recipients
+   * are read-only; assignedTo = first To. Leave both empty to keep the
+   * existing route-based single-target path.
+   */
+  toIds?: string[] | null;
+  ccIds?: string[] | null;
 };
 
 export async function createComplaint(user: User, input: CreateComplaintInput) {
@@ -100,7 +128,36 @@ export async function createComplaint(user: User, input: CreateComplaintInput) {
   }
 
   const target = await resolveRouteForCategory(category);
-  const assigneeId = await pickAssignee(target);
+
+  // Recipients: an explicit To/CC pick, or the routing rule's single target.
+  const wantsExplicit = (input.toIds?.length ?? 0) > 0 || (input.ccIds?.length ?? 0) > 0;
+  let assigneeId: string | null = null;
+  let routedByConfig = false;
+  const recipients: RecipientLike[] = [];
+
+  if (wantsExplicit) {
+    const selection = validateRecipientSelection(input);
+    if (!selection.ok) throw new ServiceError("validation_error", selection.error, 422);
+    const requestedIds = [...selection.toIds, ...selection.ccIds];
+    const staff = await prisma.user.findMany({
+      where: { id: { in: requestedIds }, isActive: true, role: { in: [...RECIPIENT_ROLES] } },
+      select: { id: true },
+    });
+    if (staff.length !== requestedIds.length) {
+      throw new ServiceError("validation_error", "Recipients must be active staff — faculty, coordinators, the FYP head or an administrator.", 422);
+    }
+    recipients.push(...selection.toIds.map((userId) => ({ userId, role: "TO" as const })));
+    recipients.push(...selection.ccIds.map((userId) => ({ userId, role: "CC" as const })));
+    assigneeId = selection.toIds[0] ?? null;
+  } else {
+    assigneeId = await pickAssignee(target);
+    if (assigneeId) {
+      // Uniform inboxes: a routed complaint also lands as a To recipient row.
+      recipients.push({ userId: assigneeId, role: "TO" });
+      routedByConfig = true;
+    }
+  }
+
   const now = new Date();
   const dueAt = target.escalateAfterHours ? new Date(now.getTime() + target.escalateAfterHours * 3600_000) : null;
 
@@ -124,24 +181,48 @@ export async function createComplaint(user: User, input: CreateComplaintInput) {
             attachmentSize: input.attachment?.data.length ?? null,
             attachmentData: input.attachment ? toBytes(input.attachment.data) : null,
             status: "OPEN",
+            ...(recipients.length > 0
+              ? { recipients: { create: recipients.map((r) => ({ userId: r.userId, role: r.role })) } }
+              : {}),
             events: {
               create: [
                 { actorId: user.id, status: "OPEN", kind: "STATUS", visibility: "PUBLIC", comment: "Complaint filed" },
                 ...(assigneeId
-                  ? [{ actorId: null, status: "OPEN" as const, kind: "FORWARD" as const, visibility: "PUBLIC" as const, assigneeToId: assigneeId, comment: "Routed by configuration" }]
+                  ? [{
+                      actorId: null,
+                      status: "OPEN" as const,
+                      kind: "FORWARD" as const,
+                      visibility: "PUBLIC" as const,
+                      assigneeToId: assigneeId,
+                      comment: routedByConfig ? "Routed by configuration" : "Assigned to the first To recipient",
+                    }]
                   : []),
               ],
             },
           },
         });
 
-        if (assigneeId) {
+        // Same transaction: every recipient is notified on create (goal §8).
+        for (const r of recipients) {
           await notifyUser(
-            assigneeId,
-            { type: "COMPLAINT", title: `New complaint (${refNo})`, body: `${subject} — ${category}, priority ${target.defaultPriority.toLowerCase()}.`, link: "/coordinator/complaints" },
+            r.userId,
+            r.role === "CC"
+              ? {
+                  type: "COMPLAINT",
+                  title: `CC: ${subject}`,
+                  body: `${refNo} — ${subject} (${category}). You are CC’d for visibility.`,
+                  link: `/complaints/${created.id}`,
+                }
+              : {
+                  type: "COMPLAINT",
+                  title: `New complaint (${refNo})`,
+                  body: `${subject} — ${category}, priority ${target.defaultPriority.toLowerCase()}.`,
+                  link: `/complaints/${created.id}`,
+                },
             tx,
           );
-        } else {
+        }
+        if (recipients.length === 0) {
           await notifyRole("COORDINATOR", { type: "COMPLAINT", title: `New complaint (${refNo})`, body: `${subject} — needs a recipient.`, link: "/coordinator/complaints" }, tx);
         }
         return created;
@@ -151,7 +232,11 @@ export async function createComplaint(user: User, input: CreateComplaintInput) {
         action: "complaint.create",
         entity: "Complaint",
         entityId: complaint.id,
-        summary: `${complaint.refNo} "${subject}" (${category}) → ${assigneeId ? "routed" : "unassigned"}`,
+        summary: `${complaint.refNo} "${subject}" (${category}) → ${
+          recipients.length > 0
+            ? `${recipients.filter((r) => r.role === "TO").length} To / ${recipients.filter((r) => r.role === "CC").length} CC recipient(s)`
+            : "unassigned"
+        }`,
       });
       return complaint;
     } catch (e) {
@@ -163,12 +248,7 @@ export async function createComplaint(user: User, input: CreateComplaintInput) {
 }
 
 /** Manager = assignee, coordinator, admin, or (unassigned faculty-category) faculty. */
-function canManage(user: User, c: { assignedToId: string | null; category: string; submittedById: string }): boolean {
-  if (!can(user.role, "complaints.manage")) return false;
-  if (user.role === "COORDINATOR" || user.role === "ADMIN") return true;
-  if (c.assignedToId === user.id) return true;
-  return user.role === "FACULTY" && c.category === "Faculty" && c.assignedToId === null;
-}
+const canManage = canManageComplaint;
 
 export async function listMyComplaints(user: User, opts?: { cursor?: string; take?: number }) {
   const take = Math.min(opts?.take ?? 20, 50);
@@ -185,7 +265,7 @@ export async function listMyComplaints(user: User, opts?: { cursor?: string; tak
   return { items, nextCursor: hasMore ? items[items.length - 1]?.id : null };
 }
 
-/** Submitter or manager may read. Students never see INTERNAL events. */
+/** Submitter, recipient (To or CC) or manager may read. Students never see INTERNAL events. */
 export async function getComplaint(user: User, id: string) {
   const complaint = await prisma.complaint.findUnique({
     where: { id },
@@ -193,6 +273,10 @@ export async function getComplaint(user: User, id: string) {
       submittedBy: { select: { id: true, name: true, email: true, registrationNo: true } },
       assignedTo: { select: { id: true, name: true, role: true } },
       class: { select: { courseCode: true, title: true, section: true } },
+      recipients: {
+        orderBy: { createdAt: "asc" },
+        include: { user: { select: { id: true, name: true, role: true } } },
+      },
       events: {
         orderBy: { createdAt: "asc" },
         include: {
@@ -206,12 +290,17 @@ export async function getComplaint(user: User, id: string) {
   if (!complaint) throw new ServiceError("not_found", "Complaint not found", 404);
   const isOwner = complaint.submittedById === user.id;
   const manager = canManage(user, complaint);
-  if (!isOwner && !manager) throw new ServiceError("not_found", "Complaint not found", 404);
+  const myRecipient = complaint.recipients.find((r) => r.userId === user.id) ?? null;
+  if (!isOwner && !manager && !myRecipient) throw new ServiceError("not_found", "Complaint not found", 404);
   return {
     ...complaint,
     overdue: isOverdue(complaint),
     isManager: manager,
-    events: isOwner && !manager ? complaint.events.filter((e) => e.visibility === "PUBLIC") : complaint.events,
+    isRecipient: myRecipient !== null,
+    myRecipient: myRecipient ? { role: myRecipient.role, readAt: myRecipient.readAt } : null,
+    canAct: canActOnComplaint(user, complaint, complaint.recipients),
+    // Students never see INTERNAL events; recipients are staff and see the full trail.
+    events: isOwner && !manager && !myRecipient ? complaint.events.filter((e) => e.visibility === "PUBLIC") : complaint.events,
   };
 }
 
@@ -263,14 +352,72 @@ export async function listManagedComplaints(user: User, opts?: ManagedFilters) {
   return { items, nextCursor: hasMore ? items[items.length - 1]?.id : null };
 }
 
+export type InboxFilters = { view?: string; cursor?: string; take?: number };
+
+/**
+ * Recipient-scoped inbox (goal §8): complaints where the user holds a
+ * ComplaintRecipient row (To or CC), across the inbox/unread/pending/
+ * resolved/archived views, with the user's unread badge count.
+ */
+export async function listInboxComplaints(user: User, opts?: InboxFilters) {
+  const { view, statuses, unreadOnly } = mapInboxView(opts?.view);
+  const take = Math.min(opts?.take ?? 20, 50);
+
+  const rows = await prisma.complaint.findMany({
+    where: {
+      recipients: { some: { userId: user.id, ...(unreadOnly ? { readAt: null } : {}) } },
+      ...(statuses ? { status: { in: [...statuses] as never } } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+    take: take + 1,
+    omit: { attachmentData: true },
+    include: {
+      submittedBy: { select: { name: true, registrationNo: true } },
+      assignedTo: { select: { name: true } },
+      // Just the user's own row — powers the To/CC chip and the unread dot.
+      recipients: { where: { userId: user.id }, select: { role: true, readAt: true } },
+    },
+    ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
+  });
+  const unreadCount = await countUnreadComplaints(user);
+  const hasMore = rows.length > take;
+  const items = (hasMore ? rows.slice(0, take) : rows).map((c) => {
+    const mine = c.recipients[0];
+    return {
+      ...c,
+      overdue: isOverdue(c),
+      recipientRole: mine?.role ?? null,
+      unread: mine ? mine.readAt === null : false,
+    };
+  });
+  return { items, nextCursor: hasMore ? items[items.length - 1]?.id : null, unreadCount, view };
+}
+
+/** Unread complaint notifications for the inbox badge (To or CC rows). */
+export async function countUnreadComplaints(user: User): Promise<number> {
+  return prisma.complaintRecipient.count({ where: { userId: user.id, readAt: null } });
+}
+
+/** Recipients (To or CC) mark a complaint read — powers the inbox badge. */
+export async function markComplaintRead(user: User, complaintId: string): Promise<boolean> {
+  const res = await prisma.complaintRecipient.updateMany({
+    where: { complaintId, userId: user.id, readAt: null },
+    data: { readAt: new Date() },
+  });
+  return res.count > 0;
+}
+
 async function loadForAction(user: User, id: string) {
   const complaint = await prisma.complaint.findUnique({
     where: { id },
-    include: { submittedBy: { select: { id: true, name: true } } },
+    include: {
+      submittedBy: { select: { id: true, name: true } },
+      recipients: { select: { userId: true, role: true } },
+    },
   });
   if (!complaint) throw new ServiceError("not_found", "Complaint not found", 404);
-  if (!canManage(user, complaint)) {
-    throw new ServiceError("forbidden", "Complaints you are not assigned to cannot be updated", 403);
+  if (!canActOnComplaint(user, complaint, complaint.recipients)) {
+    throw new ServiceError("forbidden", "Only the assignee or a To recipient can act on this complaint", 403);
   }
   return complaint;
 }

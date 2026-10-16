@@ -12,14 +12,20 @@ export function ComplaintFilters({
   priority = "",
   overdue = false,
   q = "",
+  hiddenFields,
 }: {
   status?: string;
   priority?: string;
   overdue?: boolean;
   q?: string;
+  /** Extra query params to preserve across the GET submit (e.g. tab=desk). */
+  hiddenFields?: Record<string, string>;
 }) {
   return (
     <form method="get" className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card px-4 py-3">
+      {hiddenFields
+        ? Object.entries(hiddenFields).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)
+        : null}
       <label className="grid gap-1 text-xs font-medium text-muted-foreground">
         Status
         <select

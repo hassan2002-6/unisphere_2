@@ -41,6 +41,9 @@ export async function createComplaintAction(formData: FormData) {
       description: String(formData.get("description") ?? ""),
       classId: String(formData.get("classId") ?? "") || null,
       attachment,
+      // Multi-recipient picker (goal §8) — empty lists fall back to routing.
+      toIds: formData.getAll("toIds").map(String).filter(Boolean),
+      ccIds: formData.getAll("ccIds").map(String).filter(Boolean),
     });
     id = created.id;
   } catch (e) {

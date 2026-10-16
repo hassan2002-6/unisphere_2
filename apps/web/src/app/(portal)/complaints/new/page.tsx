@@ -2,12 +2,13 @@ import { FileText, MessageSquarePlus } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { PageHeader } from "@/components/page-header";
 import { SubmitButton } from "@/components/submit-button";
+import { ComplaintRecipientsPicker } from "@/components/complaint-recipients-picker";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { listActiveCategories } from "@/server/services/complaints";
+import { listActiveCategories, listComplaintHandlers } from "@/server/services/complaints";
 import { classesForComplaint } from "@/server/services/assignments";
 import { createComplaintAction } from "../actions";
 
@@ -21,9 +22,10 @@ export default async function NewComplaintPage({
   const user = await requireUser();
   const { error } = await searchParams;
 
-  const [categories, courses] = await Promise.all([
+  const [categories, courses, staff] = await Promise.all([
     listActiveCategories(),
     user.role === "STUDENT" ? classesForComplaint(user) : Promise.resolve([]),
+    listComplaintHandlers(),
   ]);
 
   return (
@@ -107,6 +109,7 @@ export default async function NewComplaintPage({
                 placeholder="What happened, where, when — and what outcome you need."
               />
             </div>
+            {staff.length > 0 ? <ComplaintRecipientsPicker staff={staff} /> : null}
             <div className="grid gap-1.5">
               <Label htmlFor="attachment">Attachment (optional, max 2 MB — pdf, docx, png, jpg…)</Label>
               <Input

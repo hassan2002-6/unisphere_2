@@ -34,24 +34,29 @@ export function ComplaintManager({
   items,
   labels,
   toolbar,
+  showHeader = true,
 }: {
   items: ManagedComplaint[];
   labels: { title: string; description: string };
   /** Optional slot rendered between the header and the list (e.g. filters). */
   toolbar?: React.ReactNode;
+  /** Hide the built-in header when the page renders its own (e.g. with tabs). */
+  showHeader?: boolean;
 }) {
   return (
     <>
-      <PageHeader
-        icon={MessageSquareWarning}
-        title={labels.title}
-        description={labels.description}
-        actions={
-          <Badge variant={items.length > 0 ? "secondary" : "outline"} className="text-xs">
-            {items.length} in scope
-          </Badge>
-        }
-      />
+      {showHeader ? (
+        <PageHeader
+          icon={MessageSquareWarning}
+          title={labels.title}
+          description={labels.description}
+          actions={
+            <Badge variant={items.length > 0 ? "secondary" : "outline"} className="text-xs">
+              {items.length} in scope
+            </Badge>
+          }
+        />
+      ) : null}
 
       {toolbar}
 

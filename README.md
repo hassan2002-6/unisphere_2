@@ -70,8 +70,8 @@ Domain extras:
 
 ```bash
 cd apps/web
-bun run scripts/test-workflows.ts    # 126-check end-to-end acceptance across every workflow
-bun run scripts/eval-ai.ts           # 30-question AI retrieval eval (needs DATABASE_URL)
+bun run scripts/test-workflows.ts    # 165-check end-to-end acceptance across every workflow
+bun run scripts/eval-ai.ts           # 38-question AI retrieval eval (needs DATABASE_URL)
 bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATABASE_URL)
 ```
 

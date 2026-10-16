@@ -115,12 +115,12 @@ bun run dev                          # http://localhost:3000
 # quality gates (all green before the deploy in this report)
 bun run lint      # oxlint
 bun run typecheck # tsc --noEmit
-bun run test      # vitest: 412 tests
+bun run test      # vitest: 509 tests
 bun run build     # next production build
 
 # workflows against the live DB (apps/web)
-bun scripts/test-workflows.ts        # 126-check end-to-end acceptance
-bun scripts/eval-ai.ts               # 30-question retrieval eval
+bun scripts/test-workflows.ts        # 165-check end-to-end acceptance
+bun scripts/eval-ai.ts               # 38-question retrieval eval
 bun scripts/test-concurrency.ts      # last-GPU race test
 bun scripts/measure-perf.ts          # hot-path latency report (spec §13)
 bun scripts/link-clerk-users.ts      # (re)create/link the demo personas in Clerk
@@ -196,23 +196,25 @@ API route skips server-side authorization.
 
 ## 12. Test results / build status / deployment
 
-- `bun run lint` — pass · `bun run typecheck` — pass · `bun run test` — **412
+- `bun run lint` — pass · `bun run typecheck` — pass · `bun run test` — **509
   passed** · `bun run build` — pass (production Next build).
 - **`bun run fmt:check` (oxfmt) is not an enforced gate**: the repo predates an
   oxfmt config, so `oxfmt --check .` flags 263 of 318 files (including
   untouched pre-existing code). Formatting everything is intentionally not
   done — it would churn the whole tree for no functional gain. New code
   follows each file's existing style.
-- End-to-end acceptance vs the live Neon database: **126 checks, 0 failures**
+- End-to-end acceptance vs the live Neon database: **165 checks, 0 failures**
   (sections: timetable/clash, attendance, marks, messaging, search, exports,
   accounts & provisioning, coordinator classes/exams, FYP lifecycle +
   supervision notes, **assignments**, **complaints pipeline**, **form
-  corrections + documents**, **profile photos**); the script cleans up every
-  record it creates.
+  corrections + documents**, **profile photos**, **multi-recipient complaints
+  (To/CC)**, **form finalization → PDF**, **admit-card eligibility gate**,
+  **timetable preview → publish-once → revert**, **data-correction request
+  lifecycle**); the script cleans up every record it creates.
 - Mobile-width evidence (spec §14.17): `MOBILE=1 bun run capture:demo` renders
   every student route in a true 390×844 phone viewport — **19/19 pages clean,
   zero horizontal overflow** (`docs/demo/screenshots/app-mobile/`).
-- Retrieval eval: 30/30 questions grounded or correctly refused.
+- Retrieval eval: 38/38 questions grounded or correctly refused.
 - Deployed to production from commit `e0a7426` (preceded by `17295da` wave +
   `.vercelignore` fix `fd3d069`); `/api/health` green and reports the deployed
   hash.

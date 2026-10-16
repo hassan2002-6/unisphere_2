@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ClipboardList, MessageSquareText, Paperclip, PencilLine, Undo2 } from "lucide-react";
+import { ArrowLeft, ClipboardList, Download, MessageSquareText, Paperclip, PencilLine, Undo2 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { getMySubmission } from "@/server/services/forms";
 import { formFieldsSchema } from "@/lib/validation";
@@ -78,6 +78,14 @@ export default async function SubmissionDetailPage({
                 Back
               </Link>
             </Button>
+            {sub.status === "APPROVED" ? (
+              <Button variant="secondary" size="sm" asChild>
+                <Link href={`/api/submissions/${sub.id}/pdf`} prefetch={false}>
+                  <Download className="h-4 w-4" />
+                  Download finalized PDF
+                </Link>
+              </Button>
+            ) : null}
             {sub.status === "SUBMITTED" ? (
               <ConfirmAction
                 action={withdrawAction}

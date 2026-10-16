@@ -408,3 +408,112 @@ export async function decideSubmission(user: User, id: string, decision: FormDec
     return advanceOrDecide(tx, sub, user, sub.template, sub.submittedBy, decision, comment);
   });
 }
+
+/* ───────────────────── Finalized-form PDF data (spec §9) ───────────────────── */
+
+/**
+ * Display reference for a submission. FormSubmission has no stored refNo
+ * column, so derive a stable, human-readable reference from the submission's
+ * year + id (same spirit as Complaint's CMP-<year>-<seq> format, without a
+ * schema change — deterministic for the same record).
+ */
+export function submissionRefNo(createdAt: Date, id: string): string {
+  return `FRM-${createdAt.getUTCFullYear()}-${id.slice(-6).toUpperCase()}`;
+}
+
+/** One row of the per-step approval history rendered into the finalized PDF. */
+export type SubmissionApprovalRecord = {
+  step: number;
+  /** Raw FormEvent target status — APPROVED / REJECTED / CORRECTIONS_REQUESTED, or UNDER_REVIEW for intermediate steps. */
+  decision: FormStatus;
+  actorName: string;
+  actorRole: Role | null;
+  at: Date;
+  comment: string | null;
+};
+
+export type SubmissionPdfData = {
+  id: string;
+  refNo: string;
+  title: string;
+  templateKey: string;
+  status: FormStatus;
+  submittedBy: { name: string; email: string; registrationNo: string | null; role: Role };
+  submittedAt: Date;
+  /** When the final approval landed; null until the submission is APPROVED. */
+  finalizedAt: Date | null;
+  fields: { name: string; label: string; value: string }[];
+  approvals: SubmissionApprovalRecord[];
+};
+
+const DECISION_EVENTS: FormStatus[] = ["UNDER_REVIEW", "APPROVED", "REJECTED", "CORRECTIONS_REQUESTED"];
+
+function renderSubmissionValue(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "—";
+  if (typeof v === "boolean") return v ? "Yes" : "No";
+  return String(v);
+}
+
+/**
+ * Everything the finalized-form PDF needs, with the record-level guard: only
+ * the submitter, a role the submission's approval chain routes through (the
+ * current-step reviewer and the final approver) or an admin may read it.
+ */
+export async function getSubmissionPdfData(user: User, id: string): Promise<SubmissionPdfData> {
+  const sub = await prisma.formSubmission.findUnique({
+    where: { id },
+    omit: { attachmentData: true },
+    include: {
+      template: { select: { key: true, title: true, reviewerRole: true, fields: true, approverChain: true } },
+      submittedBy: { select: { name: true, email: true, registrationNo: true, role: true } },
+      events: { orderBy: { createdAt: "asc" }, include: { actor: { select: { name: true, role: true } } } },
+    },
+  });
+  if (!sub) throw new ServiceError("not_found", "Submission not found", 404);
+
+  const isSubmitter = sub.submittedById === user.id;
+  const isAdmin = user.role === "ADMIN";
+  // Every role the chain hands the record to — the current step's reviewer can
+  // be mid-flight, the final approver may already have decided.
+  const approverRoles = new Set<string>([...effectiveChain(sub.template), currentApprover(sub, sub.template.reviewerRole)]);
+  const isApprover = can(user.role, "forms.review") && approverRoles.has(user.role);
+  if (!isSubmitter && !isApprover && !isAdmin) {
+    throw new ServiceError("forbidden", "You are not a reviewer for this submission", 403);
+  }
+
+  // Prefer the snapshot captured at submit time — a template edited since then
+  // must never rewrite what this record says.
+  const rawFields = sub.templateSnapshot ?? sub.template.fields;
+  const parsed = formFieldsSchema.safeParse(rawFields);
+  const payload = (sub.payload ?? {}) as Record<string, unknown>;
+  const fields = parsed.success
+    ? parsed.data.map((f) => ({ name: f.name, label: f.label, value: renderSubmissionValue(payload[f.name]) }))
+    : Object.entries(payload).map(([name, value]) => ({ name, label: name, value: renderSubmissionValue(value) }));
+
+  const approvals: SubmissionApprovalRecord[] = sub.events
+    .filter((e) => DECISION_EVENTS.includes(e.toStatus))
+    .map((e, i) => ({
+      step: i + 1,
+      decision: e.toStatus,
+      actorName: e.actor?.name ?? "System",
+      actorRole: e.actor?.role ?? null,
+      at: e.createdAt,
+      comment: e.comment,
+    }));
+
+  const approvedEvent = [...sub.events].reverse().find((e) => e.toStatus === "APPROVED");
+  const finalizedAt = sub.status === "APPROVED" ? (approvedEvent?.createdAt ?? sub.updatedAt) : null;
+
+  return {
+    id: sub.id,
+    refNo: submissionRefNo(sub.createdAt, sub.id),
+    title: sub.template.title,
+    templateKey: sub.template.key,
+    status: sub.status,
+    submittedBy: sub.submittedBy,
+    submittedAt: sub.createdAt,
+    finalizedAt,
+    fields,
+    approvals,
+  };
+}

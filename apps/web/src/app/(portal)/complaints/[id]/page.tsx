@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Download, FileText, History, MessageSquareWarning, ShieldAlert, Undo2 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { getComplaint, listComplaintHandlers } from "@/server/services/complaints";
+import { getComplaint, listComplaintHandlers, markComplaintRead } from "@/server/services/complaints";
 import { StatusBadge } from "@/components/status-badge";
 import { ComplaintActions } from "@/components/complaint-actions";
 import { PageHeader } from "@/components/page-header";
@@ -37,16 +37,28 @@ export default async function ComplaintDetailPage({
   const { id } = await params;
   const { created, ok, error } = await searchParams;
 
-  const complaint = await getComplaint(user, id).catch(() => null);
-  if (!complaint) notFound();
+  const loaded = await getComplaint(user, id).catch(() => null);
+  if (!loaded) notFound();
 
-  const handlers = complaint.isManager ? await listComplaintHandlers() : [];
+  // Recipients (To or CC) see the complaint → auto-mark their inbox row read.
+  let complaint = loaded;
+  if (complaint.myRecipient && !complaint.myRecipient.readAt) {
+    await markComplaintRead(user, complaint.id);
+    complaint = { ...complaint, myRecipient: { ...complaint.myRecipient, readAt: new Date() } };
+  }
+
+  const handlers = complaint.canAct ? await listComplaintHandlers() : [];
+  const toRecipients = complaint.recipients.filter((r) => r.role === "TO");
+  const ccRecipients = complaint.recipients.filter((r) => r.role === "CC");
+  const isCaseStaff = complaint.isManager || complaint.isRecipient;
+  const queueHref =
+    user.role === "FACULTY" ? "/faculty/complaints" : user.role === "COORDINATOR" || user.role === "ADMIN" ? "/coordinator/complaints" : "/complaints";
 
   return (
     <>
       <PageHeader
         breadcrumbs={[
-          { label: complaint.isManager ? "Complaint queue" : "Complaint Box", href: complaint.isManager ? "/coordinator/complaints" : "/complaints" },
+          { label: isCaseStaff ? "Complaint queue" : "Complaint Box", href: isCaseStaff ? queueHref : "/complaints" },
           { label: complaint.refNo },
         ]}
         icon={MessageSquareWarning}
@@ -61,6 +73,28 @@ export default async function ComplaintDetailPage({
             <StatusBadge status={complaint.status} />
             {complaint.overdue ? <StatusBadge status="OVERDUE" /> : null}
             {complaint.assignedTo ? <span>handled by {complaint.assignedTo.name}</span> : <span>not yet assigned</span>}
+            {toRecipients.length > 0 ? (
+              <span className="inline-flex flex-wrap items-center gap-1">
+                <span className="font-medium">To:</span>
+                {toRecipients.map((r) => (
+                  <Badge key={r.id} variant="secondary" className="text-[11px]">
+                    {r.user.name}
+                  </Badge>
+                ))}
+              </span>
+            ) : null}
+            {ccRecipients.length > 0 ? (
+              <span className="inline-flex flex-wrap items-center gap-1">
+                <span className="font-medium">CC:</span>
+                {ccRecipients.map((r) => (
+                  <Badge key={r.id} variant="outline" className="text-[11px]">
+                    {r.user.name}
+                  </Badge>
+                ))}
+              </span>
+            ) : null}
+            {complaint.myRecipient?.role === "TO" ? <Badge variant="secondary">you are a To recipient</Badge> : null}
+            {complaint.myRecipient?.role === "CC" ? <Badge variant="outline">you are CC’d — read-only</Badge> : null}
           </span>
         }
       />
@@ -112,14 +146,17 @@ export default async function ComplaintDetailPage({
           </CardContent>
         </Card>
 
-        {complaint.isManager ? (
+        {complaint.canAct ? (
           <Card>
             <CardHeader className="py-3.5">
               <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                 <ShieldAlert className="h-4 w-4 text-muted-foreground" />
                 Office actions
               </CardTitle>
-              <CardDescription>Public comments are shown to the student; internal notes are not.</CardDescription>
+              <CardDescription>
+                {complaint.myRecipient?.role === "TO" ? "You are a To recipient — actions here update the case. " : ""}
+                Public comments are shown to the student; internal notes are not.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <form action={complaintActionAction} className="space-y-3">
@@ -168,6 +205,19 @@ export default async function ComplaintDetailPage({
               </form>
             </CardContent>
           </Card>
+        ) : complaint.myRecipient ? (
+          <Card>
+            <CardHeader className="py-3.5">
+              <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                <ShieldAlert className="h-4 w-4 text-muted-foreground" />
+                CC — read-only
+              </CardTitle>
+              <CardDescription>
+                You were CC’d on this complaint for visibility. You can follow the whole case here, but only the To
+                recipients, the assignee and the office can act on it.
+              </CardDescription>
+            </CardHeader>
+          </Card>
         ) : (
           <Card>
             <CardHeader className="py-3.5">
@@ -198,7 +248,7 @@ export default async function ComplaintDetailPage({
             History
           </CardTitle>
           <CardDescription>
-            Full trail with who did what and when{complaint.isManager ? " — including internal notes" : ""}.
+            Full trail with who did what and when{complaint.isManager || complaint.isRecipient ? " — including internal notes" : ""}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

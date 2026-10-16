@@ -3,7 +3,15 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireCapability } from "@/lib/auth";
-import { deleteSlot, saveClass, saveSlot } from "@/server/services/timetable-manage";
+import {
+  deleteSlot,
+  previewSlotChange,
+  revertToRevision,
+  saveClass,
+  saveSlot,
+  type SaveSlotInput,
+  type SlotPreview,
+} from "@/server/services/timetable-manage";
 import { ServiceError } from "@/server/services/forms";
 
 /** Accept "HH:MM" (native time input) → minutes since midnight. */
@@ -19,6 +27,27 @@ function toMinutes(value: FormDataEntryValue | null): number | null {
 
 const MANAGER = "/coordinator/timetable";
 
+function revalidateTimetableViews() {
+  revalidatePath(MANAGER);
+  revalidatePath("/timetable");
+  revalidatePath("/coordinator/clashes");
+  revalidatePath("/dashboard");
+}
+
+/** Result handed to the client preview dialog (never throws over the wire). */
+export type SlotPreviewResult = { ok: true; preview: SlotPreview } | { ok: false; message: string };
+
+/** Impact preview (goal §11) — dry-run a slot edit before it is published. */
+export async function previewSlotChangeAction(proposed: SaveSlotInput): Promise<SlotPreviewResult> {
+  const user = await requireCapability("timetable.manage");
+  try {
+    const preview = await previewSlotChange(user, proposed);
+    return { ok: true, preview };
+  } catch (e) {
+    return { ok: false, message: e instanceof ServiceError ? e.message : "Could not preview that change." };
+  }
+}
+
 export async function saveSlotAction(formData: FormData) {
   const user = await requireCapability("timetable.manage");
   const classId = String(formData.get("classId") ?? "");
@@ -27,40 +56,58 @@ export async function saveSlotAction(formData: FormData) {
   const startMin = toMinutes(formData.get("start"));
   const endMin = toMinutes(formData.get("end"));
   const room = String(formData.get("room") ?? "").trim();
+  const note = String(formData.get("note") ?? "").trim();
 
   if (!classId || startMin === null || endMin === null) {
     redirect(`${MANAGER}?error=${encodeURIComponent("Pick a day and valid start/end times (HH:MM).")}`);
   }
 
-  let note = "Timetable session saved.";
+  let noteText = "Timetable session saved.";
   try {
-    const { warnings } = await saveSlot(user, { id, classId, day, startMin, endMin, room: room || null });
-    if (warnings.length > 0) note = `Saved with a note — ${warnings[0].detail}`;
+    const { warnings } = await saveSlot(user, { id, classId, day, startMin, endMin, room: room || null }, note || null);
+    if (warnings.length > 0) noteText = `Saved with a note — ${warnings[0].detail}`;
   } catch (e) {
     const message = e instanceof ServiceError ? e.message : "Could not save the session.";
     redirect(`${MANAGER}?error=${encodeURIComponent(message)}`);
   }
-  revalidatePath(MANAGER);
-  revalidatePath("/timetable");
-  revalidatePath("/coordinator/clashes");
-  revalidatePath("/dashboard");
-  redirect(`${MANAGER}?saved=${encodeURIComponent(note)}`);
+  revalidateTimetableViews();
+  redirect(`${MANAGER}?saved=${encodeURIComponent(noteText)}`);
 }
 
 export async function deleteSlotAction(formData: FormData) {
   const user = await requireCapability("timetable.manage");
   const id = String(formData.get("id") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
   if (!id) return;
   try {
-    await deleteSlot(user, id);
+    await deleteSlot(user, id, note || null);
   } catch (e) {
     const message = e instanceof ServiceError ? e.message : "Could not remove that session.";
     redirect(`${MANAGER}?error=${encodeURIComponent(message)}`);
   }
-  revalidatePath(MANAGER);
-  revalidatePath("/timetable");
-  revalidatePath("/coordinator/clashes");
+  revalidateTimetableViews();
   redirect(`${MANAGER}?saved=${encodeURIComponent("Session removed — faculty and students were notified.")}`);
+}
+
+/** One-click revert (goal §11): restore a revision and notify affected courses. */
+export async function revertToRevisionAction(formData: FormData) {
+  const user = await requireCapability("timetable.manage");
+  const revisionId = String(formData.get("revisionId") ?? "");
+  const note = String(formData.get("note") ?? "").trim();
+  if (!revisionId) {
+    redirect(`${MANAGER}?error=${encodeURIComponent("Pick a revision to revert to.")}`);
+  }
+
+  let message = "Reverted.";
+  try {
+    const summary = await revertToRevision(user, revisionId, note || null);
+    message = summary.message;
+  } catch (e) {
+    const error = e instanceof ServiceError ? e.message : "Could not revert that revision.";
+    redirect(`${MANAGER}?error=${encodeURIComponent(error)}`);
+  }
+  revalidateTimetableViews();
+  redirect(`${MANAGER}?saved=${encodeURIComponent(message)}`);
 }
 
 /** Course & section management: create a section or reassign its faculty (§8). */
@@ -87,8 +134,6 @@ export async function saveClassAction(formData: FormData) {
     const message = e instanceof ServiceError ? e.message : "Could not save the course.";
     redirect(`${MANAGER}?error=${encodeURIComponent(message)}`);
   }
-  revalidatePath(MANAGER);
-  revalidatePath("/timetable");
-  revalidatePath("/coordinator/clashes");
+  revalidateTimetableViews();
   redirect(`${MANAGER}?saved=${encodeURIComponent(note)}`);
 }

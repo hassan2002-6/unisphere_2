@@ -1,8 +1,13 @@
 import Link from "next/link";
-import { AlertTriangle, CalendarCog, CalendarDays, DoorOpen, Plus, Users } from "lucide-react";
+import { AlertTriangle, CalendarCog, CalendarDays, DoorOpen, History, Plus, Undo2, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { requireCapability } from "@/lib/auth";
-import { getTimetableManagerData, MANAGER_DAYS, WINDOW_END, WINDOW_START } from "@/server/services/timetable-manage";
+import {
+  getTimetableManagerData,
+  listTimetableRevisions,
+  WINDOW_END,
+  WINDOW_START,
+} from "@/server/services/timetable-manage";
 import { minToLabel } from "@/server/services/schedule";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -10,13 +15,20 @@ import type { StatTone } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { ConfirmAction } from "@/components/confirm-action";
 import { SubmitButton } from "@/components/submit-button";
+import { SlotImpactForm } from "@/components/timetable-impact-preview";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteSlotAction, saveClassAction, saveSlotAction } from "./actions";
+import {
+  deleteSlotAction,
+  previewSlotChangeAction,
+  revertToRevisionAction,
+  saveClassAction,
+  saveSlotAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +44,19 @@ const DAY_LABELS: Record<string, string> = {
 const FIELD =
   "h-9 w-full min-w-0 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
+/** "2026-10-17 09:41 UTC" — revision timestamps are absolute (UTC). */
+function formatStamp(date: Date): string {
+  const iso = date.toISOString();
+  return `${iso.slice(0, 10)} ${iso.slice(11, 16)} UTC`;
+}
+
 /** Coordinators own the weekly grid: add, move and cancel sessions here. */
 export default async function CoordinatorTimetablePage({
   searchParams,
 }: {
   searchParams: Promise<{ saved?: string; error?: string }>;
 }) {
-  await requireCapability("timetable.manage");
+  const user = await requireCapability("timetable.manage");
   const { saved, error } = await searchParams;
 
   let data: Awaited<ReturnType<typeof getTimetableManagerData>> | null = null;
@@ -47,6 +65,13 @@ export default async function CoordinatorTimetablePage({
     data = await getTimetableManagerData();
   } catch {
     dbError = true;
+  }
+
+  let revisions: Awaited<ReturnType<typeof listTimetableRevisions>> = [];
+  try {
+    revisions = await listTimetableRevisions(user, 10);
+  } catch {
+    revisions = [];
   }
 
   const classes = data?.classes ?? [];
@@ -65,7 +90,7 @@ export default async function CoordinatorTimetablePage({
       <PageHeader
         icon={CalendarCog}
         title="Timetable Manager"
-        description="Reschedule, add and cancel sessions. Room, faculty and cohort double-bookings are blocked before they save; every change notifies the class and lands in the audit log."
+        description="Reschedule, add and cancel sessions. Every save is impact-previewed first, keeps a version history with one-click revert, and notifies the class and its enrolled students exactly once."
       />
 
       {saved ? (
@@ -167,12 +192,6 @@ export default async function CoordinatorTimetablePage({
         </form>
       </details>
 
-      <datalist id="tt-rooms">
-        {(data?.rooms ?? []).map((room) => (
-          <option key={room} value={room} />
-        ))}
-      </datalist>
-
       <div className="flex flex-col gap-4">
         {classes.map((cls) => (
           <Card key={cls.id} className="gap-0 overflow-hidden py-0">
@@ -223,31 +242,20 @@ export default async function CoordinatorTimetablePage({
               ) : (
                 cls.slots.map((slot) => (
                   <div key={slot.id} className="grid gap-2 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                    <form action={saveSlotAction} className="grid items-center gap-2 sm:grid-cols-[7.5rem_6.5rem_6.5rem_minmax(0,1fr)_auto]">
-                      <input type="hidden" name="classId" value={cls.id} />
-                      <input type="hidden" name="id" value={slot.id} />
-                      <select name="day" defaultValue={slot.day} className={FIELD} aria-label="Day">
-                        {MANAGER_DAYS.map((d) => (
-                          <option key={d} value={d}>
-                            {DAY_LABELS[d]}
-                          </option>
-                        ))}
-                      </select>
-                      <input type="time" name="start" defaultValue={minToLabel(slot.startMin)} className={FIELD} aria-label="Start time" />
-                      <input type="time" name="end" defaultValue={minToLabel(slot.endMin)} className={FIELD} aria-label="End time" />
-                      <input
-                        type="text"
-                        name="room"
-                        defaultValue={slot.room ?? ""}
-                        list="tt-rooms"
-                        placeholder="Room"
-                        className={FIELD}
-                        aria-label="Room"
-                      />
-                      <SubmitButton size="sm" pendingLabel="Saving…">
-                        Save
-                      </SubmitButton>
-                    </form>
+                    <SlotImpactForm
+                      classId={cls.id}
+                      slotId={slot.id}
+                      defaults={{
+                        day: slot.day,
+                        start: minToLabel(slot.startMin),
+                        end: minToLabel(slot.endMin),
+                        room: slot.room ?? "",
+                      }}
+                      rooms={data?.rooms ?? []}
+                      previewAction={previewSlotChangeAction}
+                      saveAction={saveSlotAction}
+                      submitLabel="Preview…"
+                    />
                     <ConfirmAction
                       action={deleteSlotAction}
                       values={{ id: slot.id }}
@@ -255,6 +263,7 @@ export default async function CoordinatorTimetablePage({
                       description={`${cls.courseCode} · ${DAY_LABELS[slot.day] ?? slot.day} ${minToLabel(slot.startMin)}–${minToLabel(slot.endMin)} — the class faculty and every enrolled student are notified.`}
                       confirmLabel="Cancel session"
                       variant="destructive"
+                      reason={{ name: "note", label: "Note (optional)", placeholder: "Why is this session cancelled?" }}
                       trigger={
                         <Button type="button" variant="outline" size="sm">
                           Remove
@@ -270,47 +279,69 @@ export default async function CoordinatorTimetablePage({
                   <Plus className="h-3.5 w-3.5" />
                   Add a session to {cls.courseCode}
                 </summary>
-                <form action={saveSlotAction} className="mt-3 grid items-end gap-3 sm:grid-cols-[7.5rem_6.5rem_6.5rem_minmax(0,1fr)_auto]">
-                  <input type="hidden" name="classId" value={cls.id} />
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor={`day-${cls.id}`} className="text-[11px] text-muted-foreground">
-                      Day
-                    </Label>
-                    <select id={`day-${cls.id}`} name="day" defaultValue="MON" className={FIELD}>
-                      {MANAGER_DAYS.map((d) => (
-                        <option key={d} value={d}>
-                          {DAY_LABELS[d]}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor={`start-${cls.id}`} className="text-[11px] text-muted-foreground">
-                      Start
-                    </Label>
-                    <input id={`start-${cls.id}`} type="time" name="start" defaultValue="09:00" className={FIELD} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor={`end-${cls.id}`} className="text-[11px] text-muted-foreground">
-                      End
-                    </Label>
-                    <input id={`end-${cls.id}`} type="time" name="end" defaultValue="10:30" className={FIELD} />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <Label htmlFor={`room-${cls.id}`} className="text-[11px] text-muted-foreground">
-                      Room
-                    </Label>
-                    <Input id={`room-${cls.id}`} name="room" list="tt-rooms" placeholder="e.g. C-204" />
-                  </div>
-                  <SubmitButton size="sm" pendingLabel="Adding…">
-                    Add session
-                  </SubmitButton>
-                </form>
+                <div className="mt-3">
+                  <SlotImpactForm
+                    classId={cls.id}
+                    defaults={{ day: "MON", start: "09:00", end: "10:30", room: "" }}
+                    rooms={data?.rooms ?? []}
+                    previewAction={previewSlotChangeAction}
+                    saveAction={saveSlotAction}
+                    submitLabel="Preview & add"
+                  />
+                </div>
               </details>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <section aria-label="Timetable history" className="flex flex-col gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="inline-flex items-center gap-1.5 font-heading text-base font-semibold">
+            <History className="h-4 w-4 text-primary" /> History
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            Every publish lands here — revert undoes a change and notifies the affected courses.
+          </p>
+        </div>
+        {revisions.length === 0 ? (
+          <Card>
+            <CardContent className="py-4 text-sm text-muted-foreground">
+              No revisions yet — the next session you save appears here with a one-click revert.
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="gap-0 overflow-hidden py-0">
+            <ul className="divide-y">
+              {revisions.map((revision) => (
+                <li key={revision.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{revision.label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {revision.actor.name} · {formatStamp(revision.createdAt)}
+                      {revision.note ? ` · ${revision.note}` : ""}
+                    </p>
+                  </div>
+                  <ConfirmAction
+                    action={revertToRevisionAction}
+                    values={{ revisionId: revision.id }}
+                    title={`Revert “${revision.label}”?`}
+                    description="This undoes the change: the timetable goes back to the state recorded just before it, a new “Revert to …” revision is recorded, and every affected course is notified."
+                    confirmLabel="Revert"
+                    reason={{ name: "note", label: "Note (optional)", placeholder: "Why are you reverting?" }}
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        <Undo2 className="h-3.5 w-3.5" />
+                        Revert
+                      </Button>
+                    }
+                  />
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </section>
 
       <p className="text-xs text-muted-foreground">
         Rooms are free text — use the suggestions from the current grid to keep them consistent. Status of a slot shows on{" "}

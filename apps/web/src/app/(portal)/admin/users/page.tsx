@@ -28,8 +28,34 @@ type UserRow = {
   department: string | null;
   registrationNo: string | null;
   employeeId: string | null;
+  clerkId: string;
   isActive: boolean;
   createdAt: Date;
+};
+
+type SetupState = "LINKED" | "INVITED" | "DEACTIVATED";
+
+/**
+ * Goal §5.10 — account-setup status derived server-side from the stored row:
+ * a `pending:` clerkId means the invitation exists but nobody has linked yet,
+ * an inactive row is deactivated, everything else is linked and active.
+ */
+function accountSetupState(user: { clerkId: string; isActive: boolean }): SetupState {
+  if (user.clerkId.startsWith("pending:")) return "INVITED";
+  if (!user.isActive) return "DEACTIVATED";
+  return "LINKED";
+}
+
+const SETUP_LABELS: Record<SetupState, string> = {
+  LINKED: "Linked & active",
+  INVITED: "Invited — not linked",
+  DEACTIVATED: "Deactivated",
+};
+
+const SETUP_CLASSES: Record<SetupState, string> = {
+  LINKED: "border-success/25 bg-success/10 text-success",
+  INVITED: "border-warning/30 bg-warning/10 text-warning",
+  DEACTIVATED: "border-destructive/30 bg-destructive/10 text-destructive",
 };
 
 export default async function AdminUsersPage({
@@ -73,6 +99,7 @@ export default async function AdminUsersPage({
           department: true,
           registrationNo: true,
           employeeId: true,
+          clerkId: true,
           isActive: true,
           createdAt: true,
         },
@@ -221,6 +248,7 @@ export default async function AdminUsersPage({
                       <TableHead>Unread</TableHead>
                       <TableHead>Reg / Employee</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Setup</TableHead>
                       <TableHead>Department</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="pr-5">Change role</TableHead>
@@ -231,6 +259,7 @@ export default async function AdminUsersPage({
                       const unreadMsg = unreadMessages.get(u.id) ?? 0;
                       const unreadNotif = unreadNotifications.get(u.id) ?? 0;
                       const isMe = u.id === me.id;
+                      const setup = accountSetupState(u);
                       const identity = [u.registrationNo, u.employeeId].filter(Boolean).join(" · ");
                       return (
                         <TableRow key={u.id}>
@@ -265,6 +294,11 @@ export default async function AdminUsersPage({
                           <TableCell className="text-xs text-muted-foreground">{identity || "—"}</TableCell>
                           <TableCell>
                             <StatusBadge status={u.isActive ? "ACTIVE" : "DEACTIVATED"} />
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={SETUP_CLASSES[setup]}>
+                              {SETUP_LABELS[setup]}
+                            </Badge>
                           </TableCell>
                           <TableCell>{u.department ?? "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground tabular-nums">

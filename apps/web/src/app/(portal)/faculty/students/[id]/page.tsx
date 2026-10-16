@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { ArrowLeft, Award, BookOpen, CalendarCheck, GraduationCap, UserRound } from "lucide-react";
+import { ArrowLeft, Award, BookOpen, CalendarCheck, GraduationCap, SquarePen, UserRound } from "lucide-react";
 import { requireUser, requireCapability } from "@/lib/auth";
+import { can } from "@/lib/rbac";
 import { getStudentAcademicProfile, recordProfileView } from "@/server/services/students";
+import {
+  CORRECTION_FIELD_WHITELIST,
+  fieldLabel,
+  listMyCorrectionRequests,
+  type CorrectionRequestListItem,
+} from "@/server/services/corrections";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { EmptyState } from "@/components/empty-state";
+import { StatusBadge } from "@/components/status-badge";
+import { CorrectionRequestForm, type CorrectionFieldOption } from "@/components/correction-request-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +51,19 @@ function Field({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+/** Current value of one whitelisted StudentProfile field ("" when unset). */
+function profileFieldValue(
+  field: string,
+  profile: { program: string; semester: number | null; batch: string | null; section: string | null } | null,
+): string {
+  if (!profile) return "";
+  if (field === "program") return profile.program;
+  if (field === "semester") return profile.semester === null ? "" : String(profile.semester);
+  if (field === "batch") return profile.batch ?? "";
+  if (field === "section") return profile.section ?? "";
+  return "";
+}
+
 /** Permitted academic profile — faculty view (spec §7). */
 export default async function FacultyStudentProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const viewer = await requireUser();
@@ -66,6 +88,31 @@ export default async function FacultyStudentProfilePage({ params }: { params: Pr
   const semesterLabel = sp && sp.semester !== null ? `Semester ${sp.semester}` : "—";
   const sectionLabel = sp && sp.section ? `Section ${sp.section}` : "—";
   const lowAttendance = courses.filter((c) => c.attendancePct !== null && c.attendancePct < 75);
+
+  const canRequestCorrection = can(viewer.role, "corrections.request");
+  let myCorrections: CorrectionRequestListItem[] = [];
+  if (canRequestCorrection) {
+    try {
+      myCorrections = await listMyCorrectionRequests(viewer, { recordId: student.id, take: 5 });
+    } catch (error) {
+      console.error("correction requests load failed:", error);
+    }
+  }
+
+  // Field options come straight from the service whitelist — the current value
+  // shown here is display-only; the service re-captures it when storing.
+  const correctionOptions: CorrectionFieldOption[] = [
+    ...CORRECTION_FIELD_WHITELIST.StudentProfile.map((field) => ({
+      target: `StudentProfile:${field}`,
+      label: fieldLabel(field),
+      currentValue: profileFieldValue(field, sp),
+    })),
+    ...CORRECTION_FIELD_WHITELIST.User.map((field) => ({
+      target: `User:${field}`,
+      label: fieldLabel(field),
+      currentValue: field === "name" ? student.name : (student.registrationNo ?? ""),
+    })),
+  ];
 
   return (
     <>
@@ -125,6 +172,73 @@ export default async function FacultyStudentProfilePage({ params }: { params: Pr
           <Field label="Member since" value={student.memberSince.toLocaleDateString("en-GB", MEMBER_SINCE_FMT)} />
         </CardContent>
       </Card>
+
+      {canRequestCorrection ? (
+        <Card>
+          <CardHeader className="border-b px-5 py-3.5">
+            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+              <SquarePen className="h-4 w-4 text-muted-foreground" />
+              Data corrections
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Faculty cannot edit student records directly. Pick a field, enter the correct value and give a reason —
+              an administrator reviews the request, and you are notified of the decision either way.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4 px-5 pt-4">
+            {sp ? (
+              <CorrectionRequestForm recordId={student.id} options={correctionOptions} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                This student has no academic profile yet — the administration office must create it before corrections
+                can be requested.
+              </p>
+            )}
+
+            {myCorrections.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                  Your recent requests for this student
+                </p>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50 hover:bg-muted/50">
+                        <TableHead>Field</TableHead>
+                        <TableHead>Change</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Decision</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {myCorrections.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium">{r.fieldLabel}</TableCell>
+                          <TableCell className="font-mono text-xs">
+                            {r.oldValue ?? "—"} <span className="text-muted-foreground">→</span> {r.newValue}
+                          </TableCell>
+                          <TableCell className="text-xs tabular-nums text-muted-foreground">
+                            {r.createdAt.toLocaleDateString("en-GB", MEMBER_SINCE_FMT)}
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge status={r.status} />
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {r.status === "PENDING"
+                              ? "Awaiting review"
+                              : (r.decisionNote ?? (r.handledByName ? `Decided by ${r.handledByName}` : "—"))}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {courses.length === 0 ? (
         <EmptyState
