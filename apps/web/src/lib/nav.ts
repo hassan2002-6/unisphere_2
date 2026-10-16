@@ -232,6 +232,7 @@ export const NAV_BY_ROLE: Record<Role, NavSection[]> = {
         { label: "Users & Roles", href: "/admin/users", icon: ShieldCheck },
         { label: "Forms Manager", href: "/admin/forms", icon: FormInput },
         { label: "Complaint Routing", href: "/admin/complaints", icon: MessageSquareWarning },
+        { label: "Admit Cards", href: "/admin/admit-cards", icon: ClipboardCheck },
         { label: "Knowledge Base", href: "/admin/knowledge", icon: Library },
         { label: "Audit Log", href: "/admin/audit", icon: ScrollText },
         { label: "Reports", href: "/admin/reports", icon: BarChart3 },

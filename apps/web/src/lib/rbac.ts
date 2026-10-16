@@ -35,7 +35,10 @@ export type Capability =
   | "audit.view"
   | "users.manage"
   | "knowledge.manage"
-  | "profiles.manage";
+  | "profiles.manage"
+  | "corrections.request"
+  | "corrections.manage"
+  | "admitcards.manage";
 
 const MATRIX: Record<Role, readonly Capability[]> = {
   STUDENT: [
@@ -58,6 +61,7 @@ const MATRIX: Record<Role, readonly Capability[]> = {
     "students.search",
     "messages.send",
     "reports.view",
+    "corrections.request",
   ],
   COORDINATOR: [
     "forms.submit",
@@ -72,6 +76,7 @@ const MATRIX: Record<Role, readonly Capability[]> = {
     "messages.send",
     "reports.view",
     "audit.view",
+    "corrections.request",
   ],
   FYP_HEAD: [
     "forms.review",
@@ -109,6 +114,9 @@ const MATRIX: Record<Role, readonly Capability[]> = {
     "users.manage",
     "knowledge.manage",
     "profiles.manage",
+    "corrections.request",
+    "corrections.manage",
+    "admitcards.manage",
   ],
 } as const;
 
@@ -159,4 +167,7 @@ export const CAPABILITY_LABELS: Record<Capability, string> = {
   "users.manage": "Manage users and roles",
   "knowledge.manage": "Manage the AI assistant's knowledge base",
   "profiles.manage": "Manage user profile photos",
+  "corrections.request": "Request corrections to student records",
+  "corrections.manage": "Review and apply data correction requests",
+  "admitcards.manage": "Configure admit-card eligibility and issue previews",
 };

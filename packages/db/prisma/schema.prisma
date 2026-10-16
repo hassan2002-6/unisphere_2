@@ -190,6 +190,10 @@ model User {
   complaintEventsFrom    ComplaintEvent[]        @relation("ComplaintEventAssigneeFrom")
   complaintEventsTo      ComplaintEvent[]        @relation("ComplaintEventAssigneeTo")
   unansweredQuestions    UnansweredQuestion[]
+  complaintRecipients    ComplaintRecipient[]    @relation("ComplaintRecipientUser")
+  timetableRevisions     TimetableRevision[]     @relation("TimetableRevisionActor")
+  correctionsRequested   DataCorrectionRequest[] @relation("CorrectionRequester")
+  correctionsHandled     DataCorrectionRequest[] @relation("CorrectionHandler")
 }
 
 model StudentProfile {
@@ -409,11 +413,35 @@ model Complaint {
   assignedTo    User?            @relation("ComplaintAssignee", fields: [assignedToId], references: [id])
   class         CourseClass?     @relation(fields: [classId], references: [id])
   events        ComplaintEvent[]
+  recipients    ComplaintRecipient[]
 
   @@index([status])
   @@index([submittedById])
   @@index([assignedToId])
   @@index([priority])
+}
+
+/**
+ * Multi-recipient correspondence (goal §8): one canonical complaint, many
+ * recipients. TO = full action rights per role; CC = read-only visibility.
+ */
+enum ComplaintRecipientRole {
+  TO
+  CC
+}
+
+model ComplaintRecipient {
+  id          String                  @id @default(cuid())
+  complaintId String
+  userId      String
+  role        ComplaintRecipientRole  @default(TO)
+  readAt      DateTime?
+  createdAt   DateTime                @default(now())
+  complaint   Complaint               @relation(fields: [complaintId], references: [id], onDelete: Cascade)
+  user        User                    @relation("ComplaintRecipientUser", fields: [userId], references: [id])
+
+  @@unique([complaintId, userId])
+  @@index([userId, readAt])
 }
 
 model ComplaintEvent {
@@ -910,4 +938,55 @@ model ClashReport {
 
   @@index([status])
   @@index([reportedById])
+}
+
+// ── Timetable revision history (goal §11: version history + revert) ──────
+model TimetableRevision {
+  id        String   @id @default(cuid())
+  actorId   String
+  label     String
+  note      String?
+  snapshot  Json
+  createdAt DateTime @default(now())
+  actor     User     @relation("TimetableRevisionActor", fields: [actorId], references: [id])
+
+  @@index([createdAt])
+}
+
+// ── Data correction requests (goal §6: faculty → authorized role) ────────
+enum CorrectionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model DataCorrectionRequest {
+  id            String           @id @default(cuid())
+  requestedById String
+  entityType    String
+  recordId      String
+  field         String
+  oldValue      String?
+  newValue      String
+  reason        String
+  status        CorrectionStatus @default(PENDING)
+  handledById   String?
+  handledAt     DateTime?
+  decisionNote  String?
+  createdAt     DateTime         @default(now())
+  requestedBy   User             @relation("CorrectionRequester", fields: [requestedById], references: [id])
+  handledBy     User?            @relation("CorrectionHandler", fields: [handledById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([recordId])
+}
+
+// ── Admit-card eligibility configuration (goal §10) ──────────────────────
+model AdmitCardRule {
+  id                  String   @id @default("singleton")
+  requiredFormKey     String?
+  requireEnrollment   Boolean  @default(true)
+  feeClearanceEnabled Boolean  @default(false)
+  examLabel           String   @default("Semester Examinations")
+  updatedAt           DateTime @updatedAt
 }

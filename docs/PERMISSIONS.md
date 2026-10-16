@@ -38,6 +38,9 @@
 | Manage users and roles (`users.manage`) | — | — | — | — | — | ✅ |
 | Manage the AI assistant's knowledge base (`knowledge.manage`) | — | — | — | — | — | ✅ |
 | Manage user profile photos (`profiles.manage`) | — | — | — | — | — | ✅ |
+| Request corrections to student records (`corrections.request`) | — | ✅ | ✅ | — | — | ✅ |
+| Review and apply data correction requests (`corrections.manage`) | — | — | — | — | — | ✅ |
+| Configure admit-card eligibility and issue previews (`admitcards.manage`) | — | — | — | — | — | ✅ |
 
 ## Per-role capability lists
 
@@ -63,6 +66,7 @@
 - Search student records (`students.search`)
 - Send internal messages (`messages.send`)
 - View operational reports (`reports.view`)
+- Request corrections to student records (`corrections.request`)
 
 ### Coordinator (`COORDINATOR`)
 
@@ -78,6 +82,7 @@
 - Send internal messages (`messages.send`)
 - View operational reports (`reports.view`)
 - Read the audit log (`audit.view`)
+- Request corrections to student records (`corrections.request`)
 
 ### FYP Head (`FYP_HEAD`)
 
@@ -120,6 +125,9 @@
 - Manage users and roles (`users.manage`)
 - Manage the AI assistant's knowledge base (`knowledge.manage`)
 - Manage user profile photos (`profiles.manage`)
+- Request corrections to student records (`corrections.request`)
+- Review and apply data correction requests (`corrections.manage`)
+- Configure admit-card eligibility and issue previews (`admitcards.manage`)
 
 ## Notes
 

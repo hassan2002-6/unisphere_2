@@ -41,6 +41,9 @@ const CAPABILITIES: Capability[] = [
   "users.manage",
   "knowledge.manage",
   "profiles.manage",
+  "corrections.request",
+  "corrections.manage",
+  "admitcards.manage",
 ];
 
 /** The plan §8.1 matrix, restated independently of the implementation. */
@@ -65,6 +68,7 @@ const EXPECTED: Record<Role, Capability[]> = {
     "students.search",
     "messages.send",
     "reports.view",
+    "corrections.request",
   ],
   COORDINATOR: [
     "forms.submit",
@@ -79,6 +83,7 @@ const EXPECTED: Record<Role, Capability[]> = {
     "messages.send",
     "reports.view",
     "audit.view",
+    "corrections.request",
   ],
   FYP_HEAD: [
     "forms.review",
@@ -116,6 +121,9 @@ const EXPECTED: Record<Role, Capability[]> = {
     "users.manage",
     "knowledge.manage",
     "profiles.manage",
+    "corrections.request",
+    "corrections.manage",
+    "admitcards.manage",
   ],
 };
 
