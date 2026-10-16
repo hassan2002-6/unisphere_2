@@ -21,14 +21,24 @@ const TYPE_LABELS: Record<string, string> = {
   INTERNSHIP: "Internships",
   ANNOUNCEMENT: "Announcements",
   SYSTEM: "System",
+  MESSAGE: "Messages",
+  CLASH: "Clashes",
+  ASSIGNMENT: "Assignments",
 };
 
-export default async function NotificationsPage() {
+export default async function NotificationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ type?: string }>;
+}) {
   const user = await requireUser();
+  const { type: rawType } = await searchParams;
+  // Whitelist against the real enum so junk values cannot reach the query.
+  const type = rawType && rawType in TYPE_LABELS ? rawType : undefined;
 
   let data: Awaited<ReturnType<typeof listNotifications>> | null = null;
   try {
-    data = await listNotifications(user.id, { take: 30 });
+    data = await listNotifications(user.id, { take: 30, type: type as never });
   } catch {
     data = null;
   }
@@ -64,11 +74,32 @@ export default async function NotificationsPage() {
         }
       />
 
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <Button asChild size="sm" variant={type ? "ghost" : "secondary"} className="h-7 px-2.5 text-xs">
+          <Link href="/notifications">All</Link>
+        </Button>
+        {Object.keys(TYPE_LABELS).map((t) => (
+          <Button
+            key={t}
+            asChild
+            size="sm"
+            variant={type === t ? "secondary" : "ghost"}
+            className="h-7 px-2.5 text-xs"
+          >
+            <Link href={`/notifications?type=${t}`}>{TYPE_LABELS[t]}</Link>
+          </Button>
+        ))}
+      </div>
+
       {data.items.length === 0 ? (
         <EmptyState
           icon={BellOff}
           title="Nothing here yet"
-          description="Notifications appear when your forms, complaints, requests or sessions change state."
+          description={
+            type
+              ? `No "${TYPE_LABELS[type]}" notifications — try another category or All.`
+              : "Notifications appear when your forms, complaints, requests or sessions change state."
+          }
         />
       ) : (
         <ul className="space-y-2">

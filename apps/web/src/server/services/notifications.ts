@@ -44,10 +44,13 @@ export async function getUnreadCount(userId: string): Promise<number> {
   return prisma.notification.count({ where: { userId, readAt: null } });
 }
 
-export async function listNotifications(userId: string, opts?: { cursor?: string; take?: number }) {
+export async function listNotifications(
+  userId: string,
+  opts?: { cursor?: string; take?: number; type?: NotificationType },
+) {
   const take = Math.min(opts?.take ?? 20, 50);
   const rows = await prisma.notification.findMany({
-    where: { userId },
+    where: { userId, ...(opts?.type ? { type: opts.type } : {}) },
     orderBy: { createdAt: "desc" },
     take: take + 1,
     ...(opts?.cursor ? { cursor: { id: opts.cursor }, skip: 1 } : {}),
