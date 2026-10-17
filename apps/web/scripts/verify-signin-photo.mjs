@@ -206,6 +206,19 @@ async function goto(cdp, url, waitFor) {
   throw new Error(`navigation to ${url} never settled`);
 }
 
+/** Wait until the routed avatar images have actually decoded (complete + naturalWidth). */
+async function awaitAvatarsLoaded(activeCdp, min = 2) {
+  for (let i = 0; i < 120; i++) {
+    const ready = await js(
+      activeCdp,
+      `(() => { const imgs = [...document.querySelectorAll('img[src*="/api/users/"]')]; return imgs.length >= ${min} && imgs.every((img) => img.complete && img.naturalWidth > 0); })()`,
+    ).catch(() => false);
+    if (ready) return true;
+    await sleep(250);
+  }
+  return false;
+}
+
 async function shot(cdp, name, width = 1440) {
   const metrics = await cdp.send("Page.getLayoutMetrics");
   const height = Math.min(Math.ceil(metrics.cssContentSize.height || 1400), 5200);
@@ -314,12 +327,15 @@ async function main() {
     check("photo renders on profile + top bar", avatarCount >= 2, `${avatarCount} avatar(s)`);
     avatarSrc = await js(cdp, "document.querySelector('img[src*=\"/api/users/\"]')?.getAttribute('src') || ''");
     check("photo served from the guarded route with cache-busting", avatarSrc.includes("/api/users/") && avatarSrc.includes("?v="), avatarSrc);
+    check("avatar images finish loading after upload", await awaitAvatarsLoaded(cdp, 2));
+    await sleep(300);
     await shot(cdp, "profile-photo.png");
 
     // ── 3. Persistence: reload ──────────────────────────────────────────────
     console.log("\n3. Persistence after refresh");
     await goto(cdp, `${BASE}/profile`, (s) => s.path.startsWith("/profile"));
     check("photo still shown after a full reload", (await js(cdp, "document.querySelectorAll('img[src*=\"/api/users/\"]').length")) >= 2);
+    await awaitAvatarsLoaded(cdp, 2);
     await shot(cdp, "profile-photo-refresh.png");
   } finally {
     killChrome(chrome);
@@ -334,6 +350,7 @@ async function main() {
     await goto(cdp, `${BASE}/sign-in?__clerk_ticket=${encodeURIComponent(ticket2)}`, (s) => s.path.startsWith("/dashboard"));
     await goto(cdp, `${BASE}/profile`, (s) => s.path.startsWith("/profile"));
     check("photo survives a new browser session + login", (await js(cdp, "document.querySelectorAll('img[src*=\"/api/users/\"]').length")) >= 2);
+    await awaitAvatarsLoaded(cdp, 2);
     await shot(cdp, "profile-photo-relogin.png");
 
     // ── 5. Remove ──────────────────────────────────────────────────────────

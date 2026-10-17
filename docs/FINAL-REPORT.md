@@ -270,3 +270,6 @@ screenshot fallback under `docs/demo/screenshots/`.
   the photo route 404s, plus every role account opening its own dashboard and
   being refused `/admin/users`. Screenshots:
   `docs/demo/screenshots/verify/`.
+- **Deployed** from commit `5a7c12a` (2026-10-18) — production
+  `unisphere-hazel.vercel.app` serves the new sign-in page, the official logo
+  asset and the photo feature; `/api/health` green and reports the hash.
