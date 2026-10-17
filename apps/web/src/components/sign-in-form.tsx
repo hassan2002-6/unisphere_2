@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSignIn } from "@clerk/nextjs";
-import { Eye, EyeOff, GraduationCap, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { resolveLoginIdentifierAction, signInHintAction } from "@/app/sign-in/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -221,14 +221,10 @@ export function SignInForm() {
 
   return (
     <div>
-      <div className="mb-6 text-center">
-        <h1 className="flex items-center justify-center gap-2 text-[32px] leading-none font-bold text-primary">
-          <GraduationCap className="h-8 w-8" />
-          UniSphere
-        </h1>
-        <p className="mt-2 text-[13px] text-muted-foreground">Centralized University Platform</p>
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold">Welcome back</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">Sign in with your University ID or @shu.edu.pk email.</p>
       </div>
-      <h2 className="mb-5 text-center text-xl font-semibold">Welcome Back</h2>
 
       {error && (
         <div
@@ -357,7 +353,7 @@ export function SignInForm() {
       <p className="mt-6 text-center text-xs text-muted-foreground">
         One sign-in for every role — each lands on its own dashboard.
         <br />
-        Demo accounts use <span className="font-medium text-foreground">@shu.edu.pk</span> addresses or the IDs above.
+        Trouble signing in? Contact the coordination office.
       </p>
     </div>
   );

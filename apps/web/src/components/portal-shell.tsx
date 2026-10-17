@@ -21,6 +21,8 @@ type ShellUser = {
   registrationNo: string | null;
   employeeId: string | null;
   hasAvatar: boolean;
+  /** avatarUpdatedAt.getTime() — busts the photo cache after an upload/remove. */
+  avatarVersion?: number | null;
 };
 
 /** "Student Portal", "Faculty Portal", …… — the prototype's sidebar subtitle. */
@@ -175,7 +177,7 @@ export function PortalShell({
             {bell}
             <div className="mx-1 hidden h-8 w-px bg-border sm:block" />
             {/* User block — avatar (photo or crimson initials) + name/role (prototype topbar) */}
-            <UserAvatar name={user.name} userId={user.id} hasAvatar={user.hasAvatar} />
+            <UserAvatar name={user.name} userId={user.id} hasAvatar={user.hasAvatar} version={user.avatarVersion} />
             <div className="hidden leading-tight sm:block">
               <span className="block text-[13px] font-semibold">{user.name}</span>
               <small className="block text-[11px] text-muted-foreground">

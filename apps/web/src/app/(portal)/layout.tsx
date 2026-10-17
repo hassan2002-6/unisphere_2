@@ -22,6 +22,7 @@ export default async function PortalLayout({ children }: { children: React.React
         registrationNo: user.registrationNo,
         employeeId: user.employeeId,
         hasAvatar: Boolean(user.avatarMime),
+        avatarVersion: user.avatarUpdatedAt?.getTime() ?? null,
       }}
       unreadCount={unreadCount}
     >

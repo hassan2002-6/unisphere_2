@@ -3,23 +3,13 @@ import { requireUser } from "@/lib/auth";
 import { CAPABILITY_LABELS, capabilitiesFor, ROLE_LABELS } from "@/lib/rbac";
 import { prisma } from "@/lib/db";
 import { PageHeader } from "@/components/page-header";
+import { ProfilePhotoCard } from "@/components/profile-photo-card";
+import { UserAvatar } from "@/components/user-avatar";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
-
-function initials(name: string) {
-  return (
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .map((p) => p[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "U"
-  );
-}
 
 function Field({ label, value, mono = false }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
@@ -35,8 +25,13 @@ function Field({ label, value, mono = false }: { label: string; value: React.Rea
  * students, employee ID for staff), the record attached to it, and the
  * capabilities the role holds in the portal.
  */
-export default async function ProfilePage() {
+export default async function ProfilePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; saved?: string; photo?: string; photoRemoved?: string }>;
+}) {
   const user = await requireUser();
+  const sp = await searchParams;
 
   // The university ID + the role-specific record attached to it.
   let student: Awaited<ReturnType<typeof loadStudent>> | null = null;
@@ -66,6 +61,38 @@ export default async function ProfilePage() {
         </Alert>
       ) : null}
 
+      {sp.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>That didn&apos;t save</AlertTitle>
+          <AlertDescription>{sp.error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {sp.saved ? (
+        <Alert variant="success">
+          <AlertTitle>Profile updated</AlertTitle>
+          <AlertDescription>Your name and department are saved.</AlertDescription>
+        </Alert>
+      ) : null}
+      {sp.photo ? (
+        <Alert variant="success">
+          <AlertTitle>Profile photo updated</AlertTitle>
+          <AlertDescription>Your new photo is stored in the university database and now shows on your profile and the top bar.</AlertDescription>
+        </Alert>
+      ) : null}
+      {sp.photoRemoved ? (
+        <Alert variant="success">
+          <AlertTitle>Profile photo removed</AlertTitle>
+          <AlertDescription>The default initials avatar is back on your profile and the top bar.</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <ProfilePhotoCard
+        name={user.name}
+        userId={user.id}
+        hasAvatar={Boolean(user.avatarMime)}
+        version={user.avatarUpdatedAt?.getTime() ?? null}
+      />
+
       <section className="grid items-start gap-4 lg:grid-cols-2">
         <Card className="gap-0 overflow-hidden py-0">
           <CardHeader className="border-b px-5 py-3.5">
@@ -76,9 +103,13 @@ export default async function ProfilePage() {
           </CardHeader>
           <CardContent className="p-5">
             <div className="flex items-center gap-4">
-              <span className="flex h-[54px] w-[54px] items-center justify-center rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-                {initials(user.name)}
-              </span>
+              <UserAvatar
+                name={user.name}
+                userId={user.id}
+                hasAvatar={Boolean(user.avatarMime)}
+                version={user.avatarUpdatedAt?.getTime() ?? null}
+                size={54}
+              />
               <div className="min-w-0">
                 <p className="truncate text-base font-semibold">{user.name}</p>
                 <p className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">

@@ -21,20 +21,24 @@ export function UserAvatar({
   name,
   userId,
   hasAvatar,
+  version,
   size = 38,
   className,
 }: {
   name: string;
   userId: string;
   hasAvatar?: boolean;
+  /** avatarUpdatedAt timestamp — busts the browser cache after a photo change. */
+  version?: string | number | null;
   size?: number;
   className?: string;
 }) {
   if (hasAvatar) {
+    const src = `/api/users/${userId}/photo${version ? `?v=${encodeURIComponent(String(version))}` : ""}`;
     return (
       // eslint-disable-next-line @next/next/no-img-element -- authorized blob route, not a static asset
       <img
-        src={`/api/users/${userId}/photo`}
+        src={src}
         alt={`${name} photo`}
         width={size}
         height={size}

@@ -239,3 +239,34 @@ API route skips server-side authorization.
 `docs/demo-script.md` — a ~12-minute walkthrough (Student → Faculty/Coordinator
 → Admin; Student → Form → Approver; assignments; complaints; AI), with the
 screenshot fallback under `docs/demo/screenshots/`.
+
+## 15. Branding & profile-photo wave (2026-10-18)
+
+- **Sign-in page redesign** (`/sign-in`): light, professional layout in the
+  university's red/white/neutral palette — official Salim Habib University logo
+  slot (asset at `apps/web/public/branding/shu-logo.png`, sourced from
+  shu.edu.pk; a labelled placeholder renders automatically if the file is
+  removed), "Salim Habib University" + "UniSphere — Student Support & Management
+  Portal" headings, clear inline error/success messages, and a 390 px-safe
+  responsive layout. Browser title updated for the page; `favicon.ico`
+  replaced with the UniSphere crimson "U" placeholder (not a university logo).
+- **Profile photo (all five roles)**: the profile page now has a photo card —
+  upload (PNG/JPG/WebP ≤ 400 KB, validated in the browser *and* by magic-byte
+  checking on the server), replace, remove, and a default initials avatar when
+  unset. Photos are stored as bytes in Postgres and served from the guarded
+  `/api/users/[id]/photo` route with cache-busting; they persist across
+  refreshes and new logins.
+- **Demo accounts**: `DEMO-LOGIN.md` now leads with a five-role table
+  (Student / Faculty / Coordinator / FYP Head / Admin — university ID + email)
+  and a from-scratch development setup section (Clerk dashboard steps, seed +
+  link scripts, exact missing-secret messages). The development build shows a
+  demo roster under the sign-in form (roles/IDs only — never passwords, API
+  keys or codes); production builds do not render it.
+- **Real-UI verification**: `bun run verify:ui`
+  (`apps/web/scripts/verify-signin-photo.mjs`) drives a real headless Chrome
+  through token sign-in — **29 checks**: sign-in page at 1440/390 px, upload →
+  photo renders (profile + top bar) → persists after a full reload → persists
+  after a fresh browser + new login → removal restores the initials avatar and
+  the photo route 404s, plus every role account opening its own dashboard and
+  being refused `/admin/users`. Screenshots:
+  `docs/demo/screenshots/verify/`.

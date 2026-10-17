@@ -62,7 +62,7 @@ cd ../.. && bun run dev          # turbo — http://localhost:3000
 ```bash
 bun run lint        # oxlint
 bun run typecheck   # tsc --noEmit across the workspace
-bun run test        # vitest — 350+ tests incl. RBAC matrix + guard scan
+bun run test        # vitest — 509 tests incl. RBAC matrix + guard scan
 bun run build       # Next production build (typechecked)
 ```
 
@@ -73,7 +73,13 @@ cd apps/web
 bun run scripts/test-workflows.ts    # 165-check end-to-end acceptance across every workflow
 bun run scripts/eval-ai.ts           # 38-question AI retrieval eval (needs DATABASE_URL)
 bun run scripts/test-concurrency.ts  # last-GPU race acceptance test (needs DATABASE_URL)
+bun run verify:ui                    # real-browser check: sign-in page + profile photo upload/persistence (needs the app running + CLERK_SECRET_KEY)
 ```
+
+Branding: the official SHU logo lives at `apps/web/public/branding/shu-logo.png`
+(+ `.svg`), sourced from the university's own website — see
+`apps/web/public/branding/README.md` to replace it or fall back to the
+placeholder. Demo accounts for all five roles: `DEMO-LOGIN.md`.
 
 ## Modules (FYP-II scope — the deck's list, exactly)
 

@@ -10,6 +10,22 @@ and were created by the project's own provisioning scripts.
   https://unisphere-shu.vercel.app)
 - Sign-in page: `/sign-in` — one page for every role.
 
+## Five-role demo accounts
+
+| Role | University ID | Email |
+| ---- | ------------- | ----- |
+| Student | `S22CSC001` | `student@shu.edu.pk` |
+| Faculty | `FAC001` | `faculty@shu.edu.pk` |
+| Course Coordinator | `COORD001` | `coordinator@shu.edu.pk` |
+| FYP Head | `FYP001` | `fyphead@shu.edu.pk` |
+| Admin | `ADMIN001` | `admin@shu.edu.pk` |
+
+Every account signs in through the same `/sign-in` page and lands on its own
+role dashboard; the portal then enforces role restrictions server-side on every
+page, action and API route. Passwords are never displayed in the app UI or
+logs — see “The two ways in” below for how the shared demo credential is
+managed.
+
 ## The two ways in
 
 ### 1. University ID + password (provisioned accounts)
@@ -24,6 +40,12 @@ The seeded demo personas all share **one password: `UniSphere#Demo2026`**
 `faculty2@`, `faculty3@`, `saadia.karim@`, `coordinator@`, `fyphead@`,
 `mentor@`, `admin@shu.edu.pk`). The full persona list with registration
 numbers is in `README.md` → Demo accounts.
+
+The application itself never displays passwords, API keys or verification
+codes — not in the UI, not in logs, not in screenshots; this guide is the only
+place the demo credential is recorded. Development builds additionally show a
+**development-only demo roster** (roles + University IDs, no passwords) beneath
+the sign-in form; production builds do not render it.
 
 There is **no self-signup** — `AUTO_PROVISION="false"`. Accounts are issued by
 the coordination office: an admin creates them in `/admin/users` (single form
@@ -71,6 +93,33 @@ The demo login needs these environment variables present on the deployment
 (names only — values live in Vercel project settings, never in the repo):
 `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`,
 `NEXT_PUBLIC_APP_URL`, `DATABASE_URL`, `DIRECT_URL`.
+
+### Development setup from scratch (test accounts for all five roles)
+
+1. **Environment** — copy `apps/web/.env.example` → `apps/web/.env.local` and
+   fill in `DATABASE_URL` + `DIRECT_URL` (Neon/Postgres), the two Clerk keys
+   (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` — Clerk dashboard
+   → API keys) and `NEXT_PUBLIC_APP_URL` (e.g. `http://localhost:3000`).
+2. **Clerk dashboard configuration** (one-time, in the Clerk app):
+   - Enable **Email + password** sign-in (User & Authentication → Email).
+   - Optional: enable the **Google** SSO connection so “Continue with Google”
+     works.
+   - Keep **sign-ups disabled** — the portal provisions accounts itself
+     (`AUTO_PROVISION="false"`); there is no self-signup path.
+3. **Seed the database** (creates the five demo roles + their records):
+   `cd packages/db && bun run seed`
+4. **Create/link the Clerk users**: `cd apps/web && bun run scripts/link-clerk-users.ts`
+   — creates the persona accounts with the shared demo password, links each to
+   its seeded DB row and applies the Device-Trust bypass on every account.
+   Missing secrets are stated, not faked: without `CLERK_SECRET_KEY` the script
+   prints `SKIP: CLERK_SECRET_KEY is not set.` and does nothing; without
+   `DATABASE_URL` it prints `SKIP: DATABASE_URL is not set (seed must be loaded
+   first).` — fix the environment, then rerun. It never prints passwords.
+5. **Run the app** — `bun run dev` in `apps/web`, open `/sign-in`, sign in with
+   a University ID from the table above.
+
+There is no fake login path: authentication is Clerk’s; on success the portal
+only attaches the matching database row (and its role) to the session.
 
 If Clerk was ever reset (new app/keys), recreate the demo users with:
 
